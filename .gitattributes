@@ -1,0 +1,15 @@
+# 仓库内统一 LF，检出到 Windows 也不转换。
+# 为什么必须钉死：AGENTS.md §6 承诺「自研技能真源与三处副本逐字节一致」。
+# 如果行尾跟着平台走，同一次克隆在 Windows 与 Linux 上算出的哈希不同，
+# 那条承诺就无法被机械校验，只能靠人眼。
+* text=auto eol=lf
+
+# 二进制，不做任何转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary
+*.db binary
+*.zip binary
