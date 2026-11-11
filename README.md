@@ -55,4 +55,4 @@ echo $LASTEXITCODE     # 预期 1，见下方说明
 
 ## 许可
 
-私有项目，未定。
+[Apache License 2.0](LICENSE)。长期目标是走进 Apache 基金会，所以从第一天起就用 Apache 2.0。

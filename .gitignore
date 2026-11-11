@@ -3,6 +3,18 @@ target/
 *.class
 *.jar
 !.mvn/wrapper/maven-wrapper.jar
+*.war
+*.ear
+*.nar
+
+# 分发包
+*.zip
+*.tar.gz
+*.rar
+
+# JVM 崩溃日志
+hs_err_pid*
+replay_pid*
 
 # 运行期数据：本地 SQLite 与记忆文件绝不入库（审计数据是部署产物，不是源码）
 data/
