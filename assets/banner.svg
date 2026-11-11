@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" fill="none" role="img" aria-label="lytgos — Enterprise Agent OS">
+  <title>lytgos — Enterprise Agent OS</title>
+
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1200" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#050810"/>
+      <stop offset="0.55" stop-color="#081020"/>
+      <stop offset="1" stop-color="#0b0f1e"/>
+    </linearGradient>
+
+    <linearGradient id="border" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <linearGradient id="orbit" x1="-80" y1="-60" x2="80" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <linearGradient id="word" x1="290" y1="120" x2="700" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.6" stop-color="#dbeafe"/>
+      <stop offset="1" stop-color="#a5b4fc"/>
+    </linearGradient>
+
+    <linearGradient id="accent" x1="290" y1="0" x2="420" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </linearGradient>
+
+    <radialGradient id="core" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#f0f9ff"/>
+      <stop offset="0.35" stop-color="#67e8f9"/>
+      <stop offset="0.75" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#312e81"/>
+    </radialGradient>
+
+    <radialGradient id="coreGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.65"/>
+      <stop offset="0.55" stop-color="#6366f1" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="glowCyan" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="glowViolet" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#a855f7" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#1e293b" stroke-width="1" stroke-opacity="0.55"/>
+    </pattern>
+
+    <clipPath id="frame">
+      <rect width="1200" height="320" rx="28"/>
+    </clipPath>
+  </defs>
+
+  <!-- surface -->
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="320" fill="url(#surface)"/>
+    <rect width="1200" height="320" fill="url(#grid)" opacity="0.18"/>
+
+    <!-- ambient light -->
+    <ellipse cx="90" cy="30" rx="380" ry="260" fill="url(#glowCyan)"/>
+    <ellipse cx="1120" cy="310" rx="400" ry="280" fill="url(#glowViolet)"/>
+
+  <!-- right-side orbital decoration -->
+  <g opacity="0.55">
+    <circle cx="1130" cy="160" r="80" stroke="#233554" stroke-width="1"/>
+    <circle cx="1130" cy="160" r="132" stroke="#233554" stroke-width="1" stroke-dasharray="2 9"/>
+    <circle cx="1130" cy="160" r="188" stroke="#1b2a44" stroke-width="1" stroke-dasharray="2 13" opacity="0.8"/>
+    <circle cx="998" cy="160" r="3.5" fill="#22d3ee"/>
+    <circle cx="1130" cy="28" r="3" fill="#a855f7"/>
+    <circle cx="1130" cy="292" r="2.5" fill="#6366f1"/>
+    <circle cx="1262" cy="160" r="4" fill="#6366f1" opacity="0.8"/>
+  </g>
+
+  <!-- agent constellation -->
+  <g>
+    <g stroke="url(#orbit)" stroke-width="1" stroke-opacity="0.22">
+      <path d="M862 92 L982 142 L1082 104 M982 142 L902 212 L1012 252 L1122 212 L1082 104 M782 182 L902 212"/>
+    </g>
+    <g>
+      <circle cx="862" cy="92" r="7" fill="#22d3ee" opacity="0.35" filter="url(#softGlow)"/>
+      <circle cx="862" cy="92" r="3" fill="#7dd3fc"/>
+      <circle cx="982" cy="142" r="8" fill="#6366f1" opacity="0.35" filter="url(#softGlow)"/>
+      <circle cx="982" cy="142" r="3.5" fill="#a5b4fc"/>
+      <circle cx="1082" cy="104" r="7" fill="#a855f7" opacity="0.35" filter="url(#softGlow)"/>
+      <circle cx="1082" cy="104" r="3" fill="#c4b5fd"/>
+      <circle cx="902" cy="212" r="6" fill="#22d3ee" opacity="0.3" filter="url(#softGlow)"/>
+      <circle cx="902" cy="212" r="2.5" fill="#67e8f9"/>
+      <circle cx="1012" cy="252" r="6" fill="#6366f1" opacity="0.3" filter="url(#softGlow)"/>
+      <circle cx="1012" cy="252" r="2.5" fill="#a5b4fc"/>
+      <circle cx="1122" cy="212" r="7" fill="#a855f7" opacity="0.3" filter="url(#softGlow)"/>
+      <circle cx="1122" cy="212" r="3" fill="#c4b5fd"/>
+      <circle cx="782" cy="182" r="5" fill="#22d3ee" opacity="0.3" filter="url(#softGlow)"/>
+      <circle cx="782" cy="182" r="2" fill="#67e8f9"/>
+    </g>
+  </g>
+
+  <!-- logo mark -->
+  <g transform="translate(150 160)">
+    <circle r="86" fill="url(#coreGlow)" opacity="0.85"/>
+
+    <circle r="72" fill="none" stroke="url(#orbit)" stroke-width="1" stroke-dasharray="2 9" opacity="0.35"/>
+    <polygon points="72,0 36,62.4 -36,62.4 -72,0 -36,-62.4 36,-62.4" fill="none" stroke="url(#orbit)" stroke-width="1.6" stroke-opacity="0.65" stroke-linejoin="round"/>
+
+    <g stroke="url(#orbit)" stroke-width="1.2" stroke-opacity="0.32">
+      <path d="M0 0 L0 -52"/>
+      <path d="M0 0 L49.4 -16.1"/>
+      <path d="M0 0 L30.6 42.1"/>
+      <path d="M0 0 L-30.6 42.1"/>
+      <path d="M0 0 L-49.4 -16.1"/>
+    </g>
+
+    <circle r="20" fill="url(#core)" filter="url(#softGlow)" opacity="0.9"/>
+    <circle r="20" fill="url(#core)"/>
+    <circle r="20" stroke="#a5f3fc" stroke-width="1" stroke-opacity="0.7"/>
+    <circle r="7.5" fill="#f0f9ff"/>
+    <circle r="12.5" fill="none" stroke="#e0f2fe" stroke-width="1" stroke-opacity="0.45"/>
+
+    <circle cx="0" cy="-52" r="8" fill="#22d3ee" opacity="0.45" filter="url(#softGlow)"/>
+    <circle cx="0" cy="-52" r="4" fill="#7dd3fc"/>
+    <circle cx="49.4" cy="-16.1" r="7.5" fill="#a855f7" opacity="0.45" filter="url(#softGlow)"/>
+    <circle cx="49.4" cy="-16.1" r="3.8" fill="#c4b5fd"/>
+    <circle cx="30.6" cy="42.1" r="7" fill="#6366f1" opacity="0.45" filter="url(#softGlow)"/>
+    <circle cx="30.6" cy="42.1" r="3.5" fill="#a5b4fc"/>
+    <circle cx="-30.6" cy="42.1" r="6.5" fill="#22d3ee" opacity="0.4" filter="url(#softGlow)"/>
+    <circle cx="-30.6" cy="42.1" r="3.2" fill="#67e8f9"/>
+    <circle cx="-49.4" cy="-16.1" r="7" fill="#a855f7" opacity="0.4" filter="url(#softGlow)"/>
+    <circle cx="-49.4" cy="-16.1" r="3.5" fill="#c4b5fd"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="292" y="186" font-family="'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="104" font-weight="700" letter-spacing="1" fill="url(#word)">lytgos</text>
+
+  <rect x="294" y="204" width="132" height="3" rx="1.5" fill="url(#accent)"/>
+
+  <text x="294" y="240" font-family="'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="600" letter-spacing="8" fill="#67e8f9">ENTERPRISE AGENT OS</text>
+
+  <text x="294" y="273" font-family="'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="13.5" font-weight="500" letter-spacing="3.2" fill="#94a3b8">MULTI-AGENT · SELF-HOSTED · AUDITABLE</text>
+  </g>
+
+  <rect x="0.75" y="0.75" width="1198.5" height="318.5" rx="27.25" stroke="url(#border)" stroke-width="1.5" stroke-opacity="0.55"/>
+</svg>
