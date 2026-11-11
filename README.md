@@ -12,6 +12,7 @@
   <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?style=flat-square" alt="Spring Boot 4.1"/></a>
   <a href="#roadmap"><img src="https://img.shields.io/badge/status-skeleton-yellow?style=flat-square" alt="status"/></a>
   <a href="../../issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs welcome"/></a>
+  <a href="https://lytgos.tigerustmq.com"><img src="https://img.shields.io/badge/website-lytgos.tigerustmq.com-FF7A1A?style=flat-square" alt="website"/></a>
 </p>
 
 ---
