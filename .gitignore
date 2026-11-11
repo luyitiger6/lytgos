@@ -24,7 +24,9 @@ data/
 *.db
 *.db-wal
 *.db-shm
-MEMORY.md
+# 只忽略仓库根目录的 agent 记忆文件；带前导斜杠是必要的——
+# Windows 下 core.ignorecase=true，裸写 MEMORY.md 会连带忽略 site/docs/memory.md
+/MEMORY.md
 
 # 日志与临时文件
 logs/
