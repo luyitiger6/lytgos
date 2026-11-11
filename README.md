@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Java 原生的企业级 Agent OS 控制面</strong><br/>
-  <em>框架解决 agent 怎么跑起来，lytgos 解决谁能跑、跑多少、花多少、出过什么事</em>
+  <em>让每一个 Agent 都在治理之内运行</em>
 </p>
 
 <p align="center">
@@ -20,78 +20,57 @@
 
 企业落地 agent 通常这样开始：用框架跑通一个 demo，然后想接第二个业务、第二个团队。问题从这里出现——
 
-- **治理挂不上执行路径。** 框架自己跑完整个工具调用循环，配额、白名单、沙箱、审计没有地方可插，只能在框架外面看日志、事后反解析。
-- **审计永远是补丁。** 先跑通再补，补的时候发现日志里没有 token 数、没有耗时、没有 trace 关联，只能改架构重来。
+- **治理挂不上执行路径。** 框架自己完成整个推理与工具调用过程，配额、白名单、沙箱、审计没有地方可插，只能在框架外面看日志。
+- **审计永远是补丁。** 先跑通再补，补的时候发现记录里缺了用量、耗时与调用链路，只能改架构重来。
 
-lytgos 把这两件事放进内核：工具执行 100% 由自己发起，审计表从第一天就落库。
+lytgos 把这两件事放进内核：推理与工具执行由自己掌控，审计记录从第一天就写入。
 
-> **核心原则：应用可以自由组合能力，但不能绕过治理。** 每一次模型调用与工具执行，都走同一条带白名单、沙箱、审计的路径。
+> **核心原则：应用可以自由组合能力，但不能绕过治理。** 每一次模型调用与工具执行，都走同一条带白名单、沙箱与审计的路径。
 
-```text
-用户消息 → 组装 Prompt → 调 LLM → 有 Tool 调用？
-        → 沙箱白名单校验 → 执行 → 写 tool_invocations / llm_calls → 回灌继续
-```
-
-一个目录就是一个 Agent：`.lytgos/agents/<name>/AGENT.md` 的 frontmatter 声明用哪个模型、哪些 Tool、接哪个渠道，正文就是任务指令。装进来即受控。
+一个目录就是一个 Agent：声明式配置模型、工具与渠道，正文即任务指令。装进来即受控。
 
 ## Architecture
 
 ```text
-接入层    lytgos-cli     lytgos-web
-          channel-cli    channel-feishu    channel-wecom    channel-dingtalk
+接入层    命令行 · REST API · 飞书 / 企微 / 钉钉
               │
               ▼
-内核      lytgos-core
-          ReActLoop · PromptBuilder · ToolExecutor · AgentService · LytgosTool
+内核      会话管理 · 上下文装配 · 推理循环 · 工具调度 · Agent 管理
               ▲
-              │  接口定义于此，实现落在下游（依赖倒置）
-能力层    lytgos-provider   lytgos-memory   lytgos-tool   lytgos-knowledge   lytgos-persona
+              │  接口定义于此，实现落在下游
+能力层    模型接入 · 记忆 · 工具 · 知识库 · 人格
               ▲
-支撑层    lytgos-storage    lytgos-boot
+支撑层    持久化 · 启动装配
 ```
 
-`lytgos-core` 是所有跨模块接口的唯一归宿，本身不依赖任何内部模块；能力由下游模块实现。新增渠道或 Tool 只加新模块，内核不动。14 个 Maven 模块：
-
-| 层 | 模块 | 职责 |
-|---|---|---|
-| 接入层 | `lytgos-cli` | 命令行入口，12 个子命令，`chat` / `serve` / `gateway` 三种运行模式 |
-| 接入层 | `lytgos-web` | REST 服务，10 个端点，统一 `/api/v1` |
-| 接入层 | `lytgos-channel-cli` | CLI 交互渠道 |
-| 接入层 | `lytgos-channel-feishu` / `-wecom` / `-dingtalk` | 飞书 / 企微 / 钉钉长连接入站渠道 |
-| 内核 | `lytgos-core` | Session、Profile、ContextLoader、ReActLoop、PromptBuilder、ToolExecutor、AgentService |
-| 能力层 | `lytgos-provider` | Provider 显式映射，Agent 不感知模型厂商 |
-| 能力层 | `lytgos-memory` | 长期记忆、会话历史、按需召回 |
-| 能力层 | `lytgos-tool` | 内置 Tool、MCP Client、SandboxChecker |
-| 能力层 | `lytgos-knowledge` | 知识库：解析、切分、向量化索引、双路召回 |
-| 能力层 | `lytgos-persona` | 人格库：12 只内置预设 + 自定义 CRUD |
-| 支撑层 | `lytgos-storage` | SQLite 持久化：Session、Tool 调用、LLM 调用三张表 |
-| 支撑层 | `lytgos-boot` | Spring Boot 启动装配与依赖聚合 |
+- **接入层** 只负责把外部请求转换进来，同一份 Agent 配置在任何渠道可用
+- **内核** 不依赖任何能力模块，定义全部跨模块契约，新增能力只加模块、不改内核
+- **能力层** 五大能力彼此独立，可单独替换实现
+- **支撑层** 负责持久化与启动装配，单进程、单二进制部署
 
 ## Core capabilities
 
 | 能力 | 提供什么 |
 |---|---|
-| **对接 LLM** | 统一 Provider 抽象，`provider name → ChatModel` 是启动时构造的显式 Map，来自配置文件；禁止类型扫描，多引一个 starter 不会凭空多出一个 provider。 |
-| **ReAct 循环** | 完全自实现：只调 `ChatModel.call()` 拿模型原样响应，工具调用由 `ToolExecutor` 自己发起，Spring AI 仅做协议转换与 schema 生成。 |
-| **Memory** | 三层记忆：长期记忆 `MEMORY.md` 跨对话留存偏好，会话历史按轮数截断注入，`save_memory` / `recall_memory` 由 Agent 自主存取。 |
-| **Plugin Tool** | 9 个内置 Tool（文件 / Shell / HTTP / 记忆 / 通知）+ MCP Client + 三档扩展，统一 `LytgosTool` 接口，全部调用经 `SandboxChecker`。 |
-| **Web Service** | 10 个 REST 端点覆盖会话、Agent 调用、记忆、工具与运行信息，同步阻塞 + virtual thread，是业务系统集成的唯一通道。 |
-
-工具扩展分三档，按门槛递增：写 SKILL.md 复用社区 MCP server（零代码）→ 任意语言实现 MCP server（轻代码）→ Java `@Tool` Bean（重代码）。
+| **Agent 运行时** | 一个目录定义一个 Agent，声明模型、工具与渠道；多个 Agent 在同一实例并存，互不干扰。 |
+| **模型接入** | 统一的模型抽象，新增或切换模型只改配置，Agent 无需改动；配置驱动，不随依赖变化。 |
+| **记忆与上下文** | 长期记忆跨对话留存偏好，会话历史按轮数管理，Agent 自主决定何时存、何时取。 |
+| **工具与扩展** | 内置文件、命令、网络、记忆、通知能力；可接入 MCP 生态；三档扩展门槛按需选择。 |
+| **多渠道接入** | 命令行、REST API、飞书、企微、钉钉；同一份配置，任意渠道可用。 |
+| **治理与审计** | 沙箱白名单覆盖全部工具调用，每次模型调用与工具执行完整留痕；治理在执行路径上，不是事后补日志。 |
 
 ## Tech stack
 
 | 层 | 选型 |
 |---|---|
-| 语言 / 运行时 | Java 21（virtual thread 处理并发） |
+| 语言 / 运行时 | Java 21 |
 | 框架 | Spring Boot 4.x |
-| LLM 调用 | Spring AI Alibaba —— 只用协议转换与 `@Tool` schema 生成，禁用自动工具执行 |
+| 模型接入 | Spring AI Alibaba |
 | HTTP 服务 | Spring MVC + Java 21 virtual thread |
 | 命令行 | Picocli |
-| 持久化 | SQLite + Spring Data JPA，审计表 day one 写入 |
+| 持久化 | SQLite + Spring Data JPA |
 | MCP | MCP Java SDK |
-| 日志 / 指标 | Logback + SLF4J / Micrometer + Prometheus（扩展阶段） |
-| 构建与部署 | Maven 多模块，单进程 fat jar，`java -jar` 启动 |
+| 构建与部署 | Maven 多模块，单进程 fat jar |
 
 ## Quick start
 
@@ -116,10 +95,10 @@ java -jar lytgos-boot/target/lytgos.jar
 
 | 文档 | 回答什么问题 |
 |---|---|
-| [architecture.md](docs/design/architecture.md) | 目标形态：14 个模块、8 条不可违背原则、工作区结构、数据模型 |
-| [DemandAnalysis.md](docs/design/DemandAnalysis.md) | What：五大能力、三档功能分级、验收标准 |
-| [TechnicalSolution.md](docs/design/TechnicalSolution.md) | How：7 个关键决策、四层架构、实施路径 |
-| [AiProgrammingGuide.md](docs/design/AiProgrammingGuide.md) | 工程约束：怎么用 AI 按规格推进 |
+| [architecture.md](docs/design/architecture.md) | 目标形态：模块划分、不可违背原则、工作区结构与数据模型 |
+| [DemandAnalysis.md](docs/design/DemandAnalysis.md) | What：能力定义、功能分级与验收标准 |
+| [TechnicalSolution.md](docs/design/TechnicalSolution.md) | How：关键技术决策、架构与实施路径 |
+| [AiProgrammingGuide.md](docs/design/AiProgrammingGuide.md) | 工程约束：如何按规格推进实现 |
 
 ## License
 
