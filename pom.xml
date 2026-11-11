@@ -33,9 +33,6 @@
         <module>lytgos-tool</module>
         <module>lytgos-storage</module>
         <module>lytgos-channel-cli</module>
-        <module>lytgos-channel-feishu</module>
-        <module>lytgos-channel-wecom</module>
-        <module>lytgos-channel-dingtalk</module>
         <module>lytgos-web</module>
         <module>lytgos-cli</module>
         <module>lytgos-boot</module>

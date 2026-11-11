@@ -19,7 +19,7 @@
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：骨架可编译，无业务实现。** 14 个 Maven 模块已就位，`mvn clean package` 产出可执行 `lytgos.jar`；业务代码由后续 change 逐步填充。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
+**当前状态：骨架可编译，无业务实现。** 11 个 Maven 模块已就位，`mvn clean package` 产出可执行 `lytgos.jar`；业务代码由后续 change 逐步填充。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
 
 ## 2. 三层分工
 
@@ -122,7 +122,7 @@ lytgos/
     └── verification-before-completion/ 先证后宣布
 ```
 
-14 个模块目录与根 `pom.xml` 已就位：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。
+11 个模块目录与根 `pom.xml` 已就位：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。
 
 <!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant -->
 
