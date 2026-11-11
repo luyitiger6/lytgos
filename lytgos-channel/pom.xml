@@ -10,9 +10,9 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>lytgos-channel-cli</artifactId>
-    <name>lytgos-channel-cli</name>
-    <description>CLI 交互渠道：终端内的对话入口</description>
+    <artifactId>lytgos-channel</artifactId>
+    <name>lytgos-channel</name>
+    <description>渠道适配器：命令行、飞书、企微、钉钉等入口的统一落点</description>
 
     <dependencies>
         <dependency>
@@ -71,11 +71,19 @@
     </dependencies>
 
     <build>
-        <finalName>lytgos-channel-cli</finalName>
+        <finalName>lytgos-channel</finalName>
         <plugins>
+            <!--
+                classifier=boot：可执行 fat jar 作为附加产物（lytgos-channel-boot.jar），
+                主 artifact 保持普通 jar，否则被 lytgos-boot 依赖时拿到 BOOT-INF 结构。
+            -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>io.lytgos.channel.CliChannelApplication</mainClass>
+                    <classifier>boot</classifier>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

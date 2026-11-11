@@ -6,7 +6,7 @@
 - [x] 1.4 `AGENTS.md` 模块数量描述 14 → 11（两处）
 - [x] 1.5 `mvn clean package` 通过，`lytgos.jar` 正常产出
 
-## 未完成（依赖其他分支）
+## 收尾
 
-- [ ] 2.1 `lytgos-channel-cli` 改名为 `lytgos-channel`，包根收敛到 `io.lytgos.channel`
-- [ ] 2.2 `docs/architecture/module-dependencies.dot` 与 `.svg` 同步（图在 `docs/architecture-diagrams-20261112` 分支，合并后再更新）
+- [x] 2.1 `lytgos-channel-cli` 改名为 `lytgos-channel`，包根收敛到 `io.lytgos.channel`
+- [x] 2.2 `docs/architecture/module-dependencies.dot` 与 `.svg` 同步（channel 节点改为 `lytgos-channel`，节点数 14 → 11）

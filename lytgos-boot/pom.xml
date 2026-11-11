@@ -52,7 +52,7 @@
         </dependency>
         <dependency>
             <groupId>io.lytgos</groupId>
-            <artifactId>lytgos-channel-cli</artifactId>
+            <artifactId>lytgos-channel</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

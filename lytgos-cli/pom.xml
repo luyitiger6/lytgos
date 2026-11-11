@@ -32,7 +32,7 @@
         <plugins>
             <!--
                 classifier=boot：可执行 fat jar 作为附加产物（lytgos-cli-boot.jar），
-                主 artifact 保持普通 jar，否则被 lytgos-channel-cli 依赖时会拿到
+                主 artifact 保持普通 jar，否则被 lytgos-channel 依赖时会拿到
                 BOOT-INF 结构、编译期找不到类。
             -->
             <plugin>

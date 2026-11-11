@@ -32,7 +32,7 @@
         <module>lytgos-knowledge</module>
         <module>lytgos-tool</module>
         <module>lytgos-storage</module>
-        <module>lytgos-channel-cli</module>
+        <module>lytgos-channel</module>
         <module>lytgos-web</module>
         <module>lytgos-cli</module>
         <module>lytgos-boot</module>

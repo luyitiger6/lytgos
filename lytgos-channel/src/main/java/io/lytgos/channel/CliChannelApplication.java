@@ -1,4 +1,4 @@
-package io.lytgos.channel.cli;
+package io.lytgos.channel;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -10,7 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 完整装配（provider / tool / storage）由 {@code lytgos-boot} 负责，
  * 这里只起一个最小上下文，不引入其他能力模块。</p>
  */
-@SpringBootApplication(scanBasePackages = "io.lytgos.channel.cli")
+@SpringBootApplication(scanBasePackages = "io.lytgos.channel")
 public class CliChannelApplication {
 
     public static void main(String[] args) {

@@ -109,12 +109,16 @@ lytgos 把这两件事放进内核：**推理与工具执行由自己掌控，�
 | `lytgos-persona` | 人格库：内置模板与自定义人格管理 |
 | `lytgos-tool` | 工具：内置工具、MCP Client、ToolRegistry、Sandbox |
 | `lytgos-storage` | 持久化：会话、审计表、schema 迁移 |
-| `lytgos-channel-cli` | CLI 渠道实现 |
+| `lytgos-channel` | 渠道适配器：命令行、飞书、企微、钉钉等入口 |
 | `lytgos-web` | REST API 与 OpenAPI 文档 |
 | `lytgos-cli` | Picocli 命令行入口 |
 | `lytgos-boot` | Spring Boot 启动与自动配置、依赖聚合 |
 
 模块之间通过接口解耦，跨模块契约放在 `lytgos-core`，由下游模块实现（依赖倒置），不允许循环依赖。
+
+![模块依赖图](docs/architecture/module-dependencies.svg)
+
+图的数据源是 [`module-dependencies.dot`](docs/architecture/module-dependencies.dot)，改图先改 `.dot` 再重新生成 `.svg`。
 
 ## 技术栈
 
@@ -244,7 +248,7 @@ lytgos session list              # 查看会话历史
 
 lytgos 目前处于**骨架阶段**：
 
-- 11 个 Maven 模块已就位，`mvn clean package` 可产出三个可执行入口：`lytgos.jar`（完整装配）、`lytgos-cli-boot.jar`（命令行）、`lytgos-channel-cli.jar`（CLI 渠道，监听 8081）
+- 11 个 Maven 模块已就位，`mvn clean package` 可产出三个可执行入口：`lytgos.jar`（完整装配）、`lytgos-cli-boot.jar`（命令行）、`lytgos-channel-boot.jar`（渠道，监听 8081）
 - 需求、技术方案、架构与 AI 编程指南已完成，作为内部设计资料维护
 - 业务实现按 OpenSpec change 逐个推进，先规格后代码
 - 质量闸门（Harness）已启用，未接入的闸门会显式返回 `NOT_READY`，不伪造绿灯
