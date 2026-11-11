@@ -13,16 +13,16 @@ Java 生态的企业级 **Agent OS 控制面**。
 | 有 | 没有（刻意） |
 |---|---|
 | `AGENTS.md` 契约、`openspec/` 工件层配置 | `pom.xml` |
-| `harness/` 能力层（6 道闸门，其中 4 道未就绪） | 任何 `lytgos-*` 模块目录 |
+| `harness/` 能力层（6 道闸门，其中 5 道未就绪） | 任何 `lytgos-*` 模块目录 |
 | `docs/design/architecture.md` 设计方案（草稿 v0.2） | 任何第三方依赖 |
 | `.agents/skills/` 两个强制技能 | 前端 |
 
-技术选型（Spring Boot 3.x 还是 4.x、模块划分、SQLite 细节）尚未定稿，定稿前不落地代码。
+技术选型已定：**Spring Boot 4.x + Spring AI 2.x + JDK 21 + Maven 多模块 + SQLite**。模块目录、pom、依赖仍未创建——等首个 change 走完 ② 放行再落地。
 
 ## 快速上手
 
 ```powershell
-# 骨架自检：现在应该是 2 通过 + 4 未就绪
+# 骨架自检：现在应该是 1 通过 + 5 未就绪
 powershell -File harness\run-all.ps1
 echo $LASTEXITCODE     # 预期 1，见下方说明
 ```
@@ -39,17 +39,17 @@ echo $LASTEXITCODE     # 预期 1，见下方说明
 
 没有代码时「全部通过」是一个假绿灯——它会让后来的人误以为验收过了。所以未就绪也让总闸门返回 1。
 
-第一个模块落地后，01 / 02 / 04 / 05 会依次转为真实判定，`run-all.ps1` 才会返回 0。
+第一个模块落地后，01 / 02 / 03 / 04 / 05 会依次转为真实判定，`run-all.ps1` 才会返回 0。
 
 ## 设计稿
 
-[`docs/design/architecture.md`](docs/design/architecture.md) —— 含 8 条已锁定决定、9 模块依赖图、核心抽象签名、三张表 DDL、10 个 REST 端点、12 个 CLI 命令、8 条故事 → Demo 对照，以及**两项待你拍板**（命名统一、`gateway` 语义）。
+[`docs/design/architecture.md`](docs/design/architecture.md) —— 含 8 条已锁定决定、8 模块依赖图、核心抽象签名、三张表 DDL、10 个 REST 端点、12 个 CLI 命令（核心阶段落 11 个）、8 条故事 → Demo 对照。命名与版本已定；`gateway` 语义延后。
 
 ## 下一步
 
-1. 拍板设计稿 §10 的两项（命名、`gateway`）
-2. `/opsx:propose add-kernel-react-loop`（capabilities: `agent-runtime` + `model-gateway`）
-3. 人类审阅放行 → `/opsx:apply`
+1. `/opsx:propose add-kernel-react-loop`（capabilities: `agent-runtime` + `model-gateway`）
+2. 人类审阅放行 → `/opsx:apply`
+3. 首个 change 跑通后再建远端仓库
 
 ## 许可
 

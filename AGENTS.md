@@ -13,13 +13,13 @@
 | 项 | 取值 | 状态 |
 |---|---|---|
 | JDK | 21 | 已定 |
-| 框架 | Spring Boot 3.x **或** 4.x | **待定**（3.5 已 EOL，见 `docs/design/architecture.md` §11） |
+| 框架 | Spring Boot 4.x + Spring AI 2.x | 已定（3.5 已 EOL；补丁版本在首个 change 立项时锁定） |
 | 构建 | Maven 多模块，单仓库，**不使用 git submodule** | 已定 |
 | 部署 | 单进程 fat jar：`mvn clean package` → `java -jar` | 已定 |
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：只有骨架，没有代码。** 模块目录、pom、依赖一律未创建——技术选型未定稿前不落地。
+**当前状态：只有骨架，没有代码。** 模块目录、pom、依赖一律未创建——等首个 change 走完 ② 放行再落地。
 
 ## 2. 三层分工
 
