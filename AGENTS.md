@@ -19,7 +19,7 @@
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：骨架可编译，无业务实现。** 14 个 Maven 模块已就位，`mvn clean package` 产出可执行 `lytgos.jar`；业务代码由后续 change 逐步填充。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
+**当前状态：骨架可编译，无业务实现。** 11 个 Maven 模块已就位，`mvn clean package` 产出可执行 `lytgos.jar`；业务代码由后续 change 逐步填充。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
 
 ## 2. 三层分工
 
@@ -40,6 +40,7 @@
 5. **验收标准不能由实现者自己解释**：spec 里的 `Scenario` 就是验收标准，解释权归 spec，不归写代码的人。
 6. **任何改动先走分支**：`main` 只承载合并与同步推送。新功能 `feat/<简述>-<yyyyMMdd>`，缺陷补丁 `fix/<简述>-<yyyyMMdd>`；跑通验证并交人审阅后才合并。
 7. **审计优先于功能**：`tool_invocations` 与 `llm_calls` 的写入不允许为了「先跑通」而注释掉或后置。这是产品卖点，不是可选项。
+8. **汇报 change 必须说清工作内容**：只列「名称 / tasks 进度 / 是否跟踪」三列不算汇报。每个 change 至少说清它要交付什么、现在做到哪、还剩哪些活；说不清说明它还没有规划，应先补 proposal 或删除。06 号闸门强制每个 change 有合格的 `proposal.md`。
 
 ## 4. 本项目特有的三条不可越线
 
@@ -116,15 +117,16 @@ lytgos/
 │       ├── 02-test.ps1                  行为对不对
 │       ├── 03-static-guard.ps1          有没有伪造绿灯
 │       ├── 04-dependency-direction.ps1  依赖方向 + 禁止自动工具执行（待接入）
-│       └── 05-audit-invariant.ps1       审计不变量 I1/I2/I3（待接入）
+│       ├── 05-audit-invariant.ps1       审计不变量 I1/I2/I3（待接入）
+│       └── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
 └── .agents/skills/            【行为层】
     ├── systematic-debugging/          四阶段根因法
     └── verification-before-completion/ 先证后宣布
 ```
 
-14 个模块目录与根 `pom.xml` 已就位：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。
+11 个模块目录与根 `pom.xml` 已就位：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。
 
-<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant -->
+<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract -->
 
 上面这行是**闸门清单的机器可读副本**：新增或删除闸门时同步更新，`00-layout-check.ps1` 会把它与 `harness/checks/*.ps1` 的实际文件比对，不一致直接退出码 1。
 

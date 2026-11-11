@@ -20,5 +20,36 @@
             <artifactId>lytgos-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>4.7.7</version>
+        </dependency>
     </dependencies>
+
+    <build>
+        <finalName>lytgos-cli</finalName>
+        <plugins>
+            <!--
+                classifier=boot：可执行 fat jar 作为附加产物（lytgos-cli-boot.jar），
+                主 artifact 保持普通 jar，否则被 lytgos-channel 依赖时会拿到
+                BOOT-INF 结构、编译期找不到类。
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>io.lytgos.cli.LytgosCommand</mainClass>
+                    <classifier>boot</classifier>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

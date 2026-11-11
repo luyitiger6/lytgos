@@ -22,8 +22,11 @@
 | `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled` | 未就绪（无源码） |
 | `04-dependency-direction` | 依赖方向 + 禁 `ChatClient`/`ToolCallingManager` | 未接入 |
 | `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入 |
+| `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
 
 `04` 与 `05` 是**空壳**，只有一句 `NOT_READY` 和一段计划说明。空壳比没有更诚实：它让每次跑 harness 都能看见「这两道还没接」，而不是在 README 里被忘掉。
+
+`06` 的存在理由：`openspec/changes/` 下一旦出现只有目录、没有 proposal 的空壳，汇报时只能给出「0/0，无 tasks」这类状态——**状态不是工作内容**，读者看完仍不知道该 change 要交付什么。这条闸门把「必须能说清工作内容」变成可判定条件。
 
 ## 新增一道闸门
 
