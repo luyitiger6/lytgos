@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 60" width="256" height="60">
+  <!-- ── Mark: stacked layer + governing node ── -->
+  <path d="M 8,10 L 8,52 L 40,52" fill="none" stroke="#f97316" stroke-width="7" stroke-linecap="square"/>
+  <rect x="30" y="10" width="14" height="14" rx="2" fill="#ea6a00"/>
+
+  <!-- ── Wordmark ── -->
+  <text x="56" y="46"
+        font-family="'Arial Black','Helvetica Neue',Arial,sans-serif"
+        font-size="43" font-weight="900" letter-spacing="-2"
+        fill="#f97316">lyt<tspan fill="#ea6a00">gos</tspan></text>
+</svg>

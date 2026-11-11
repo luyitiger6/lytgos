@@ -108,6 +108,11 @@ lytgos/
 │   ├── 项目调研.md             业界调研与立项论证
 │   ├── 需求文档.md
 │   └── 技术文档.docx
+├── site/                      官网（VitePress，中英双语；node_modules 与构建产物不入库）
+│   ├── .vitepress/config.mts   base / locales / 导航 / 侧边栏
+│   ├── .vitepress/theme/       橙黑主题（custom.css）与首页 Home.vue
+│   ├── index.md · zh/index.md  英文首页（根）与中文首页
+│   └── docs/ · zh/docs/        文档页，中英一一镜像
 ├── harness/                   【能力层】
 │   ├── run-all.ps1            总闸门：三个退出状态（0 通过 / 2 未就绪 / 其余失败）
 │   ├── README.md              闸门清单与新增方法
@@ -121,7 +126,8 @@ lytgos/
 │       └── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
 └── .agents/skills/            【行为层】
     ├── systematic-debugging/          四阶段根因法
-    └── verification-before-completion/ 先证后宣布
+    ├── verification-before-completion/ 先证后宣布
+    └── openspec-*/                     六个 OpenSpec 工作流技能（propose / apply / archive / explore / sync-specs / update-change）
 ```
 
 11 个模块目录与根 `pom.xml` 已就位：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。
