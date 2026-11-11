@@ -1,0 +1,57 @@
+/*
+ * lytgos 模块依赖图 —— 数据源
+ *
+ * 生成：dot -Tsvg docs/architecture/module-dependencies.dot -o docs/architecture/module-dependencies.svg
+ *
+ * 为什么按层聚合而不是画 14 个节点：
+ *   14 个模块的依赖边是纯星形（全部 -> core），逐节点画出只增加连线不增加信息。
+ *   按层聚合后，图回答两个问题就够：谁依赖谁、core 有没有出边。
+ *
+ * 约束：所有模块单向依赖 lytgos-core；lytgos-core 不依赖任何同项目模块。
+ *       lytgos-boot 聚合全部模块，用虚线区分「装配关系」与「编译依赖」。
+ */
+digraph lytgos {
+    graph [
+        rankdir=TB
+        nodesep=0.42
+        ranksep=0.62
+        fontname="Segoe UI, Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif"
+        fontsize=10
+        bgcolor="white"
+        pad=0.3
+    ];
+    node [
+        shape=box
+        style="rounded,filled"
+        fontname="Segoe UI, Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif"
+        fontsize=10
+        margin="0.18,0.10"
+        fillcolor="#f6f8fa"
+        color="#d0d7de"
+        penwidth=1
+    ];
+    edge [
+        color="#57606a"
+        arrowsize=0.6
+        penwidth=1
+    ];
+
+    boot [label="lytgos-boot\n聚合装配，不含业务逻辑",
+          fillcolor="#ddf4ff", color="#54aeff"];
+
+    entry [label="entry\nlytgos-web · lytgos-cli"];
+    channel [label="channel\nlytgos-channel-cli · -feishu · -wecom · -dingtalk"];
+    capability [label="capability\nlytgos-provider · -memory · -tool · -knowledge · -persona"];
+    support [label="support\nlytgos-storage"];
+
+    core [label="lytgos-core\n跨模块契约与 ReAct 内核 · 零出边",
+          fillcolor="#dafbe1", color="#4ac26b", penwidth=1.5];
+
+    /* 装配关系 */
+    edge [style=dashed, color="#afb8c1"];
+    boot -> {entry channel capability support};
+
+    /* 编译依赖：全部指向 core，不允许反向 */
+    edge [style=solid, color="#57606a"];
+    {entry channel capability support} -> core;
+}

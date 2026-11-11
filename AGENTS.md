@@ -40,6 +40,7 @@
 5. **验收标准不能由实现者自己解释**：spec 里的 `Scenario` 就是验收标准，解释权归 spec，不归写代码的人。
 6. **任何改动先走分支**：`main` 只承载合并与同步推送。新功能 `feat/<简述>-<yyyyMMdd>`，缺陷补丁 `fix/<简述>-<yyyyMMdd>`；跑通验证并交人审阅后才合并。
 7. **审计优先于功能**：`tool_invocations` 与 `llm_calls` 的写入不允许为了「先跑通」而注释掉或后置。这是产品卖点，不是可选项。
+8. **结构变更必须配图**：新增、删除或重命名模块，或调整依赖方向与分层归属时，`docs/architecture/` 的 `.dot` 源与 `.svg` 产物必须同一次提交更新，不要只改文字描述。
 
 ## 4. 本项目特有的三条不可越线
 
@@ -98,11 +99,13 @@ lytgos/
 ├── README.md                  人看的快速上手
 ├── .gitignore
 ├── openspec/                  【工件层】config.yaml 已就位；specs/ 与 changes/ 由第一个 change 创建
-├── docs/design/               （本地资料，不入库）设计基准，以本节四份为准
-│   ├── architecture.md        项目指南：目标形态、14 个模块、8 条不可违背原则、工程约束
-│   ├── DemandAnalysis.md      需求文档（What）
-│   ├── TechnicalSolution.md   技术方案（How）
-│   └── AiProgrammingGuide.md  AI 编程指南（约束与任务拆解方式）
+├── docs/
+│   ├── design/                （本地资料，不入库）设计基准，以本节四份为准
+│   │   ├── architecture.md    项目指南：目标形态、14 个模块、8 条不可违背原则、工程约束
+│   │   ├── DemandAnalysis.md  需求文档（What）
+│   │   ├── TechnicalSolution.md 技术方案（How）
+│   │   └── AiProgrammingGuide.md AI 编程指南（约束与任务拆解方式）
+│   └── architecture/          架构图：.dot 源与 .svg 产物，入库
 ├── 项目相关文档/               原始资料（历史版本；与 docs/design/ 冲突时以 docs/design/ 为准）
 │   ├── 项目调研.md             业界调研与立项论证
 │   ├── 需求文档.md
