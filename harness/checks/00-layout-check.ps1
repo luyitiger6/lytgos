@@ -20,7 +20,6 @@ $required = @(
     'openspec/config.yaml'
     'openspec/specs'
     'openspec/changes/archive'
-    'docs/design/architecture.md'
     '.agents/skills/systematic-debugging/SKILL.md'
     '.agents/skills/verification-before-completion/SKILL.md'
 )

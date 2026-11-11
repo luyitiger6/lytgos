@@ -98,12 +98,11 @@ lytgos/
 ├── README.md                  人看的快速上手
 ├── .gitignore
 ├── openspec/                  【工件层】config.yaml 已就位；specs/ 与 changes/ 由第一个 change 创建
-├── docs/
-│   └── design/                基准文档（以本节四份为准）
-│       ├── architecture.md    项目指南：目标形态、14 个模块、8 条不可违背原则、工程约束
-│       ├── DemandAnalysis.md  需求文档（What）
-│       ├── TechnicalSolution.md 技术方案（How）
-│       └── AiProgrammingGuide.md AI 编程指南（约束与任务拆解方式）
+├── docs/design/               （本地资料，不入库）设计基准，以本节四份为准
+│   ├── architecture.md        项目指南：目标形态、14 个模块、8 条不可违背原则、工程约束
+│   ├── DemandAnalysis.md      需求文档（What）
+│   ├── TechnicalSolution.md   技术方案（How）
+│   └── AiProgrammingGuide.md  AI 编程指南（约束与任务拆解方式）
 ├── 项目相关文档/               原始资料（历史版本；与 docs/design/ 冲突时以 docs/design/ 为准）
 │   ├── 项目调研.md             业界调研与立项论证
 │   ├── 需求文档.md
