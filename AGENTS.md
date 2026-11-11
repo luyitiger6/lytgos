@@ -99,7 +99,15 @@ lytgos/
 ├── .gitignore
 ├── openspec/                  【工件层】config.yaml 已就位；specs/ 与 changes/ 由第一个 change 创建
 ├── docs/
-│   └── design/architecture.md 设计方案（草稿 v0.2，含两项待定）
+│   └── design/                基准文档（以本节四份为准）
+│       ├── architecture.md    项目指南：目标形态、14 个模块、8 条不可违背原则、工程约束
+│       ├── DemandAnalysis.md  需求文档（What）
+│       ├── TechnicalSolution.md 技术方案（How）
+│       └── AiProgrammingGuide.md AI 编程指南（约束与任务拆解方式）
+├── 项目相关文档/               原始资料（历史版本；与 docs/design/ 冲突时以 docs/design/ 为准）
+│   ├── 项目调研.md             业界调研与立项论证
+│   ├── 需求文档.md
+│   └── 技术文档.docx
 ├── harness/                   【能力层】
 │   ├── run-all.ps1            总闸门：三个退出状态（0 通过 / 2 未就绪 / 其余失败）
 │   ├── README.md              闸门清单与新增方法

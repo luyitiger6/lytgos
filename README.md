@@ -14,7 +14,7 @@ Java 生态的企业级 **Agent OS 控制面**。
 |---|---|
 | `AGENTS.md` 契约、`openspec/` 工件层配置 | `pom.xml` |
 | `harness/` 能力层（6 道闸门，其中 5 道未就绪） | 任何 `lytgos-*` 模块目录 |
-| `docs/design/architecture.md` 设计方案（草稿 v0.2） | 任何第三方依赖 |
+| `docs/design/architecture.md` 项目指南（目标形态 + 工程约束） | 任何第三方依赖 |
 | `.agents/skills/` 两个强制技能 | 前端 |
 
 技术选型已定：**Spring Boot 4.x + Spring AI 2.x + JDK 21 + Maven 多模块 + SQLite**。模块目录、pom、依赖仍未创建——等首个 change 走完 ② 放行再落地。
@@ -43,13 +43,15 @@ echo $LASTEXITCODE     # 预期 1，见下方说明
 
 ## 设计稿
 
-[`docs/design/architecture.md`](docs/design/architecture.md) —— 含 8 条已锁定决定、8 模块依赖图、核心抽象签名、三张表 DDL、10 个 REST 端点、12 个 CLI 命令（核心阶段落 11 个）、8 条故事 → Demo 对照。命名与版本已定；`gateway` 语义延后。
+[`docs/design/architecture.md`](docs/design/architecture.md) —— 项目指南：技术栈、14 个模块结构、8 条不可违背原则、工作区结构、`AGENT.md` 数据模型、三张表 DDL、10 个 REST 端点、12 个 CLI 命令、Tool 体系、四周节奏与常见陷阱。
+
+配套：`DemandAnalysis.md`（需求）、`TechnicalSolution.md`（技术方案）、`AiProgrammingGuide.md`（AI 编程指南）。三者都已就位，等首个 change 立项。
 
 ## 下一步
 
 1. `/opsx:propose add-kernel-react-loop`（capabilities: `agent-runtime` + `model-gateway`）
 2. 人类审阅放行 → `/opsx:apply`
-3. 首个 change 跑通后再建远端仓库
+3. 远端仓库：<https://github.com/luyitiger6/lytgos>（已配置 `origin`）
 
 ## 许可
 
