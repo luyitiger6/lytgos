@@ -21,6 +21,46 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-persona</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-provider</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-memory</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-knowledge</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-tool</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-storage</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-web</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-cli</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
