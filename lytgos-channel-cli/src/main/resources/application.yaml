@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: lytgos-channel-cli
+
+server:
+  # 8080 常被本机其他服务（如 VMware vmnat）占用，这里固定 8081
+  port: 8081
