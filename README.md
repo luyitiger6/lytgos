@@ -91,15 +91,6 @@ mvn clean package
 java -jar lytgos-boot/target/lytgos.jar
 ```
 
-## Documentation
-
-| 文档 | 回答什么问题 |
-|---|---|
-| [architecture.md](docs/design/architecture.md) | 目标形态：模块划分、不可违背原则、工作区结构与数据模型 |
-| [DemandAnalysis.md](docs/design/DemandAnalysis.md) | What：能力定义、功能分级与验收标准 |
-| [TechnicalSolution.md](docs/design/TechnicalSolution.md) | How：关键技术决策、架构与实施路径 |
-| [AiProgrammingGuide.md](docs/design/AiProgrammingGuide.md) | 工程约束：如何按规格推进实现 |
-
 ## License
 
 [Apache License 2.0](LICENSE)
