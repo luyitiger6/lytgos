@@ -70,23 +70,12 @@ lytgos 把这两件事放进内核：**推理与工具执行由自己掌控，�
 
 ## 架构
 
-```text
-接入层   CLI · REST API · 定时任务 · 飞书 / 企微 / 钉钉
-            │
-            ▼
-内核层   AgentService · ReActLoop · PromptBuilder · ToolExecutor · ContextLoader
-            │
-            ▼
-能力层   Provider · Memory · Tool · Knowledge · Persona
-            │
-            ▼
-支撑层   Storage（SQLite）· Boot 装配
-```
+<img src="assets/architecture.svg" alt="lytgos 运行时架构：接入层 → 引擎层 → 能力层 → 基础层，治理与审计贯穿每次模型调用与工具执行" width="100%">
 
-- **接入层** 只负责把外部消息转换进来，同一份 Agent 配置在任何渠道可用
-- **内核层** 不依赖任何能力模块，定义全部跨模块契约，新增能力只加模块、不改内核
-- **能力层** 各能力彼此独立，可单独替换实现
-- **支撑层** 负责持久化与启动装配，单进程、单二进制部署
+- **接入层** 只负责消息进出，同一份 Agent 配置在任何渠道可用
+- **引擎层** 是 Agent 的大脑，自实现 ReAct 循环，不依赖任何具体能力实现
+- **能力层** 各能力通过抽象接口解耦，可单独替换实现
+- **基础层** 负责持久化、配置与启动装配，Session 与审计数据落 SQLite，Profile / Bootstrap / Skill 落文件系统
 
 一次消息处理的完整链路：
 
