@@ -4,7 +4,7 @@
 
 这条链路跑通之前，Memory、Web Service、SQLite 审计都没有落脚点——它们都是挂在这条链路上的能力，而不是先建好再往里接。
 
-第 1 周的可演示成果是：`lytgos chat "北京今天穿什么"`，Agent 自己调 HTTP Tool 拿到天气，给出穿衣建议，并能连续多轮。
+第 1 周的可演示成果是：`lytgos chat "查一下 luyitiger6/lytgos 这个仓库"`，Agent 自己调 HTTP Tool 拿到仓库信息，给出 star 数与主语言，并能连续多轮。
 
 ## What Changes
 
