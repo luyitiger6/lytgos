@@ -124,7 +124,9 @@
   - **验证**：07 六条全 PASS、08 八条全 PASS，均退出码 0
 
 - [x] 8.2 模型 id 统一为 `deepseek-flash`
-  - `GET https://api.deepseek.com/models` 实测返回 `deepseek-flash`（DeepSeek-V4.1-Flash）与 `deepseek-v4-pro`，`deepseek-chat` 已不在列表；带 `tools` 的请求能正常返回 `tool_calls`，`finish_reason` 为 `tool_calls`
+  - `GET https://api.deepseek.com/models` 只返回 `deepseek-flash`（DeepSeek-V4.1-Flash）与 `deepseek-v4-pro`
+  - **旧 id 仍可用**：`deepseek-chat` 不在列表里，但直接调用返回 200，响应 `model` 字段为 `deepseek-flash`——服务端把它当兼容别名路由到新模型。所以第一周的验收是真实的，模型名从来不是故障源；当时与现在的失败分别是 401（key 无效）与 open-meteo 连接超时
+  - 换新 id 的理由：用户指定 V4-Flash；显式写新 id 不依赖别名隐式跳转，响应里的 `model` 与配置能对上
   - 改动范围：`Workspace` 的 config 与 agent 模板、`ProfileCommand` 的 agent 模板、08 的三个 agent、`README`、`site` 中英文六处文档、`SandboxCheckerTest` / `HttpToolTest` / `ReActLoopTest` 的测试字面量
   - **待跟进**：`ChatRequest` 没有 model 字段，agent 级 `provider.model` 目前只做必填校验、不参与请求；让 agent 级覆盖生效需改契约，属后续 change
 
