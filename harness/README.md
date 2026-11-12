@@ -24,7 +24,7 @@
 | `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入（storage 未落地） |
 | `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
 | `07-week1-acceptance` | 第 1 周端到端：init → 幂等 → 对话+工具往返 → 反例 → 多轮上下文 | 生效（需 jar + `DEEPSEEK_API_KEY`；六条已全 PASS） |
-| `08-mcp-acceptance` | MCP 工具与内置工具走同一条治理路径：双路径对照各留 `tool_call` 日志、来源标注、边界提示、命令白名单、无残留子进程 | 生效（需 jar + `DEEPSEEK_API_KEY` + 测试夹具） |
+| `08-mcp-acceptance` | MCP 两种形态走同一条治理路径：三条路径（内置 / 远程 URL / 本地 stdio）各留 `tool_call` 日志、来源标注、按形态的边界提示、命令白名单与域名白名单、无残留子进程 | 生效（需 jar + 测试夹具；第 1/2/3 条需 `DEEPSEEK_API_KEY`，第 2/4/5 条的远程部分需 `AMAP_MCP_KEY`） |
 
 `05` 是**空壳**，只有一句 `NOT_READY` 和一段计划说明。空壳比没有更诚实：它让每次跑 harness 都能看见「这道还没接」，而不是在 README 里被忘掉。
 
@@ -33,6 +33,8 @@
 `04` 的六条规则：`lytgos-provider` 之外禁止 import Spring AI；禁 `ChatClient`；禁 `ToolCallingManager`；禁 `@ConditionalOnBean` / `ObjectProvider<ChatModel>` / `getBeansOfType`（这三者会让 provider 集合从配置驱动退化成 classpath 驱动）；`lytgos-core` 的 pom 不依赖 Spring；`lytgos-core` 不 import 其他模块。
 
 `07` 需要真实模型才能跑完第 3/5/6 条（对话、沙箱反例、多轮上下文）。没有 `DEEPSEEK_API_KEY` 时这三条记 SKIP 并返回 2——没跑过的检查不能算通过。
+
+`08` 的三条路径：A 内置 `http_get`、B 远程高德 `maps_weather`（`url`）、C 本地 stdio 夹具（`command`）。缺对应 key 时该条记 SKIP 并返回 2；两条沙箱断言不依赖任何 key，因为拒绝发生在建连接之前。
 
 `06` 的存在理由：`openspec/changes/` 下一旦出现只有目录、没有 proposal 的空壳，汇报时只能给出「0/0，无 tasks」这类状态——**状态不是工作内容**，读者看完仍不知道该 change 要交付什么。这条闸门把「必须能说清工作内容」变成可判定条件。
 
