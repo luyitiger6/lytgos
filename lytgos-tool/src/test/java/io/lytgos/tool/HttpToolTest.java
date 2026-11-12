@@ -59,9 +59,9 @@ class HttpToolTest {
     }
 
     @Test
-    @DisplayName("缺少 url 参数时报错，且不提网")
-    void rejectsMissingUrl() {
-        assertThrows(IllegalArgumentException.class, () -> tool().execute(Map.of()));
+    @DisplayName("缺少 url 参数报参数错误，不提网也不中断")
+    void rejectsMissingUrlAsArgumentError() {
+        assertThrows(LytgosException.InvalidToolArgument.class, () -> tool().execute(Map.of()));
     }
 
     @Test

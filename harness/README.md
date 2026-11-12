@@ -24,6 +24,7 @@
 | `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入（storage 未落地） |
 | `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
 | `07-week1-acceptance` | 第 1 周端到端：init → 幂等 → 对话+工具往返 → 反例 → 多轮上下文 | 生效（需 jar + `DEEPSEEK_API_KEY`；六条已全 PASS） |
+| `08-mcp-acceptance` | MCP 工具与内置工具走同一条治理路径：双路径对照各留 `tool_call` 日志、来源标注、边界提示、命令白名单、无残留子进程 | 生效（需 jar + `DEEPSEEK_API_KEY` + 测试夹具） |
 
 `05` 是**空壳**，只有一句 `NOT_READY` 和一段计划说明。空壳比没有更诚实：它让每次跑 harness 都能看见「这道还没接」，而不是在 README 里被忘掉。
 

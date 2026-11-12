@@ -83,20 +83,22 @@ public final class SandboxChecker {
     /** 校验 URL 的协议与域名，返回解析后的 URI。 */
     public URI checkDomain(String url) {
         if (url == null || url.isBlank()) {
-            throw new LytgosException.SandboxViolation("URL 为空");
+            throw new LytgosException.InvalidToolArgument("URL 为空");
         }
         URI uri;
         try {
             uri = URI.create(url.trim());
         } catch (IllegalArgumentException e) {
             // 模型自己拼 URL 时常把未转义的 % 或空格写进 query（如 wttr.in 的 ?format=%l:+%c）。
-            // 这是输入格式错误，不是白名单拦截——两者混成同一个「无法解析」会让调用方
-            // 以为策略拒了它，而去换域名重试，永远碰不到真正的修法。
-            throw new LytgosException.SandboxViolation(
+            // 这是输入格式错误，不是白名单拦截。混成同一个异常会让 ToolExecutor 把它当
+            // 安全事件中断整轮对话，模型失去改正的机会——而它明明只需要把 % 写成 %25。
+            throw new LytgosException.InvalidToolArgument(
                     "URL 格式非法（query 里的 % 要写成 %25，空格写成 %20）: " + url);
         }
         String scheme = uri.getScheme();
         if (scheme == null || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+            // 协议限制是策略约束，不是格式错：file:///etc/passwd 是拿别的协议读本地文件，
+            // 归到“只允许 http/https”这条安全边界里。
             throw new LytgosException.SandboxViolation("只允许 http/https 协议: " + url);
         }
         if (uri.getUserInfo() != null) {
@@ -105,7 +107,7 @@ public final class SandboxChecker {
         }
         String host = uri.getHost();
         if (host == null || host.isBlank()) {
-            throw new LytgosException.SandboxViolation("URL 缺少 host: " + url);
+            throw new LytgosException.InvalidToolArgument("URL 缺少 host: " + url);
         }
         String normalized = host.toLowerCase(Locale.ROOT);
         if (allowedDomains.isEmpty()) {

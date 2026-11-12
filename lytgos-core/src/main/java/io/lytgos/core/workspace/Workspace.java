@@ -191,11 +191,14 @@ public final class Workspace {
                 base-url: https://api.deepseek.com
 
             sandbox:
-              # 域名白名单：为空时全部拒绝
+              # 域名白名单：为空时全部拒绝。
+              # 它只覆盖 lytgos 进程内发起的请求；MCP server 是独立子进程，
+              # 它自己的网络访问不受这里约束（启动时会打一行提示）。
               allowed-domains:
                 - geocoding-api.open-meteo.com
                 - api.open-meteo.com
-              # 命令白名单：第 1 周没有 ShellTool，留空
+              # 命令白名单：MCP server 的启动命令必须先在这里出现，否则拒绝启动。
+              # 例如允许用 node 起 server 就写 - node。留空 = 任何 MCP server 都起不来。
               allowed-commands: []
             """;
 
@@ -216,6 +219,7 @@ public final class Workspace {
               model: deepseek-chat
             tools:
               - http_get
+              - file_read
             channels:
               - cli
             bootstrap:

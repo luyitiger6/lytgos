@@ -101,16 +101,16 @@ class SandboxCheckerTest {
     }
 
     @Test
-    @DisplayName("query 里的裸 % 被报为格式非法，而不是含糊的「无法解析」")
-    void rejectsMalformedPercentEncodingWithClearMessage() throws IOException {
+    @DisplayName("query 里的裸 % 归为参数错误，不归为沙箱违规")
+    void rejectsMalformedPercentEncodingAsArgumentError() throws IOException {
         SandboxChecker sandbox = checker();
         // 模型自己拼 URL 时常这么写：%l %c %t 都不是合法的百分号转义（% 后必须跟两位十六进制）。
-        // 以前这里被包装成「URL 无法解析」，看起来像被策略拦了，实际是输入格式错。
-        LytgosException.SandboxViolation violation = assertThrows(
-                LytgosException.SandboxViolation.class,
+        // 归为 InvalidToolArgument 而不是 SandboxViolation：前者会被 ToolExecutor 回填给
+        // 模型自己改正，后者会中断整轮对话——而这不是攻击，只是拼错了。
+        LytgosException.InvalidToolArgument violation = assertThrows(
+                LytgosException.InvalidToolArgument.class,
                 () -> sandbox.checkDomain("https://wttr.in/Beijing?format=%l:+%c+%t"));
         String message = violation.getMessage();
-        assertTrue(message.contains("sandbox"), "仍需带 sandbox 字面量供验收脚本判定");
         assertTrue(message.contains("格式非法"), "消息应指明是格式问题: " + message);
         assertTrue(message.contains("%25"), "消息应告诉调用方怎么改: " + message);
     }

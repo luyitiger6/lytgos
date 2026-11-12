@@ -1,5 +1,6 @@
 package io.lytgos.tool;
 
+import io.lytgos.core.LytgosException;
 import io.lytgos.core.chat.ToolSpec;
 import io.lytgos.core.tool.SandboxChecker;
 import io.lytgos.core.tool.Tool;
@@ -75,7 +76,7 @@ public final class HttpTool implements Tool {
     public String execute(Map<String, Object> arguments) {
         Object raw = arguments.get("url");
         if (raw == null || String.valueOf(raw).isBlank()) {
-            throw new IllegalArgumentException("缺少参数 url");
+            throw new LytgosException.InvalidToolArgument("缺少参数 url");
         }
 
         URI uri = sandbox.checkDomain(String.valueOf(raw));

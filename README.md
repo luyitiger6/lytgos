@@ -159,26 +159,45 @@ description: 运维助手
 provider:
   name: deepseek
   model: deepseek-chat
-  api_key: ${DEEPSEEK_API_KEY}
 tools:
-  - read_file
-  - shell
+  - file_read
   - http_get
-  - save_memory
-  - recall_memory
 channels:
-  - name: cli
+  - cli
 bootstrap:
   - AGENTS.md
   - SOUL.md
   - USER.md
 settings:
-  max_iterations: 10
-  max_history_turns: 20
+  maxIterations: 10
 ---
 
 你是一个专业的运维助手。收到告警后先查询日志，再结合历史故障记录给出处理建议。
 ```
+
+`tools` 是白名单，不写等于不给用。工具名以 `lytgos tool list` 列出的为准。
+
+### 接入 MCP server
+
+`mcp_servers` 里声明一个外部进程，lytgos 在加载 Agent 时把它拉起来、握手、拉取工具清单，然后把工具当成内置工具一样交给模型：
+
+```yaml
+mcp_servers:
+  - name: openmeteo
+    command: node
+    args:
+      - /opt/mcp/open-meteo/index.js
+    env:
+      LOG_LEVEL: warn
+```
+
+三个前提：
+
+1. `command` 必须在 `config.yaml` 的 `sandbox.allowed-commands` 里，否则拒绝启动。
+2. 工具名与内置工具重名会直接启动失败，错误消息会写清两边来源。
+3. 目前只支持 stdio 传输。
+
+**治理边界必须说清**：内置 `http_get` 受 `allowed-domains` 约束；MCP server 是独立子进程，它自己的网络访问 lytgos 看不到，域名白名单对它无效。沙箱对它的约束只有「启动命令白名单」这一层。启动日志会逐个 server 打一行提示，`lytgos tool list` 里 MCP 工具的描述带 `[mcp:<server>]` 来源标注。
 
 运行时工作区结构：
 
@@ -189,11 +208,12 @@ settings:
 ├── memory/
 │   └── MEMORY.md    # 长期记忆
 ├── sessions/        # 会话数据
+├── output/          # 工具产物
 ├── logs/            # 结构化日志
-├── lytgos.db        # SQLite
+├── config.yaml      # provider 连接参数 + 沙箱白名单
 ├── AGENTS.md        # 项目级 Agent 行为说明
 ├── SOUL.md          # Agent 人格定义
-└── USER.md          # 用户偏好（只读）
+└── USER.md          # 用户偏好
 ```
 
 ## 命令行
@@ -250,7 +270,7 @@ lytgos 目前处于**骨架阶段**：
 - [x] 项目骨架与工程约束
 - [ ] Provider 抽象与 ReAct 循环
 - [ ] Memory 会话 + 长期记忆
-- [ ] 内置工具 + MCP Client + Sandbox
+- [x] 内置工具 + MCP Client + Sandbox（MCP 仅 stdio，只做 tools）
 - [ ] CLI、REST API 与定时触发
 - [ ] SQLite 持久化与 Day-one 审计落库
 - [ ] 端到端 Demo：每日天气、每日科技日报
