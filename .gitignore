@@ -28,6 +28,11 @@ data/
 # Windows 下 core.ignorecase=true，裸写 MEMORY.md 会连带忽略 site/docs/memory.md
 /MEMORY.md
 
+# 运行期工作区与本地密钥：.lytgos/ 由 lytgos init 生成，含 API key 与用户记忆，绝不入库
+.lytgos/
+.env
+.env.local
+
 # 日志与临时文件
 logs/
 *.log

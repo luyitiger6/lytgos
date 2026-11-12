@@ -17,14 +17,21 @@
 | 闸门 | 判定 | 现状 |
 |---|---|---|
 | `00-layout-check` | 骨架文件齐全 + `AGENTS.md` 的 `harness-checks` 标记与实际文件一致 | 生效 |
-| `01-compile` | `mvn -DskipTests compile` | 未就绪（无 pom） |
-| `02-test` | `mvn test` | 未就绪（无 pom） |
-| `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled` | 未就绪（无源码） |
-| `04-dependency-direction` | 依赖方向 + 禁 `ChatClient`/`ToolCallingManager` | 未接入 |
-| `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入 |
+| `01-compile` | `mvn -DskipTests compile` | 生效 |
+| `02-test` | `mvn test` | 生效 |
+| `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled` | 生效 |
+| `04-dependency-direction` | 依赖方向 + 禁 `ChatClient`/`ToolCallingManager` + core 不依赖 Spring | 生效 |
+| `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入（storage 未落地） |
 | `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
+| `07-week1-acceptance` | 第 1 周端到端：init → 幂等 → 对话+工具往返 → 反例 → 多轮上下文 | 生效（需 jar + `DEEPSEEK_API_KEY`；六条已全 PASS） |
 
-`04` 与 `05` 是**空壳**，只有一句 `NOT_READY` 和一段计划说明。空壳比没有更诚实：它让每次跑 harness 都能看见「这两道还没接」，而不是在 README 里被忘掉。
+`05` 是**空壳**，只有一句 `NOT_READY` 和一段计划说明。空壳比没有更诚实：它让每次跑 harness 都能看见「这道还没接」，而不是在 README 里被忘掉。
+
+`03` 对 `lytgos-cli` 与 `lytgos-channel` 豁免「禁 System.out」那一条：这两个模块的 stdout 就是产品输出通道（命令结果、模型回复），不是拿 println 顶替日志。豁免只覆盖这一条，`TODO` / `@Disabled` / `skipTests` 仍然全场生效。
+
+`04` 的六条规则：`lytgos-provider` 之外禁止 import Spring AI；禁 `ChatClient`；禁 `ToolCallingManager`；禁 `@ConditionalOnBean` / `ObjectProvider<ChatModel>` / `getBeansOfType`（这三者会让 provider 集合从配置驱动退化成 classpath 驱动）；`lytgos-core` 的 pom 不依赖 Spring；`lytgos-core` 不 import 其他模块。
+
+`07` 需要真实模型才能跑完第 3/5/6 条（对话、沙箱反例、多轮上下文）。没有 `DEEPSEEK_API_KEY` 时这三条记 SKIP 并返回 2——没跑过的检查不能算通过。
 
 `06` 的存在理由：`openspec/changes/` 下一旦出现只有目录、没有 proposal 的空壳，汇报时只能给出「0/0，无 tasks」这类状态——**状态不是工作内容**，读者看完仍不知道该 change 要交付什么。这条闸门把「必须能说清工作内容」变成可判定条件。
 

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CLI 的日志配置。
+
+  全部输出到 stderr，不是 stdout：命令的结构化输出（provider 表、tool 表、模型回复）
+  都在 stdout，日志混进去会破坏「把输出喂给下一个命令」的能力。
+
+  级别定为 INFO：ToolExecutor 的 tool_call 日志在这一级；Spring AI 的请求体打印在 DEBUG，
+  默认关掉——那是含完整 prompt 的内容，不该在终端里默认可见。
+-->
+<configuration>
+
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{24} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <logger name="io.lytgos" level="INFO"/>
+
+    <!-- 第三方库默认只留 WARN：它们的 INFO 多为连接细节，对使用者没有价值 -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.ai" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDERR"/>
+    </root>
+
+</configuration>

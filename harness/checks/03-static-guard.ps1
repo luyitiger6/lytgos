@@ -10,6 +10,10 @@
       3. @Disabled 让失败的测试消失
       4. pom.xml 里写死 skipTests / maven.test.skip
 
+    例外：lytgos-cli 与 lytgos-channel 的 stdout 是产品输出通道本身
+      （命令结果、模型回复），不是「用 println 代替日志」。
+      这两个模块仍受 TODO / @Disabled / skipTests 三条约束。
+
     三态：
       0        扫描通过
       2        尚无 Java 源码（模块未落地），无扫描对象
@@ -33,6 +37,10 @@ foreach ($dir in (Get-ChildItem $projectRoot -Directory -Force | Where-Object { 
 
 foreach ($file in $sources) {
     $rel = $file.FullName.Substring($projectRoot.Length + 1)
+    $module = ($rel -split '[\\/]')[0]
+    # 命令行与渠道层的 stdout 就是它们对外的输出，不归「日志噪音」管
+    $consoleIsOutput = $module -in @('lytgos-cli', 'lytgos-channel')
+
     $lines = [IO.File]::ReadAllLines($file.FullName)
     for ($i = 0; $i -lt $lines.Length; $i++) {
         $no = $i + 1
@@ -40,7 +48,7 @@ foreach ($file in $sources) {
         if ($text -cmatch 'TODO|FIXME|XXX') {
             [void]$violations.Add("${rel}:${no}  [占位标记] $($text.Trim())")
         }
-        if ($text -cmatch 'System\.out\.print') {
+        if (-not $consoleIsOutput -and $text -cmatch 'System\.out\.print') {
             [void]$violations.Add("${rel}:${no}  [禁用 System.out] $($text.Trim())")
         }
         if ($text -cmatch '@Disabled') {

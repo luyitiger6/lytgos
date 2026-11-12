@@ -19,7 +19,9 @@
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：骨架可编译，无业务实现。** 11 个 Maven 模块已就位，`mvn clean package` 产出可执行 `lytgos.jar`；业务代码由后续 change 逐步填充。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
+**当前状态：第 1 周链路已打通。** 11 个 Maven 模块已就位，`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；`lytgos init` / `chat` / `profile` / `provider` / `tool` 五个命令可用，`mvn test` 41 个单测全绿，`07-week1-acceptance.ps1` 六条全 PASS。
+
+`harness\run-all.ps1` 整体仍返回 **1** —— 唯一未就绪的是 `05-audit-invariant`（storage 未落地，属第 4 周范围）。按硬规则 3，此时**不得报告「完整验收通过」**。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
 
 ## 2. 三层分工
 
@@ -38,7 +40,12 @@
 3. **按阶段判定完成**：以本次功能的真实操作链路跑通且结果可见作为「功能已调通」的依据。只有 `harness\run-all.ps1` 返回 0 才报告「完整验收通过」；未执行项必须显式后置，不将功能可用等同于全量测试通过。
 4. **禁止伪造绿灯**：不许 `@Disabled`、不许 `it.skip`、不许注释掉断言、不许 `-DskipTests`、不许留 `TODO/FIXME` 交付。03 号闸门直接拦截。
 5. **验收标准不能由实现者自己解释**：spec 里的 `Scenario` 就是验收标准，解释权归 spec，不归写代码的人。
-6. **任何改动先走分支**：`main` 只承载合并与同步推送。新功能 `feat/<简述>-<yyyyMMdd>`，缺陷补丁 `fix/<简述>-<yyyyMMdd>`；跑通验证并交人审阅后才合并。
+6. **任何改动先走分支，合并与发布只在远程**：`main` 只承载合并与同步推送。新功能 `feat/<简述>-<yyyyMMdd>`，缺陷补丁 `fix/<简述>-<yyyyMMdd>`。
+   流程是：分支内本地提交 → `git push` → 开 PR → 人工审阅通过 → **在远程合并**（PR 页面或 `gh pr merge`）。
+   - **禁止在本地 `git merge` 到 `main`**：本地合并绕过了 PR 的审阅记录，事后无人能看出这次合入经过了谁的确认。
+   - **本地 `main` 必须始终等于 `origin/main`**；`main` 上出现未推送提交即视为违规，下次改动前先修正。
+   - **release tag 只能打在已合并到远程 `main` 的提交上**；PR 合并前不得打 tag，也不得在 feature 分支上打 release tag。
+   - 「完成一样就先本地提交」与「合入 `main`」是两件事：前者随时可做，后者必须等远程 PR 流程。
 7. **审计优先于功能**：`tool_invocations` 与 `llm_calls` 的写入不允许为了「先跑通」而注释掉或后置。这是产品卖点，不是可选项。
 8. **汇报 change 必须说清工作内容**：只列「名称 / tasks 进度 / 是否跟踪」三列不算汇报。每个 change 至少说清它要交付什么、现在做到哪、还剩哪些活；说不清说明它还没有规划，应先补 proposal 或删除。06 号闸门强制每个 change 有合格的 `proposal.md`。
 
@@ -76,7 +83,10 @@ provider name → `ChatModel` 是一张**启动时构造的显式 Map**，来自
 ③ 实施          /opsx:apply
                 ↓ 按 tasks.md 推进，先调通本次功能
 ④ 完整验收      用户需要时集中做：spec 合规 → 代码质量 → harness\run-all.ps1 退出码为 0
-⑤ 归档          /opsx:archive
+⑤ 推送与 PR     git push → gh pr create --base main
+                ↓ CI 通过 + 人工审阅
+                ↓ ⚠️ 合并与打 tag 都在远程，本地 main 不得产生未推送提交
+⑥ 归档          /opsx:archive
 ```
 
 改动分级：纯内部重构可只写 proposal + tasks；涉及对外行为变化必须带 `specs/` delta。
@@ -121,9 +131,10 @@ lytgos/
 │       ├── 01-compile.ps1               能不能编译
 │       ├── 02-test.ps1                  行为对不对
 │       ├── 03-static-guard.ps1          有没有伪造绿灯
-│       ├── 04-dependency-direction.ps1  依赖方向 + 禁止自动工具执行（待接入）
+│       ├── 04-dependency-direction.ps1  依赖方向 + 禁止自动工具执行
 │       ├── 05-audit-invariant.ps1       审计不变量 I1/I2/I3（待接入）
-│       └── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
+│       ├── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
+│       └── 07-week1-acceptance.ps1      第 1 周端到端验收（init → 对话 → 反例）
 └── .agents/skills/            【行为层】
     ├── systematic-debugging/          四阶段根因法
     ├── verification-before-completion/ 先证后宣布
@@ -132,7 +143,7 @@ lytgos/
 
 11 个模块目录与根 `pom.xml` 已就位：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。
 
-<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract -->
+<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract 07-week1-acceptance -->
 
 上面这行是**闸门清单的机器可读副本**：新增或删除闸门时同步更新，`00-layout-check.ps1` 会把它与 `harness/checks/*.ps1` 的实际文件比对，不一致直接退出码 1。
 
@@ -145,5 +156,10 @@ lytgos/
 | 一键验收 | `powershell -File harness\run-all.ps1` |
 | 只查骨架 | `powershell -File harness\checks\00-layout-check.ps1` |
 | 只查红线 | `powershell -File harness\checks\03-static-guard.ps1` |
-| 编译 / 测试 | `mvn clean package`（模块落地后可用） |
-| 启动服务 | `java -jar lytgos-boot/target/lytgos.jar`（模块落地后可用） |
+| 编译 / 测试 | `mvn clean package` |
+| 启动服务 | `java -jar lytgos-boot/target/lytgos.jar` |
+| 推送分支 | `git push -u origin <分支>` |
+| 开 PR | `gh pr create --base main --head <分支>` |
+| 看 CI | `gh pr checks <PR 号>` |
+| 合并 PR | `gh pr merge <PR 号> --merge`（合并在远程，不在本地） |
+| 打发布标签 | `git tag -a v<x.y.z> -m "..."`，仅限已合并到远程 `main` 的提交 |

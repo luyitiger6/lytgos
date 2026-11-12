@@ -13,4 +13,23 @@
     <artifactId>lytgos-core</artifactId>
     <name>lytgos-core</name>
     <description>内核：跨模块契约、ReAct 循环、Prompt 装配与工具执行编排</description>
+
+    <dependencies>
+        <!-- 仅用于工具参数解析与会话落盘，不引入任何 Spring 依赖，保持 core 可独立编译 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- 日志门面。只用 API，实现由运行方（cli / boot）提供，否则 core 会把日志后端钉死 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>
