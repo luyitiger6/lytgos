@@ -20,5 +20,15 @@
             <artifactId>lytgos-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!--
+          用 spring-ai-openai 而不是 spring-ai-starter-model-openai：
+          starter 会带入自动配置，在 classpath 上凭空多出一个 ChatModel bean，
+          正是 AGENTS.md 4.2 禁止的「配置驱动退化成 classpath 驱动」。
+          这里只取协议转换与 schema 生成能力，模型实例全部由 ProviderRegistry 显式构造。
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+        </dependency>
     </dependencies>
 </project>

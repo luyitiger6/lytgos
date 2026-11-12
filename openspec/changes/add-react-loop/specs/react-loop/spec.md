@@ -2,14 +2,14 @@
 
 ### Requirement: 工作区初始化
 
-系统 SHALL 提供 `lytgos init` 命令，在当前目录创建 `.lytgos/` 工作区，包含 `agents/`、`skills/`、`output/`、`memory/`、`sessions/`、`logs/` 六个目录与 `AGENTS.md`、`SOUL.md`、`USER.md` 三个 Bootstrap 文件；`memory/` 下同时创建空的 `MEMORY.md`。
+系统 SHALL 提供 `lytgos init` 命令，在当前目录创建 `.lytgos/` 工作区，包含 `agents/`、`skills/`、`output/`、`memory/`、`sessions/`、`logs/` 六个目录，`AGENTS.md`、`SOUL.md`、`USER.md` 三个 Bootstrap 文件，以及 `config.yaml`（与「Provider 显式映射」一项所需的 `lytgos.providers` 配置节同属一份文件）；`memory/` 下同时创建空的 `MEMORY.md`。
 
 该命令 MUST 幂等：已存在的目录与文件一律不覆盖。
 
 #### Scenario: 在空目录初始化
 
 - **WHEN** 在空目录执行 `lytgos init`
-- **THEN** 生成 9 个条目，退出码 0
+- **THEN** 生成 10 个顶层条目，退出码 0
 
 #### Scenario: 重复初始化不覆盖已有文件
 
@@ -103,12 +103,22 @@ LLM 调用 MUST 只经由 `ChatModel.call()`，禁止使用 `ChatClient` 或 `To
 
 系统 SHALL 按 `channel + user + agent` 三元组维护会话上下文，同一三元组内的多轮对话 MUST 共享历史。
 
-第 1 周会话存储在内存，重启后不保留——持久化在后续 change 引入，`SessionStore` 接口不变。
+会话 MUST 落盘到 `.lytgos/sessions/<key>.json`，进程重启后仍可恢复。`--message` 单条模式与交互模式 MUST 共用同一 Session。第 4 周换成 SQLite 时 `SessionStore` 接口不变。
 
 #### Scenario: 同键共享历史
 
 - **WHEN** 同一 channel、user、agent 连续发两条消息，第二条使用指代词
 - **THEN** 第二轮能正确理解指代对象
+
+#### Scenario: 单条模式与交互模式共用
+
+- **WHEN** 先执行 `lytgos chat --message "我叫张三"`，再启动 `lytgos chat` 问「我叫什么」
+- **THEN** 回答中包含「张三」
+
+#### Scenario: 进程重启后恢复
+
+- **WHEN** 结束进程，重启后对同一三元组继续发消息
+- **THEN** 历史仍在，能引用重启前的内容
 
 #### Scenario: 不同键互不影响
 
@@ -123,8 +133,8 @@ LLM 调用 MUST 只经由 `ChatModel.call()`，禁止使用 `ChatClient` 或 `To
 
 #### Scenario: 单条模式
 
-- **WHEN** 执行 `lytgos chat --message "查一下 luyitiger6/lytgos 这个仓库"`
-- **THEN** 调用 `http_get` 获取仓库信息，输出包含 star 数或主语言，退出码 0
+- **WHEN** 执行 `lytgos chat --message "北京今天天气怎么样"`
+- **THEN** 依次调用 `http_get` 查询经纬度与天气，输出包含温度数值，退出码 0
 
 #### Scenario: 交互模式退出
 

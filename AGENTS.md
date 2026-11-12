@@ -19,7 +19,9 @@
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：骨架可编译，无业务实现。** 11 个 Maven 模块已就位，`mvn clean package` 产出可执行 `lytgos.jar`；业务代码由后续 change 逐步填充。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
+**当前状态：第 1 周链路已打通。** 11 个 Maven 模块已就位，`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；`lytgos init` / `chat` / `profile` / `provider` / `tool` 五个命令可用，`mvn test` 41 个单测全绿，`07-week1-acceptance.ps1` 六条全 PASS。
+
+`harness\run-all.ps1` 整体仍返回 **1** —— 唯一未就绪的是 `05-audit-invariant`（storage 未落地，属第 4 周范围）。按硬规则 3，此时**不得报告「完整验收通过」**。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
 
 ## 2. 三层分工
 
@@ -121,9 +123,10 @@ lytgos/
 │       ├── 01-compile.ps1               能不能编译
 │       ├── 02-test.ps1                  行为对不对
 │       ├── 03-static-guard.ps1          有没有伪造绿灯
-│       ├── 04-dependency-direction.ps1  依赖方向 + 禁止自动工具执行（待接入）
+│       ├── 04-dependency-direction.ps1  依赖方向 + 禁止自动工具执行
 │       ├── 05-audit-invariant.ps1       审计不变量 I1/I2/I3（待接入）
-│       └── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
+│       ├── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
+│       └── 07-week1-acceptance.ps1      第 1 周端到端验收（init → 对话 → 反例）
 └── .agents/skills/            【行为层】
     ├── systematic-debugging/          四阶段根因法
     ├── verification-before-completion/ 先证后宣布
@@ -132,7 +135,7 @@ lytgos/
 
 11 个模块目录与根 `pom.xml` 已就位：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。
 
-<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract -->
+<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract 07-week1-acceptance -->
 
 上面这行是**闸门清单的机器可读副本**：新增或删除闸门时同步更新，`00-layout-check.ps1` 会把它与 `harness/checks/*.ps1` 的实际文件比对，不一致直接退出码 1。
 
