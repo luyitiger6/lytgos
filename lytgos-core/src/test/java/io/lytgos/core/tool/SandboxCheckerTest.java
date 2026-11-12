@@ -144,4 +144,19 @@ class SandboxCheckerTest {
                 LytgosException.SandboxViolation.class, () -> empty.checkCommand("echo hi"));
         assertTrue(violation.getMessage().contains("白名单为空"));
     }
+
+    @Test
+    @DisplayName("带空格的路径不能被当成参数分隔——否则 Program Files 下的 java 会变成 Program")
+    void acceptsCommandPathWithSpaces() throws IOException {
+        SandboxChecker sandbox = checker();
+
+        assertEquals("echo", sandbox.checkCommand("C:\\Program Files\\Git\\usr\\bin\\echo.exe"),
+                "整串取出的文件名已在白名单时，不能按空格切分");
+        assertEquals("echo", sandbox.checkCommand("C:/Program Files/Git/usr/bin/echo.exe"),
+                "正斜杠路径同样适用");
+        assertEquals("echo", sandbox.checkCommand("\"C:\\Program Files\\Git\\echo.exe\" --version"),
+                "引号包裹时取引号内的路径，引号后才是参数");
+        assertEquals("echo", sandbox.checkCommand("echo -n hi"),
+                "内联参数仍照旧按第一个空格切——第 1 周的行为不能回退");
+    }
 }

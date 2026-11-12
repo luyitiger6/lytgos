@@ -55,18 +55,43 @@ public final class SandboxChecker {
         if (command == null || command.isBlank()) {
             throw new LytgosException.SandboxViolation("命令为空");
         }
-        String executable = command.trim().split("\\s+", 2)[0];
-        int lastSeparator = Math.max(executable.lastIndexOf('/'), executable.lastIndexOf('\\'));
-        String name = lastSeparator >= 0 ? executable.substring(lastSeparator + 1) : executable;
-        if (name.toLowerCase(Locale.ROOT).endsWith(".exe")) {
-            name = name.substring(0, name.length() - 4);
-        }
+        String name = normalizeName(executableOf(command.trim()));
         if (allowedCommands.isEmpty()) {
             throw new LytgosException.SandboxViolation("命令白名单为空，全部拒绝: " + name);
         }
         if (!allowedCommands.contains(name)) {
             throw new LytgosException.SandboxViolation(
                     "命令 " + name + " 不在白名单 " + allowedCommands + " 内");
+        }
+        return name;
+    }
+
+    /**
+     * 从命令声明里取出可执行文件那一段。
+     *
+     * <p>三种写法都要认：{@code java}、{@code "C:\Program Files\...\java.exe"}、
+     * {@code java -Xmx1g}（内联参数）。不能一律按第一个空格切——Windows 路径
+     * 常在 {@code Program Files} 这种带空格的目录下，切完只剩 {@code Program}，
+     * 明明放行了 java 却报「Program 不在白名单」。判据是「按整串取出的文件名
+     * 已在白名单里」：是就用整串，否则退回第一个空格前的部分。</p>
+     */
+    private String executableOf(String command) {
+        if (command.startsWith("\"")) {
+            int closing = command.indexOf('"', 1);
+            return closing > 0 ? command.substring(1, closing) : command.substring(1);
+        }
+        if (allowedCommands.contains(normalizeName(command))) {
+            return command;
+        }
+        return command.split("\\s+", 2)[0];
+    }
+
+    /** 取路径最后一段作为命令名，并去掉 Windows 的 {@code .exe} 后缀。 */
+    private static String normalizeName(String executable) {
+        int lastSeparator = Math.max(executable.lastIndexOf('/'), executable.lastIndexOf('\\'));
+        String name = lastSeparator >= 0 ? executable.substring(lastSeparator + 1) : executable;
+        if (name.toLowerCase(Locale.ROOT).endsWith(".exe")) {
+            name = name.substring(0, name.length() - 4);
         }
         return name;
     }
