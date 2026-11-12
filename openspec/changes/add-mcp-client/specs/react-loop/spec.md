@@ -8,7 +8,7 @@
 
 `SandboxChecker` MUST 提供三类校验：文件路径、Shell 命令、HTTP 域名。路径校验 MUST 在 `canonicalize()` 之后比较，禁止仅依赖字符串匹配 `..`。
 
-域名白名单为空时 MUST 全部拒绝。该白名单只覆盖 lytgos 进程内发起的请求；MCP 工具的网络访问发生在独立子进程内，其沙箱深度止于启动命令白名单，系统 MUST NOT 宣称对 MCP 工具存在域名级约束。
+域名白名单为空时 MUST 全部拒绝。它覆盖 lytgos 进程内发起的全部请求，包括内置 `http_get` 与**远程 MCP 连接**（`url` 形态）。本地 MCP 子进程是唯一例外：其网络访问发生在子进程内，沙箱深度止于启动命令白名单，系统 MUST NOT 宣称对这类 server 存在域名级约束。
 
 工具失败 MUST 按归属分两类处理，两者的策略相反：
 
@@ -37,7 +37,12 @@
 - **WHEN** 工具参数传入 `../../etc/passwd` 形式的路径
 - **THEN** `canonicalize()` 后判定越界，请求被拒
 
-#### Scenario: MCP 工具不受域名白名单约束
+#### Scenario: 远程 MCP 连接受域名白名单约束
+
+- **WHEN** Agent 声明的 MCP server 使用 `url` 形态
+- **THEN** 连接地址的域名 MUST 先经白名单校验，校验失败时不发出任何网络请求
+
+#### Scenario: 本地 MCP 子进程不受域名白名单约束
 
 - **WHEN** MCP 工具在其子进程内向任意域名发起请求
 - **THEN** 请求不经过域名白名单校验，`SandboxChecker` 只在该 server 启动时校验过 command
