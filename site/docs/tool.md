@@ -202,7 +202,7 @@ http:
   allowed_domains:
     - "*.feishu.cn"
     - "api.deepseek.com"
-    - "api.open-meteo.com"
+    - "restapi.amap.com"
 ```
 
 The three whitelists are also **manageable at runtime** via the `/api/v1/sandbox/whitelist` API and the admin console — add or remove entries under the `FILE`, `SHELL`, or `HTTP` categories without a restart.
@@ -223,7 +223,7 @@ tools:
   - fetch_webpage
 ```
 
-In the agent body, require calling `web_search` first for live facts. The core-stage provider is DuckDuckGo: **when Instant Answer JSON is empty (common for Chinese / time-sensitive queries), it automatically retries the HTML lite results page**. If still empty, fall back to `fetch_webpage` or `http_get` against a public API (e.g. weather via `api.open-meteo.com`).
+In the agent body, require calling `web_search` first for live facts. The core-stage provider is DuckDuckGo: **when Instant Answer JSON is empty (common for Chinese / time-sensitive queries), it automatically retries the HTML lite results page**. If still empty, fall back to `fetch_webpage` or `http_get` against a public API (e.g. weather via `restapi.amap.com`).
 
 If a tool call fails the sandbox check, `ToolExecutor` returns a non-retryable `ToolResult` with a clear error message describing which whitelist was violated. The call is still recorded in `tool_invocations` with `success = false`.
 

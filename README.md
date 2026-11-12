@@ -158,27 +158,66 @@ name: ops-agent
 description: 运维助手
 provider:
   name: deepseek
-  model: deepseek-chat
-  api_key: ${DEEPSEEK_API_KEY}
+  model: deepseek-flash
 tools:
-  - read_file
-  - shell
+  - file_read
   - http_get
-  - save_memory
-  - recall_memory
 channels:
-  - name: cli
+  - cli
 bootstrap:
   - AGENTS.md
   - SOUL.md
   - USER.md
 settings:
-  max_iterations: 10
-  max_history_turns: 20
+  maxIterations: 10
 ---
 
 你是一个专业的运维助手。收到告警后先查询日志，再结合历史故障记录给出处理建议。
 ```
+
+`tools` 是白名单，不写等于不给用。工具名以 `lytgos tool list` 列出的为准。
+
+### 接入 MCP server
+
+`mcp_servers` 里声明外部 MCP 服务，lytgos 在加载 Agent 时连上去、握手、拉取工具清单，然后把工具当成内置工具一样交给模型。两种形态二选一：
+
+**远程（推荐）**：在 `url` 里写对方托管的 MCP 地址，本机不需要任何额外运行时：
+
+```yaml
+mcp_servers:
+  - name: amap
+    url: https://mcp.amap.com/mcp?key=YOUR_KEY
+```
+
+**本地**：用 `command` 拉起本机子进程走 stdio，适合只能在本机起的服务（访问本机文件、内网 CLI）：
+
+```yaml
+mcp_servers:
+  - name: local-tools
+    command: node
+    args:
+      - /opt/mcp/server.js
+    env:
+      LOG_LEVEL: warn
+```
+
+`url` 与 `command` 必须且只能填一个，两个都填或都不填都会在加载 Agent 时直接报错。
+
+四个前提：
+
+1. 远程形态的 `url` 域名必须在 `config.yaml` 的 `sandbox.allowed-domains` 里，否则拒绝连接；本地形态的 `command` 必须在 `sandbox.allowed-commands` 里，否则拒绝启动。
+2. 工具名与内置工具重名会直接启动失败，错误消息会写清两边来源。
+3. 远程地址里的 key 属于环境信息，不要提交进版本库。
+4. 只做 tools，不支持 resources / prompts / sampling。
+
+**治理边界按形态不同，必须说清：**
+
+| 形态 | 沙箱约束 | 网络可见性 |
+|---|---|---|
+| 远程 `url` | 域名白名单 | lytgos 自己发 HTTP，与内置 `http_get` 同级 |
+| 本地 `command` | 只有启动命令白名单 | 网络访问在子进程内，域名白名单管不到 |
+
+启动日志会逐个 server 打一行边界提示，`lytgos tool list` 里 MCP 工具的描述带 `[mcp:<server>]` 来源标注。
 
 运行时工作区结构：
 
@@ -189,11 +228,12 @@ settings:
 ├── memory/
 │   └── MEMORY.md    # 长期记忆
 ├── sessions/        # 会话数据
+├── output/          # 工具产物
 ├── logs/            # 结构化日志
-├── lytgos.db        # SQLite
+├── config.yaml      # provider 连接参数 + 沙箱白名单
 ├── AGENTS.md        # 项目级 Agent 行为说明
 ├── SOUL.md          # Agent 人格定义
-└── USER.md          # 用户偏好（只读）
+└── USER.md          # 用户偏好
 ```
 
 ## 命令行
@@ -250,7 +290,7 @@ lytgos 目前处于**骨架阶段**：
 - [x] 项目骨架与工程约束
 - [ ] Provider 抽象与 ReAct 循环
 - [ ] Memory 会话 + 长期记忆
-- [ ] 内置工具 + MCP Client + Sandbox
+- [x] 内置工具 + MCP Client + Sandbox（MCP 支持远程 HTTP 与本地 stdio，只做 tools）
 - [ ] CLI、REST API 与定时触发
 - [ ] SQLite 持久化与 Day-one 审计落库
 - [ ] 端到端 Demo：每日天气、每日科技日报

@@ -23,6 +23,11 @@
     <!-- 第三方库默认只留 WARN：它们的 INFO 多为连接细节，对使用者没有价值 -->
     <logger name="org.springframework" level="WARN"/>
     <logger name="org.springframework.ai" level="WARN"/>
+    <!--
+      MCP SDK 在 INFO 上打的是每条协议帧与连接状态。用户关心的是「哪个 server 起来了、
+      带了什么工具」，那不是 SDK 能告诉他的，由 McpServerManager 自己打。
+    -->
+    <logger name="io.modelcontextprotocol" level="WARN"/>
 
     <root level="INFO">
         <appender-ref ref="STDERR"/>

@@ -23,4 +23,14 @@ public interface Tool {
      * @return 工具结果，作为 {@code TOOL} 角色的消息回填给模型
      */
     String execute(Map<String, Object> arguments);
+
+    /**
+     * 工具的来源标识，用于重名冲突时报清「哪两个东西撞了」。
+     *
+     * <p>内置工具用类名就够；MCP 工具来自外部进程，必须带上 server 名，
+     * 否则两个 server 都提供了同名工具时，用户只知道撞了，不知道该去改哪个配置。</p>
+     */
+    default String source() {
+        return getClass().getSimpleName();
+    }
 }

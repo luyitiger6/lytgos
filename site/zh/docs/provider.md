@@ -58,7 +58,7 @@ lytgos:
 # .lytgos/agents/ops-agent/AGENT.md（frontmatter）
 provider:
   name: deepseek          # 与某条 Provider 记录的 name 对应
-  model: deepseek-chat
+  model: deepseek-flash
   temperature: 0.7
 ```
 

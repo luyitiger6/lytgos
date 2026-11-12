@@ -25,7 +25,7 @@ class SandboxCheckerTest {
     private SandboxChecker checker() throws IOException {
         workspace = tempDir.resolve("workspace");
         Files.createDirectories(workspace);
-        return new SandboxChecker(workspace, Set.of("echo"), Set.of("api.open-meteo.com"));
+        return new SandboxChecker(workspace, Set.of("echo"), Set.of("restapi.amap.com"));
     }
 
     @Test
@@ -58,8 +58,8 @@ class SandboxCheckerTest {
     @DisplayName("白名单域名放行，大小写不敏感")
     void allowsWhitelistedDomain() throws IOException {
         SandboxChecker sandbox = checker();
-        assertEquals("API.Open-Meteo.com",
-                sandbox.checkDomain("https://API.Open-Meteo.com/v1/forecast?latitude=1").getHost());
+        assertEquals("RestAPI.Amap.com",
+                sandbox.checkDomain("https://RestAPI.Amap.com/v3/weather/weatherInfo?city=110000").getHost());
     }
 
     @Test
@@ -80,7 +80,7 @@ class SandboxCheckerTest {
         SandboxChecker sandbox = new SandboxChecker(tempDir.resolve("empty"), Set.of(), Set.of());
         LytgosException.SandboxViolation violation = assertThrows(
                 LytgosException.SandboxViolation.class,
-                () -> sandbox.checkDomain("https://api.open-meteo.com/v1/forecast"));
+                () -> sandbox.checkDomain("https://restapi.amap.com/v3/weather/weatherInfo"));
         assertTrue(violation.getMessage().contains("白名单为空"));
     }
 
@@ -89,7 +89,7 @@ class SandboxCheckerTest {
     void rejectsUserInfoTrick() throws IOException {
         SandboxChecker sandbox = checker();
         assertThrows(LytgosException.SandboxViolation.class,
-                () -> sandbox.checkDomain("https://api.open-meteo.com@evil.example.com/"));
+                () -> sandbox.checkDomain("https://restapi.amap.com@evil.example.com/"));
     }
 
     @Test
@@ -101,16 +101,16 @@ class SandboxCheckerTest {
     }
 
     @Test
-    @DisplayName("query 里的裸 % 被报为格式非法，而不是含糊的「无法解析」")
-    void rejectsMalformedPercentEncodingWithClearMessage() throws IOException {
+    @DisplayName("query 里的裸 % 归为参数错误，不归为沙箱违规")
+    void rejectsMalformedPercentEncodingAsArgumentError() throws IOException {
         SandboxChecker sandbox = checker();
         // 模型自己拼 URL 时常这么写：%l %c %t 都不是合法的百分号转义（% 后必须跟两位十六进制）。
-        // 以前这里被包装成「URL 无法解析」，看起来像被策略拦了，实际是输入格式错。
-        LytgosException.SandboxViolation violation = assertThrows(
-                LytgosException.SandboxViolation.class,
+        // 归为 InvalidToolArgument 而不是 SandboxViolation：前者会被 ToolExecutor 回填给
+        // 模型自己改正，后者会中断整轮对话——而这不是攻击，只是拼错了。
+        LytgosException.InvalidToolArgument violation = assertThrows(
+                LytgosException.InvalidToolArgument.class,
                 () -> sandbox.checkDomain("https://wttr.in/Beijing?format=%l:+%c+%t"));
         String message = violation.getMessage();
-        assertTrue(message.contains("sandbox"), "仍需带 sandbox 字面量供验收脚本判定");
         assertTrue(message.contains("格式非法"), "消息应指明是格式问题: " + message);
         assertTrue(message.contains("%25"), "消息应告诉调用方怎么改: " + message);
     }
@@ -121,8 +121,8 @@ class SandboxCheckerTest {
         workspace = tempDir.resolve("workspace");
         Files.createDirectories(workspace);
         SandboxChecker sandbox = new SandboxChecker(
-                workspace, Set.of(), Set.of("API.Open-Meteo.com", "api.open-meteo.com"));
-        assertEquals(Set.of("api.open-meteo.com"), sandbox.allowedDomains(),
+                workspace, Set.of(), Set.of("RestAPI.Amap.com", "restapi.amap.com"));
+        assertEquals(Set.of("restapi.amap.com"), sandbox.allowedDomains(),
                 "构造时已统一小写并去重");
         assertThrows(UnsupportedOperationException.class,
                 () -> sandbox.allowedDomains().add("evil.com"),
@@ -143,5 +143,20 @@ class SandboxCheckerTest {
         LytgosException.SandboxViolation violation = assertThrows(
                 LytgosException.SandboxViolation.class, () -> empty.checkCommand("echo hi"));
         assertTrue(violation.getMessage().contains("白名单为空"));
+    }
+
+    @Test
+    @DisplayName("带空格的路径不能被当成参数分隔——否则 Program Files 下的 java 会变成 Program")
+    void acceptsCommandPathWithSpaces() throws IOException {
+        SandboxChecker sandbox = checker();
+
+        assertEquals("echo", sandbox.checkCommand("C:\\Program Files\\Git\\usr\\bin\\echo.exe"),
+                "整串取出的文件名已在白名单时，不能按空格切分");
+        assertEquals("echo", sandbox.checkCommand("C:/Program Files/Git/usr/bin/echo.exe"),
+                "正斜杠路径同样适用");
+        assertEquals("echo", sandbox.checkCommand("\"C:\\Program Files\\Git\\echo.exe\" --version"),
+                "引号包裹时取引号内的路径，引号后才是参数");
+        assertEquals("echo", sandbox.checkCommand("echo -n hi"),
+                "内联参数仍照旧按第一个空格切——第 1 周的行为不能回退");
     }
 }

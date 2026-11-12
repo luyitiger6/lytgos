@@ -75,15 +75,27 @@ public record Profile(
     }
 
     /**
-     * 一个 MCP server 的启动声明。
+     * 一个 MCP server 的接入声明，两种形态二选一。
      *
-     * <p>第 1 周只解析不启动——字段先占位，等第 2 周接 MCP 客户端时
-     * 不必再回头改 Profile 的结构。</p>
+     * <p><b>远程</b>（推荐）：{@code url} 指向对方托管的 MCP 服务，lytgos 自己发
+     * Streamable HTTP 请求，本机不需要任何额外运行时——这是「普通用户装上就能用」的前提。
+     * <b>本地</b>：{@code command + args} 拉起本机子进程走 stdio，适合只能在本机起的
+     * 服务（访问本机文件、内网 CLI），但需要对应平台的可执行文件。</p>
+     *
+     * <p>两者同时为空或同时非空都是配置错误：让「没配」和「配了两种」在加载 Agent 时
+     * 立刻报出来，比等到连接阶段再猜用户想用哪个更省时间。</p>
      */
-    public record McpServer(String name, String command, List<String> args, Map<String, String> env) {
+    public record McpServer(String name, String url, String command, List<String> args, Map<String, String> env) {
         public McpServer {
             args = args == null ? List.of() : List.copyOf(args);
             env = env == null ? Map.of() : Map.copyOf(env);
+            boolean hasUrl = url != null && !url.isBlank();
+            boolean hasCommand = command != null && !command.isBlank();
+            if (hasUrl == hasCommand) {
+                throw new LytgosException.InvalidAgentDefinition(
+                        "MCP server " + (name == null || name.isBlank() ? "(未命名)" : name)
+                                + " 必须且只能配置 url（远程）或 command（本地）其中之一");
+            }
         }
     }
 }

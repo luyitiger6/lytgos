@@ -202,7 +202,7 @@ http:
   allowed_domains:
     - "*.feishu.cn"
     - "api.deepseek.com"
-    - "api.open-meteo.com"
+    - "restapi.amap.com"
 ```
 
 这三个白名单也可在**运行期管理**——通过 `/api/v1/sandbox/whitelist` 接口和管理台，在 `FILE`、`SHELL`、`HTTP` 三类下增删条目，无需重启。
@@ -223,7 +223,7 @@ tools:
   - fetch_webpage
 ```
 
-建议在正文里写明：需要实时信息时先调 `web_search`。核心阶段搜索走 DuckDuckGo：**Instant Answer JSON 为空时（中文/时效查询常见）会自动再请求 HTML 轻量结果页**；若仍为空，再用 `fetch_webpage` 或对公开 API 使用 `http_get`（例如天气用 `api.open-meteo.com`）。
+建议在正文里写明：需要实时信息时先调 `web_search`。核心阶段搜索走 DuckDuckGo：**Instant Answer JSON 为空时（中文/时效查询常见）会自动再请求 HTML 轻量结果页**；若仍为空，再用 `fetch_webpage` 或对公开 API 使用 `http_get`（例如天气用 `restapi.amap.com`）。
 
 工具调用未通过沙箱校验时，`ToolExecutor` 返回不可重试的 `ToolResult`，并带有清晰的错误信息说明违反了哪条白名单。该调用仍会记录在 `tool_invocations` 里，`success = false`。
 

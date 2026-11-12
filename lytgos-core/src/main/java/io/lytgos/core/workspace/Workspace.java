@@ -181,21 +181,31 @@ public final class Workspace {
      *
      * <p>{@code api-key} 只写环境变量占位，不写真实值——这个文件虽然在工作区内、
      * 已经 gitignore，但用户很容易拷给别人排错，真实密钥不该出现在文件里。</p>
+     *
+     * <p>{@code model} 写的是服务端 {@code GET /models} 返回的 id，不是产品页上的展示名：
+     * DeepSeek-V4.1-Flash 的 id 是 {@code deepseek-flash}。换模型只改这一行——
+     * 请求实际使用的就是这里的值。可用 id 随时会变，以接口返回为准。</p>
      */
     private static final String CONFIG_TEMPLATE = """
             # lytgos 工作区配置
             providers:
               deepseek:
-                model: deepseek-chat
+                # 模型 id 以 GET https://api.deepseek.com/models 返回为准，换模型只改这一行。
+                # 当前可用：deepseek-flash（DeepSeek-V4.1-Flash）/ deepseek-v4-pro（DeepSeek-V4-Pro）
+                model: deepseek-flash
                 api-key: ${DEEPSEEK_API_KEY}
                 base-url: https://api.deepseek.com
 
             sandbox:
-              # 域名白名单：为空时全部拒绝
+              # 域名白名单：为空时全部拒绝。lytgos 进程内发起的请求都受它约束：
+              # 内置 http_get 与远程 MCP 的 url（远程 MCP 的域名必须写在这里，否则连不上）。
+              # 只有本地形态的 MCP server（用 command 起的子进程）不受它约束，
+              # 它的网络访问发生在子进程内（启动时会打一行提示）。
               allowed-domains:
-                - geocoding-api.open-meteo.com
-                - api.open-meteo.com
-              # 命令白名单：第 1 周没有 ShellTool，留空
+                - restapi.amap.com
+                - mcp.amap.com
+              # 命令白名单：本地形态 MCP server 的启动命令必须先在这里出现，否则拒绝启动。
+              # 例如允许用 node 起 server 就写 - node。留空 = 任何本地 MCP server 都起不来。
               allowed-commands: []
             """;
 
@@ -204,6 +214,10 @@ public final class Workspace {
      *
      * <p>{@code provider} 固定写 {@code deepseek}，与第 1 周的 provider 配置对齐；
      * 换 provider 时用户改这一处即可，不必动代码。</p>
+     *
+     * <p>{@code model} 按规格是必填项，但当前实现里只做缺失校验：请求实际使用的模型
+     * 来自 config.yaml 的 {@code providers} 段（见 {@code ChatRequest} 没有 model 字段）。
+     * 要让 agent 级覆盖生效得改 ChatRequest 契约，属后续 change，此处先如实说明。</p>
      */
     private static final String DEFAULT_AGENT = """
             ---
@@ -213,9 +227,10 @@ public final class Workspace {
               你是一个能调用工具完成任务的助手。需要事实性信息时先调用工具确认，不要凭记忆回答。
             provider:
               name: deepseek
-              model: deepseek-chat
+              model: deepseek-flash
             tools:
               - http_get
+              - file_read
             channels:
               - cli
             bootstrap:

@@ -26,23 +26,27 @@ public final class ChatCommand implements Runnable {
 
     @Override
     public void run() {
-        ReActLoop loop = context.loopFor(agent);
-        SessionStore store = context.sessions();
-        Session session = store.get(context.sessionKey(agent));
+        // 必须在 try 里：runtimeFor 可能已经拉起了 MCP 子进程，
+        // 不关就会在用户机器上留个孤儿
+        try (AgentRuntime runtime = context.runtimeFor(agent)) {
+            ReActLoop loop = runtime.loop();
+            SessionStore store = context.sessions();
+            Session session = store.get(context.sessionKey(agent));
 
-        if (message != null) {
-            String reply;
-            try {
-                reply = loop.run(session, message);
-            } finally {
-                // 即便对话抛异常也要落盘：历史里可能已经写入了工具调用与失败原因，
-                // 丢了它下一轮会因「有调用无结果」被上游拒绝
-                store.save(session);
+            if (message != null) {
+                String reply;
+                try {
+                    reply = loop.run(session, message);
+                } finally {
+                    // 即便对话抛异常也要落盘：历史里可能已经写入了工具调用与失败原因，
+                    // 丢了它下一轮会因「有调用无结果」被上游拒绝
+                    store.save(session);
+                }
+                System.out.println(reply);
+                return;
             }
-            System.out.println(reply);
-            return;
-        }
 
-        new CliChannel(loop, store, session).runInteractive();
+            new CliChannel(loop, store, session).runInteractive();
+        }
     }
 }

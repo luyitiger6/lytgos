@@ -45,36 +45,59 @@ function Record {
     Write-Host ("  [{0}] {1}. {2} — {3}" -f $Status, $Id, $Name, $Detail) -ForegroundColor $color
 }
 
+function Quote-Arg {
+    param([string]$Value)
+    if ($Value -match '[\s"]') {
+        return '"' + ($Value -replace '"', '\"') + '"'
+    }
+    return $Value
+}
+
 function Invoke-Lytgos {
     param(
         [string]$WorkDir,
         [string[]]$CliArgs,
         [string]$StdinText
     )
-    $stdoutFile = Join-Path $WorkDir '_stdout.txt'
-    $stderrFile = Join-Path $WorkDir '_stderr.txt'
-    Push-Location $WorkDir
-    # PowerShell 5.1 会把原生命令的 stderr 转成 ErrorRecord；在 EAP=Stop 下即使写了
-    # `2>` 重定向，这个转换也发生在重定向之前，直接终止脚本。验收要跑「预期失败」的
-    # 反例（缺 key、沙箱拒绝），所以这里必须局部放宽——判定仍然只看 $LASTEXITCODE。
-    $ErrorActionPreference = 'Continue'
-    try {
-        if ($PSBoundParameters.ContainsKey('StdinText')) {
-            $StdinText | & java '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' -jar $jar @CliArgs 1> $stdoutFile 2> $stderrFile
-        }
-        else {
-            & java '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' -jar $jar @CliArgs 1> $stdoutFile 2> $stderrFile
-        }
-        $code = $LASTEXITCODE
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+
+    # 不能用 `& java ... 2> file`：PowerShell 会把原生命令的 stderr 包成 ErrorRecord，
+    # 再按控制台宽度硬折行写进文件。长日志被拆成两行后，跨词断言（tool_call 与 args={...}
+    # 之间隔着换行）会永远匹配不上——08 闸门就因此误报过一次 FAIL。
+    # ProcessStartInfo 直接重定向拿到的是原始 stderr，不做任何再加工。
+    # 必须显式重定向 stdin 并在无输入时立刻关闭：否则 chat 的交互模式会等一次永远不来的输入。
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = 'java'
+    $psi.WorkingDirectory = $WorkDir
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.StandardOutputEncoding = $utf8
+    $psi.StandardErrorEncoding = $utf8
+    $psi.CreateNoWindow = $true
+    $arguments = @('-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8', '-jar', $jar) + $CliArgs
+    $psi.Arguments = ($arguments | ForEach-Object { Quote-Arg $_ }) -join ' '
+
+    $process = [System.Diagnostics.Process]::Start($psi)
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    if ($PSBoundParameters.ContainsKey('StdinText')) {
+        $process.StandardInput.Write($StdinText)
     }
-    finally {
-        $ErrorActionPreference = 'Stop'
-        Pop-Location
-    }
+    $process.StandardInput.Close()
+    $process.WaitForExit()
+    $stdout = $stdoutTask.Result
+    $stderr = $stderrTask.Result
+
+    # 失败时留着原文供人工排查
+    [System.IO.File]::WriteAllText((Join-Path $WorkDir '_stdout.txt'), $stdout, $utf8)
+    [System.IO.File]::WriteAllText((Join-Path $WorkDir '_stderr.txt'), $stderr, $utf8)
+
     return [pscustomobject]@{
-        ExitCode = $code
-        Stdout   = [string](Get-Content -LiteralPath $stdoutFile -Raw -Encoding UTF8)
-        Stderr   = [string](Get-Content -LiteralPath $stderrFile -Raw -Encoding UTF8)
+        ExitCode = $process.ExitCode
+        Stdout   = $stdout
+        Stderr   = $stderr
     }
 }
 
@@ -132,11 +155,18 @@ else {
 # ---------- 3. 单轮对话 + 工具往返 ----------
 Write-Host ''
 $apiKey = $env:DEEPSEEK_API_KEY
+$amapKey = $env:AMAP_MCP_KEY
 if ([string]::IsNullOrWhiteSpace($apiKey)) {
     Record '3' '单轮对话 + 工具往返' 'SKIP' '未设置 DEEPSEEK_API_KEY'
 }
+elseif ([string]::IsNullOrWhiteSpace($amapKey)) {
+    Record '3' '单轮对话 + 工具往返' 'SKIP' '未设置 AMAP_MCP_KEY（高德 Web 服务 key，http_get 查天气要用）'
+}
 else {
-    $chat = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-m', '北京今天天气怎么样')
+    # 显式给出完整 URL：这一条验的是「模型 → ToolExecutor → 沙箱 → 结果回填」这条链路，
+    # 不是模型自己猜 URL 的能力。key 从环境变量注入，不写死在脚本里。
+    $weatherUrl = "https://restapi.amap.com/v3/weather/weatherInfo?key=$amapKey&city=110000"
+    $chat = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-m', "请访问 $weatherUrl 并告诉我北京现在的气温是多少度")
     $temperature = $chat.Stdout -match '\d+(\.\d+)?\s*(°C|℃|度)'
     $toolCalls = ([regex]::Matches($chat.Stderr, 'tool_call: http_get')).Count
     if ($chat.ExitCode -ne 0) {
@@ -145,8 +175,8 @@ else {
     elseif (-not $temperature) {
         Record '3' '单轮对话 + 工具往返' 'FAIL' "stdout 未出现温度数值：$($chat.Stdout.Trim())"
     }
-    elseif ($toolCalls -lt 2) {
-        Record '3' '单轮对话 + 工具往返' 'FAIL' "tool_call: http_get 只出现 $toolCalls 次，预期至少 2 次（查经纬度 + 查天气）"
+    elseif ($toolCalls -lt 1) {
+        Record '3' '单轮对话 + 工具往返' 'FAIL' "tool_call: http_get 一次也没出现，工具往返没发生"
     }
     else {
         Record '3' '单轮对话 + 工具往返' 'PASS' "含温度数值，http_get 调用 $toolCalls 次"

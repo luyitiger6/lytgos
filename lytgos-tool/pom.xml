@@ -21,6 +21,17 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!--
+            MCP 官方 Java SDK。刻意不引 spring-ai-mcp：它会把 spring-ai-model 带进来，
+            而 AGENTS.md 4.1 只允许 lytgos-provider 依赖 Spring AI（04 闸门会扫）。
+            spring-ai-mcp:2.0.2 内部依赖的正是这个版本，直接对齐便于将来一起升级。
+        -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+            <version>${mcp-sdk.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

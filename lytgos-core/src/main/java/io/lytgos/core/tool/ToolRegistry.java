@@ -32,7 +32,10 @@ public final class ToolRegistry {
                 throw new LytgosException.InvalidConfiguration("工具缺少 name: " + tool.getClass().getName());
             }
             if (ordered.putIfAbsent(spec.name(), tool) != null) {
-                throw new LytgosException.InvalidConfiguration("工具重名: " + spec.name());
+                throw new LytgosException.InvalidConfiguration(
+                        "工具重名: " + spec.name()
+                                + "（已注册来源 " + ordered.get(spec.name()).source()
+                                + "，本次来源 " + tool.source() + "）");
             }
         }
         this.tools = Collections.unmodifiableMap(ordered);
@@ -45,6 +48,11 @@ public final class ToolRegistry {
     /** 交给模型的工具声明，顺序与注册顺序一致。 */
     public List<ToolSpec> specs() {
         return tools.values().stream().map(Tool::spec).toList();
+    }
+
+    /** 已注册的工具本体，顺序与注册顺序一致。供需要按白名单再筛一遍的装配层使用。 */
+    public List<Tool> all() {
+        return List.copyOf(tools.values());
     }
 
     public Set<String> names() {

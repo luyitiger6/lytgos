@@ -37,6 +37,19 @@ public class LytgosException extends RuntimeException {
         }
     }
 
+    /**
+     * 工具参数不合法：格式错、缺必填字段、类型不对。
+     *
+     * <p>与 {@link SandboxViolation} 刻意分开：沙箱违规是安全事件，向上抛并中断对话；
+     * 参数错误是可纠正错误，由 {@link io.lytgos.core.tool.ToolExecutor} 回填给模型自己改。
+     * 两类失败混用同一个类型，会让格式错被当成攻击拦下，ReAct 的纠错能力就失效了。</p>
+     */
+    public static class InvalidToolArgument extends LytgosException {
+        public InvalidToolArgument(String message) {
+            super(message);
+        }
+    }
+
     /** 配置里找不到指定的 provider。消息列出已注册的名字，避免用户靠猜。 */
     public static class UnknownProvider extends LytgosException {
         public UnknownProvider(String name, Set<String> registered) {

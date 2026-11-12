@@ -55,18 +55,43 @@ public final class SandboxChecker {
         if (command == null || command.isBlank()) {
             throw new LytgosException.SandboxViolation("命令为空");
         }
-        String executable = command.trim().split("\\s+", 2)[0];
-        int lastSeparator = Math.max(executable.lastIndexOf('/'), executable.lastIndexOf('\\'));
-        String name = lastSeparator >= 0 ? executable.substring(lastSeparator + 1) : executable;
-        if (name.toLowerCase(Locale.ROOT).endsWith(".exe")) {
-            name = name.substring(0, name.length() - 4);
-        }
+        String name = normalizeName(executableOf(command.trim()));
         if (allowedCommands.isEmpty()) {
             throw new LytgosException.SandboxViolation("命令白名单为空，全部拒绝: " + name);
         }
         if (!allowedCommands.contains(name)) {
             throw new LytgosException.SandboxViolation(
                     "命令 " + name + " 不在白名单 " + allowedCommands + " 内");
+        }
+        return name;
+    }
+
+    /**
+     * 从命令声明里取出可执行文件那一段。
+     *
+     * <p>三种写法都要认：{@code java}、{@code "C:\Program Files\...\java.exe"}、
+     * {@code java -Xmx1g}（内联参数）。不能一律按第一个空格切——Windows 路径
+     * 常在 {@code Program Files} 这种带空格的目录下，切完只剩 {@code Program}，
+     * 明明放行了 java 却报「Program 不在白名单」。判据是「按整串取出的文件名
+     * 已在白名单里」：是就用整串，否则退回第一个空格前的部分。</p>
+     */
+    private String executableOf(String command) {
+        if (command.startsWith("\"")) {
+            int closing = command.indexOf('"', 1);
+            return closing > 0 ? command.substring(1, closing) : command.substring(1);
+        }
+        if (allowedCommands.contains(normalizeName(command))) {
+            return command;
+        }
+        return command.split("\\s+", 2)[0];
+    }
+
+    /** 取路径最后一段作为命令名，并去掉 Windows 的 {@code .exe} 后缀。 */
+    private static String normalizeName(String executable) {
+        int lastSeparator = Math.max(executable.lastIndexOf('/'), executable.lastIndexOf('\\'));
+        String name = lastSeparator >= 0 ? executable.substring(lastSeparator + 1) : executable;
+        if (name.toLowerCase(Locale.ROOT).endsWith(".exe")) {
+            name = name.substring(0, name.length() - 4);
         }
         return name;
     }
@@ -83,29 +108,31 @@ public final class SandboxChecker {
     /** 校验 URL 的协议与域名，返回解析后的 URI。 */
     public URI checkDomain(String url) {
         if (url == null || url.isBlank()) {
-            throw new LytgosException.SandboxViolation("URL 为空");
+            throw new LytgosException.InvalidToolArgument("URL 为空");
         }
         URI uri;
         try {
             uri = URI.create(url.trim());
         } catch (IllegalArgumentException e) {
             // 模型自己拼 URL 时常把未转义的 % 或空格写进 query（如 wttr.in 的 ?format=%l:+%c）。
-            // 这是输入格式错误，不是白名单拦截——两者混成同一个「无法解析」会让调用方
-            // 以为策略拒了它，而去换域名重试，永远碰不到真正的修法。
-            throw new LytgosException.SandboxViolation(
+            // 这是输入格式错误，不是白名单拦截。混成同一个异常会让 ToolExecutor 把它当
+            // 安全事件中断整轮对话，模型失去改正的机会——而它明明只需要把 % 写成 %25。
+            throw new LytgosException.InvalidToolArgument(
                     "URL 格式非法（query 里的 % 要写成 %25，空格写成 %20）: " + url);
         }
         String scheme = uri.getScheme();
         if (scheme == null || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+            // 协议限制是策略约束，不是格式错：file:///etc/passwd 是拿别的协议读本地文件，
+            // 归到“只允许 http/https”这条安全边界里。
             throw new LytgosException.SandboxViolation("只允许 http/https 协议: " + url);
         }
         if (uri.getUserInfo() != null) {
-            // http://api.open-meteo.com@evil.com/ 这类把白名单域名塞进 userinfo 的写法必须挡住
+            // http://restapi.amap.com@evil.com/ 这类把白名单域名塞进 userinfo 的写法必须挡住
             throw new LytgosException.SandboxViolation("URL 不允许携带 userinfo: " + url);
         }
         String host = uri.getHost();
         if (host == null || host.isBlank()) {
-            throw new LytgosException.SandboxViolation("URL 缺少 host: " + url);
+            throw new LytgosException.InvalidToolArgument("URL 缺少 host: " + url);
         }
         String normalized = host.toLowerCase(Locale.ROOT);
         if (allowedDomains.isEmpty()) {
