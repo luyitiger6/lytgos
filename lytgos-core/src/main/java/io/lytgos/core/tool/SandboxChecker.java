@@ -127,7 +127,7 @@ public final class SandboxChecker {
             throw new LytgosException.SandboxViolation("只允许 http/https 协议: " + url);
         }
         if (uri.getUserInfo() != null) {
-            // http://api.open-meteo.com@evil.com/ 这类把白名单域名塞进 userinfo 的写法必须挡住
+            // http://restapi.amap.com@evil.com/ 这类把白名单域名塞进 userinfo 的写法必须挡住
             throw new LytgosException.SandboxViolation("URL 不允许携带 userinfo: " + url);
         }
         String host = uri.getHost();

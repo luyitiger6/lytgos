@@ -158,7 +158,7 @@ name: ops-agent
 description: 运维助手
 provider:
   name: deepseek
-  model: deepseek-chat
+  model: deepseek-flash
 tools:
   - file_read
   - http_get
@@ -193,10 +193,10 @@ mcp_servers:
 
 ```yaml
 mcp_servers:
-  - name: openmeteo
+  - name: local-tools
     command: node
     args:
-      - /opt/mcp/open-meteo/index.js
+      - /opt/mcp/server.js
     env:
       LOG_LEVEL: warn
 ```

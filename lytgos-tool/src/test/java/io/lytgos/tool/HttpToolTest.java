@@ -22,7 +22,7 @@ class HttpToolTest {
 
     private HttpTool tool() {
         return new HttpTool(new SandboxChecker(
-                workspace, Set.of(), Set.of("geocoding-api.open-meteo.com")));
+                workspace, Set.of(), Set.of("restapi.amap.com")));
     }
 
     @Test
@@ -36,7 +36,7 @@ class HttpToolTest {
     @DisplayName("工具描述里直接写出允许的域名，不让模型去猜")
     void specDeclaresAllowedDomains() {
         String description = tool().spec().description();
-        assertTrue(description.contains("geocoding-api.open-meteo.com"),
+        assertTrue(description.contains("restapi.amap.com"),
                 "描述里必须出现实际白名单，否则模型会自己编域名: " + description);
         assertTrue(description.contains("沙箱拒绝"),
                 "要让模型知道超范围不是报错回退，而是直接拒绝: " + description);
@@ -69,6 +69,6 @@ class HttpToolTest {
     void emptyWhitelistBlocksEverything() {
         HttpTool blocked = new HttpTool(new SandboxChecker(workspace, Set.of(), Set.of()));
         assertThrows(LytgosException.SandboxViolation.class,
-                () -> blocked.execute(Map.of("url", "https://geocoding-api.open-meteo.com/v1/search")));
+                () -> blocked.execute(Map.of("url", "https://restapi.amap.com/v3/weather/weatherInfo")));
     }
 }

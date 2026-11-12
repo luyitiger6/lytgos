@@ -132,13 +132,13 @@ AgentLoader 解析 Profile
 
 | 路径 | 配置 | 断言 |
 |---|---|---|
-| A 内置 | `tools: [http_get]`，白名单含 open-meteo | 日志出现 `tool_call: http_get`，输出含温度数值 |
+| A 内置 | `tools: [http_get]`，白名单含 `restapi.amap.com` | 日志出现 `tool_call: http_get`，输出含温度数值 |
 | B 远程 MCP | `mcp_servers: [{url: 高德}]`，`tools: [maps_weather]` | 日志出现 `tool_call: maps_weather`，输出含天气描述 |
 | C 本地 MCP | `mcp_servers: [{command: java, args: [FakeMcpServer]}]` | 日志出现 `tool_call: get_current_weather` |
 
 三条路径都必须出现 `tool_call` 日志——这证明执行确实经过了 `ToolExecutor`，而不是别的什么通道。
 
-路径 B 需要 `AMAP_MCP_KEY` 环境变量，缺失时记 SKIP。`FakeMcpServer` 继续用于路径 C 与单元测试：stdout/stdin 夹具是**离线单测的必需品**，与「不造假的 HTTP 服务端」不矛盾——区别在于它从不出现在需要证明「能连真实外部服务」的断言里。
+路径 A 的天气请求走高德 Web 服务接口（显式给出带 key 的完整 URL），与路径 B 的远程 MCP 同一家供应商；路径 A 与路径 B 都需要 `AMAP_MCP_KEY`，缺失时记 SKIP。`FakeMcpServer` 继续用于路径 C 与单元测试：stdout/stdin 夹具是**离线单测的必需品**，与「不造假的 HTTP 服务端」不矛盾——区别在于它从不出现在需要证明「能连真实外部服务」的断言里。
 
 ## 实施记录：远程 HTTP 形态的两个坑
 

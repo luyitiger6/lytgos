@@ -91,7 +91,7 @@ public final class ProfileCommand implements Runnable {
                       你是一个助手。
                     provider:
                       name: deepseek
-                      model: deepseek-chat
+                      model: deepseek-flash
                     tools:
                       - http_get
                     channels:

@@ -12,17 +12,18 @@
          → stdout 含天气描述，stderr 有 tool_call: maps_weather，且没有任何 tool_call: http_get
       3. 路径 C（本地 MCP）：mcp_servers 配 stdio 夹具，tools: [get_current_weather]
          → stdout 含夹具返回的温度，stderr 有 tool_call: get_current_weather
-      4. 工具来源可见：远程带 [mcp:amap]，本地带 [mcp:openmeteo]；白名单外的内置工具不混进来
+      4. 工具来源可见：远程带 [mcp:amap]，本地带 [mcp:localweather]；白名单外的内置工具不混进来
       5. 边界提示按形态分：远程说「地址已通过域名白名单校验」，本地说「域名白名单不覆盖该 server」
       6. 沙箱两条：命令白名单为空 → 本地起不来；域名白名单缺 mcp.amap.com → 远程连不上，都要含 sandbox
       7. 退出后没有残留的 MCP 子进程
 
     路径 C 的 server 用 lytgos-tool 测试夹具里的 FakeMcpServer（纯 JDK，只实现协议够用的一段）。
-    为什么不用现成的开源 server：gbrigandi/mcp-server-openmeteo 只发了 linux / macos 二进制，
-    Windows 没有可执行文件；换第三方 Node 包又要赌 npm 仓库可用。夹具不联网、输出固定，
-    断言不会因为外部服务抽风而红。它只服务路径 C 与离线单测，不参与任何「能连真实外部服务」的断言。
+    为什么不用现成的开源 server：能直接拿来跑的多数只发 linux / macos 二进制，Windows 没有可执行文件；
+    换第三方 Node 包又要赌 npm 仓库可用。夹具不联网、输出固定，断言不会因为外部服务抽风而红。
+    它只服务路径 C 与离线单测，不参与任何「能连真实外部服务」的断言。
 
-    第 1、2、3 条需要真实模型（DEEPSEEK_API_KEY）；第 2、4、5 条的远程部分还需要 AMAP_MCP_KEY。
+    第 1、2、3 条需要真实模型（DEEPSEEK_API_KEY）；第 1 条的天气请求与第 2、4、5 条的远程部分还需要
+    AMAP_MCP_KEY（路径 A 用高德 Web 服务的天气接口验内置 http_get，与远程 MCP 同一家供应商）。
     缺失时对应条目记 SKIP 并返回 2。第 6 条不需要任何 key：沙箱拒绝发生在建连接之前。
 
     三态：
@@ -128,9 +129,12 @@ if ($init.ExitCode -ne 0) {
 $configFile = Join-Path $workspace '.lytgos/config.yaml'
 $configText = [System.IO.File]::ReadAllText($configFile)
 $configText = $configText -replace '(?m)^\s*allowed-commands:\s*\[\]\s*$', "  allowed-commands:`n    - java"
-# init 模板里已经带 mcp.amap.com；这里再兜一次底，防止模板回退后闸门莫名变红
-if ($configText -notmatch 'mcp\.amap\.com') {
-    $configText = $configText -replace '(?m)^(\s*)- api\.open-meteo\.com\s*$', "`$1- api.open-meteo.com`r`n`$1- mcp.amap.com"
+# init 模板里已经带这两个域名；这里兜一次底，防止模板回退后闸门莫名变红
+$requiredDomains = @('restapi.amap.com', 'mcp.amap.com')
+$missingDomains = @($requiredDomains | Where-Object { $configText -notmatch [regex]::Escape($_) })
+if ($missingDomains.Count -gt 0) {
+    $appendDomains = ($missingDomains | ForEach-Object { "`r`n    - $_" }) -join ''
+    $configText = $configText -replace '(?m)^(\s*)allowed-domains:\s*$', "`$0$appendDomains"
 }
 Write-Utf8NoBom -Path $configFile -Text $configText
 
@@ -143,11 +147,11 @@ name: builtin-path
 description: 只用内置 http_get
 provider:
   name: deepseek
-  model: deepseek-chat
+  model: deepseek-flash
 tools:
   - http_get
 ---
-查天气只能用 http_get，请求 api.open-meteo.com。
+查天气只能用 http_get，由用户给出完整 URL。
 "@
 
 # 路径 B：远程 MCP。tools 里不列 http_get，它就不该出现在模型面前
@@ -158,7 +162,7 @@ name: remote-path
 description: 远程 MCP 在线服务
 provider:
   name: deepseek
-  model: deepseek-chat
+  model: deepseek-flash
 tools:
   - maps_weather
 mcp_servers:
@@ -175,11 +179,11 @@ name: local-path
 description: 本地 MCP server 提供的工具
 provider:
   name: deepseek
-  model: deepseek-chat
+  model: deepseek-flash
 tools:
   - get_current_weather
 mcp_servers:
-  - name: openmeteo
+  - name: localweather
     command: '$javaForYaml'
     args:
       - '-cp'
@@ -202,8 +206,12 @@ Write-Host ''
 if ([string]::IsNullOrWhiteSpace($apiKey)) {
     Record '1' '路径 A · 内置 http_get' 'SKIP' '未设置 DEEPSEEK_API_KEY'
 }
+elseif ([string]::IsNullOrWhiteSpace($amapKey)) {
+    Record '1' '路径 A · 内置 http_get' 'SKIP' '未设置 AMAP_MCP_KEY（http_get 查天气要用）'
+}
 else {
-    $a = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-a', 'builtin-path', '-m', '北京今天天气怎么样')
+    $builtinUrl = "https://restapi.amap.com/v3/weather/weatherInfo?key=$amapKey&city=110000"
+    $a = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-a', 'builtin-path', '-m', "请访问 $builtinUrl 并告诉我北京现在的气温是多少度")
     $temperature = $a.Stdout -match '\d+(\.\d+)?\s*(°C|℃|度)'
     $toolCalls = ([regex]::Matches($a.Stderr, 'tool_call: http_get')).Count
     if ($a.ExitCode -ne 0) {
@@ -283,8 +291,8 @@ $localList = Invoke-Lytgos -WorkDir $workspace -CliArgs @('tool', 'list', '-a', 
 if ($localList.ExitCode -ne 0) {
     Record '4' '工具来源可见' 'FAIL' "本地 tool list 退出码 $($localList.ExitCode)：$($localList.Stderr.Trim())"
 }
-elseif ($localList.Stdout -notmatch '\[mcp:openmeteo\]') {
-    Record '4' '工具来源可见' 'FAIL' "工具描述里没有 [mcp:openmeteo] 来源标注：$($localList.Stdout.Trim())"
+elseif ($localList.Stdout -notmatch '\[mcp:localweather\]') {
+    Record '4' '工具来源可见' 'FAIL' "工具描述里没有 [mcp:localweather] 来源标注：$($localList.Stdout.Trim())"
 }
 elseif ($localList.Stdout -match 'http_get') {
     Record '4' '工具来源可见' 'FAIL' "tools 白名单外的 http_get 出现在了列表里：$($localList.Stdout.Trim())"
@@ -304,7 +312,7 @@ else {
         Record '4' '工具来源可见' 'FAIL' "远程工具清单里没有 maps_weather：$($remoteList.Stdout.Trim())"
     }
     else {
-        Record '4' '工具来源可见' 'PASS' '远程 [mcp:amap] 与本地 [mcp:openmeteo] 都带来源标注，白名单外的内置工具没有混进来'
+        Record '4' '工具来源可见' 'PASS' '远程 [mcp:amap] 与本地 [mcp:localweather] 都带来源标注，白名单外的内置工具没有混进来'
     }
 }
 

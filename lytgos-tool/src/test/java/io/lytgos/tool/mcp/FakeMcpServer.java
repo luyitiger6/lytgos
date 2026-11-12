@@ -72,7 +72,7 @@ public final class FakeMcpServer {
             if (message.contains("\"method\":\"initialize\"")) {
                 respond(out, id, "{\"protocolVersion\":\"" + PROTOCOL_VERSION + "\","
                         + "\"capabilities\":{\"tools\":{}},"
-                        + "\"serverInfo\":{\"name\":\"fake-openmeteo\",\"version\":\"1.0.0\"}}");
+                        + "\"serverInfo\":{\"name\":\"fake-localweather\",\"version\":\"1.0.0\"}}");
             } else if (message.contains("\"method\":\"tools/list\"")) {
                 respond(out, id, "{\"tools\":[" + TOOLS + "]}");
             } else if (message.contains("\"method\":\"tools/call\"")) {

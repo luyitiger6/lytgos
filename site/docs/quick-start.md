@@ -84,7 +84,7 @@ lytgos ships with three demo agents under `.lytgos/agents/` that show the model 
 
 | Agent | What it does |
 | --- | --- |
-| `weather-daily` | Fetches Beijing weather from open-meteo and pushes a dressing tip via `notify` |
+| `weather-daily` | Fetches Beijing weather via the Amap weather API with `http_get` and pushes a dressing tip via `notify` |
 | `daily-tech-digest` | Pulls headlines from `hn.algolia.com`, reads an on-demand skill file, and notifies a digest |
 | `github-daily` | Runs a trusted local Python script via `shell` and notifies a GitHub trending report (requires explicitly allowing `python3`) |
 

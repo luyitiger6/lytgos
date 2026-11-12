@@ -38,7 +38,7 @@ class ReActLoopTest {
         ToolRegistry registry = new ToolRegistry(List.of(tool));
         ScriptedModel model = new ScriptedModel(List.of(
                 new ChatResult("", List.of(new ToolCall("c1", "http_get",
-                        "{\"url\":\"https://api.open-meteo.com/v1/forecast\"}"))),
+                        "{\"url\":\"https://restapi.amap.com/v3/weather/weatherInfo\"}"))),
                 new ChatResult("北京今天晴，25 度", List.of())));
 
         Session session = new Session("cli:local:tester");
@@ -47,7 +47,7 @@ class ReActLoopTest {
         assertEquals("北京今天晴，25 度", answer);
         assertEquals(2, model.calls(), "第一轮工具调用、第二轮文本，模型应被调用两次");
         assertEquals(1, tool.invocations.size());
-        assertEquals("https://api.open-meteo.com/v1/forecast", tool.invocations.get(0).get("url"));
+        assertEquals("https://restapi.amap.com/v3/weather/weatherInfo", tool.invocations.get(0).get("url"));
 
         List<Message> history = session.history();
         assertEquals(4, history.size(), "user → assistant(toolCalls) → tool → assistant(text)");

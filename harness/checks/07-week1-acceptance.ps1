@@ -155,11 +155,18 @@ else {
 # ---------- 3. 单轮对话 + 工具往返 ----------
 Write-Host ''
 $apiKey = $env:DEEPSEEK_API_KEY
+$amapKey = $env:AMAP_MCP_KEY
 if ([string]::IsNullOrWhiteSpace($apiKey)) {
     Record '3' '单轮对话 + 工具往返' 'SKIP' '未设置 DEEPSEEK_API_KEY'
 }
+elseif ([string]::IsNullOrWhiteSpace($amapKey)) {
+    Record '3' '单轮对话 + 工具往返' 'SKIP' '未设置 AMAP_MCP_KEY（高德 Web 服务 key，http_get 查天气要用）'
+}
 else {
-    $chat = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-m', '北京今天天气怎么样')
+    # 显式给出完整 URL：这一条验的是「模型 → ToolExecutor → 沙箱 → 结果回填」这条链路，
+    # 不是模型自己猜 URL 的能力。key 从环境变量注入，不写死在脚本里。
+    $weatherUrl = "https://restapi.amap.com/v3/weather/weatherInfo?key=$amapKey&city=110000"
+    $chat = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-m', "请访问 $weatherUrl 并告诉我北京现在的气温是多少度")
     $temperature = $chat.Stdout -match '\d+(\.\d+)?\s*(°C|℃|度)'
     $toolCalls = ([regex]::Matches($chat.Stderr, 'tool_call: http_get')).Count
     if ($chat.ExitCode -ne 0) {
@@ -168,8 +175,8 @@ else {
     elseif (-not $temperature) {
         Record '3' '单轮对话 + 工具往返' 'FAIL' "stdout 未出现温度数值：$($chat.Stdout.Trim())"
     }
-    elseif ($toolCalls -lt 2) {
-        Record '3' '单轮对话 + 工具往返' 'FAIL' "tool_call: http_get 只出现 $toolCalls 次，预期至少 2 次（查经纬度 + 查天气）"
+    elseif ($toolCalls -lt 1) {
+        Record '3' '单轮对话 + 工具往返' 'FAIL' "tool_call: http_get 一次也没出现，工具往返没发生"
     }
     else {
         Record '3' '单轮对话 + 工具往返' 'PASS' "含温度数值，http_get 调用 $toolCalls 次"

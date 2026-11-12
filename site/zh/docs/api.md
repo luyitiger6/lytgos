@@ -103,7 +103,7 @@ lytgos serve --port 8080
   "name": "ops-agent",
   "description": "运维助手",
   "provider": "deepseek",
-  "model": "deepseek-chat",
+  "model": "deepseek-flash",
   "tools": ["read_file", "shell", "http_get"],
   "schedules": []
 }
@@ -120,7 +120,7 @@ lytgos serve --port 8080
     "name": "ops-agent",
     "description": "运维助手",
     "provider": "deepseek",
-    "model": "deepseek-chat",
+    "model": "deepseek-flash",
     "tools": ["read_file", "shell", "http_get"],
     "schedules": []
   }
@@ -137,7 +137,7 @@ lytgos serve --port 8080
   "name": "weather-daily",
   "description": "每天把天气和穿衣建议推送到飞书",
   "provider": "deepseek",
-  "model": "deepseek-chat",
+  "model": "deepseek-flash",
   "tools": ["http_get", "notify"],
   "schedules": [
     { "id": "morning", "cron": "0 0 8 * * *", "zone": "Asia/Shanghai", "message": "推送今天的天气和穿衣建议" }
@@ -164,7 +164,7 @@ lytgos serve --port 8080
   "name": "ops-agent",
   "description": "运维助手",
   "provider": "deepseek",
-  "model": "deepseek-chat",
+  "model": "deepseek-flash",
   "tools": ["read_file", "shell", "http_get"],
   "schedules": []
 }
@@ -287,7 +287,7 @@ null
   "name": "github-daily",
   "description": "每天把 GitHub trending 推送到飞书",
   "provider": "deepseek",
-  "model": "deepseek-chat",
+  "model": "deepseek-flash",
   "tools": ["shell", "notify"],
   "schedules": []
 }
@@ -669,7 +669,7 @@ curl -N -H "Accept: text/event-stream" -H "Content-Type: application/json" \
     "name": "ops-agent",
     "description": "运维助手",
     "provider": "deepseek",
-    "model": "deepseek-chat",
+    "model": "deepseek-flash",
     "tools": ["read_file", "shell", "http_get", "save_memory", "recall_memory"]
   }
 ]
@@ -711,7 +711,7 @@ Sandbox 白名单分三类——`FILE`（允许路径）、`SHELL`（允许命�
 {
   "file": ["/home/user/project/.lytgos"],
   "shell": ["ls", "cat", "echo", "grep"],
-  "http": ["*.open-meteo.com", "hn.algolia.com"]
+  "http": ["*.amap.com", "hn.algolia.com"]
 }
 ```
 
@@ -732,7 +732,7 @@ Sandbox 白名单分三类——`FILE`（允许路径）、`SHELL`（允许命�
   "category": "http",
   "value": "*.example.com",
   "changed": true,
-  "entries": ["*.open-meteo.com", "hn.algolia.com", "*.example.com"]
+  "entries": ["*.amap.com", "hn.algolia.com", "*.example.com"]
 }
 ```
 
@@ -748,7 +748,7 @@ Sandbox 白名单分三类——`FILE`（允许路径）、`SHELL`（允许命�
   "category": "http",
   "value": "*.example.com",
   "changed": true,
-  "entries": ["*.open-meteo.com", "hn.algolia.com"]
+  "entries": ["*.amap.com", "hn.algolia.com"]
 }
 ```
 
@@ -834,7 +834,7 @@ Sandbox 白名单分三类——`FILE`（允许路径）、`SHELL`（允许命�
 ```yaml
 provider:
   name: deepseek
-  model: deepseek-chat
+  model: deepseek-flash
   fallback:
     - name: qwen
       model: qwen-plus

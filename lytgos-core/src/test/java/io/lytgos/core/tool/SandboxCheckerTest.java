@@ -25,7 +25,7 @@ class SandboxCheckerTest {
     private SandboxChecker checker() throws IOException {
         workspace = tempDir.resolve("workspace");
         Files.createDirectories(workspace);
-        return new SandboxChecker(workspace, Set.of("echo"), Set.of("api.open-meteo.com"));
+        return new SandboxChecker(workspace, Set.of("echo"), Set.of("restapi.amap.com"));
     }
 
     @Test
@@ -58,8 +58,8 @@ class SandboxCheckerTest {
     @DisplayName("白名单域名放行，大小写不敏感")
     void allowsWhitelistedDomain() throws IOException {
         SandboxChecker sandbox = checker();
-        assertEquals("API.Open-Meteo.com",
-                sandbox.checkDomain("https://API.Open-Meteo.com/v1/forecast?latitude=1").getHost());
+        assertEquals("RestAPI.Amap.com",
+                sandbox.checkDomain("https://RestAPI.Amap.com/v3/weather/weatherInfo?city=110000").getHost());
     }
 
     @Test
@@ -80,7 +80,7 @@ class SandboxCheckerTest {
         SandboxChecker sandbox = new SandboxChecker(tempDir.resolve("empty"), Set.of(), Set.of());
         LytgosException.SandboxViolation violation = assertThrows(
                 LytgosException.SandboxViolation.class,
-                () -> sandbox.checkDomain("https://api.open-meteo.com/v1/forecast"));
+                () -> sandbox.checkDomain("https://restapi.amap.com/v3/weather/weatherInfo"));
         assertTrue(violation.getMessage().contains("白名单为空"));
     }
 
@@ -89,7 +89,7 @@ class SandboxCheckerTest {
     void rejectsUserInfoTrick() throws IOException {
         SandboxChecker sandbox = checker();
         assertThrows(LytgosException.SandboxViolation.class,
-                () -> sandbox.checkDomain("https://api.open-meteo.com@evil.example.com/"));
+                () -> sandbox.checkDomain("https://restapi.amap.com@evil.example.com/"));
     }
 
     @Test
@@ -121,8 +121,8 @@ class SandboxCheckerTest {
         workspace = tempDir.resolve("workspace");
         Files.createDirectories(workspace);
         SandboxChecker sandbox = new SandboxChecker(
-                workspace, Set.of(), Set.of("API.Open-Meteo.com", "api.open-meteo.com"));
-        assertEquals(Set.of("api.open-meteo.com"), sandbox.allowedDomains(),
+                workspace, Set.of(), Set.of("RestAPI.Amap.com", "restapi.amap.com"));
+        assertEquals(Set.of("restapi.amap.com"), sandbox.allowedDomains(),
                 "构造时已统一小写并去重");
         assertThrows(UnsupportedOperationException.class,
                 () -> sandbox.allowedDomains().add("evil.com"),

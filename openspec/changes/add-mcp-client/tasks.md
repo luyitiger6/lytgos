@@ -74,7 +74,7 @@
   - 沙箱两条都不需要 key：命令白名单为空 → 本地起不来；域名白名单缺 `mcp.amap.com` → 远程连不上，都要含 `sandbox`
   - **实测**（仅有 `AMAP_MCP_KEY`）：4 / 5 / 6a / 6b / 7 全 PASS，1 / 2 / 3 记 SKIP，退出码 2；无 key 时同样退出码 2，无 FAIL
   - **实测（2026-11-13 07:05，`DEEPSEEK_API_KEY` 无效）**：4 / 5 / 6a / 6b / 7 全 PASS；1 / 2 / 3 记 FAIL，三条的失败点完全相同——`401: Authentication Fails, Your api key: ****38b8 is invalid`，且都发生在 MCP 连接已就绪（远程 15 个工具 / 本地 2 个工具）之后、模型调用阶段
-  - **待复验**：第 1 / 2 / 3 条需有效 `DEEPSEEK_API_KEY`。恢复后应变为 8 条全 PASS、退出码 0
+  - **实测（2026-11-13 07:27，有效 `DEEPSEEK_API_KEY` + `AMAP_MCP_KEY`）**：8 条全 PASS，退出码 0。路径 A 改用高德 Web 服务天气接口（显式完整 URL），`http_get` 调用 1 次；路径 B `maps_weather` 1 次；路径 C `get_current_weather` 1 次
 
 - [x] 6.2 同步闸门清单
   - 闸门文件数量未变，`AGENTS.md` 的 `harness-checks` 标记行已含 00–08 九道；`harness/README.md` 的 08 描述改为三路径与两个 key
@@ -109,9 +109,28 @@
   - **判据**：直接搜 class 里有没有 `Unresolved compilation problem` 字符串；有就是被污染的
   - **修复**：`mvn clean package`（不是 `mvn package`）；排障方法写进 `harness/README.md` 的坑清单
 
-## 8. 文档修正
+- [x] 7.6 编辑器把源文件写成 0 字节，并回退已提交的改动
+  - **现象**：`ProfileCommand.java` 变成 0 字节；同时 `harness/README.md`、`07-week1-acceptance.ps1`、`tasks.md` 被回退成提交前的版本，看起来像「改过的文件全丢了」
+  - **判据**：`git status` 出现「已提交文件的反向差异」+ 文件长度为 0；磁盘剩余 26 GB，与空间无关
+  - **恢复**：`git checkout -- <file>` 从 HEAD 取回；已提交的改动全部无损，损失的只是未提交部分
+  - **教训**：未提交的改动会被 IDE 的连带操作一起回退，每完成一个增量即本地提交
 
-- [x] 8.1 `docs/design/architecture.md` 补 Reactor 说明
+## 8. 实现中的需求调整
+
+- [x] 8.1 天气场景从 Open-Meteo 换成高德
+  - **原因**：项目已接高德（远程 MCP），再留 open-meteo 就是两套供应商；且 `api.open-meteo.com` 在本机持续 `HTTP connect timed out`——同一次对话里 `geocoding-api.open-meteo.com` 与 `mcp.amap.com` 都正常，curl 直连、按 IP `--resolve`、单文件 Java 探针、DNS 探针也全部正常，未能收敛到代码缺陷
+  - **改动**：`config.yaml` 模板白名单改为 `restapi.amap.com` + `mcp.amap.com`；07 第 3 条与 08 路径 A 改成「显式给出带 key 的完整 URL」，`http_get` 调用次数断言从「至少 2 次」放宽为「至少 1 次」（不再需要先查经纬度）；本地夹具 server 名与文档示例同步换成中性名字
+  - **影响**：07 第 3 条与 08 路径 A 新增 `AMAP_MCP_KEY` 依赖，缺 key 时记 SKIP
+  - **验证**：07 六条全 PASS、08 八条全 PASS，均退出码 0
+
+- [x] 8.2 模型 id 统一为 `deepseek-flash`
+  - `GET https://api.deepseek.com/models` 实测返回 `deepseek-flash`（DeepSeek-V4.1-Flash）与 `deepseek-v4-pro`，`deepseek-chat` 已不在列表；带 `tools` 的请求能正常返回 `tool_calls`，`finish_reason` 为 `tool_calls`
+  - 改动范围：`Workspace` 的 config 与 agent 模板、`ProfileCommand` 的 agent 模板、08 的三个 agent、`README`、`site` 中英文六处文档、`SandboxCheckerTest` / `HttpToolTest` / `ReActLoopTest` 的测试字面量
+  - **待跟进**：`ChatRequest` 没有 model 字段，agent 级 `provider.model` 目前只做必填校验、不参与请求；让 agent 级覆盖生效需改契约，属后续 change
+
+## 9. 文档修正
+
+- [x] 9.1 `docs/design/architecture.md` 补 Reactor 说明
   - 「原则七」补一段：约束的是业务代码的编程模型，不排斥 SDK 的传递依赖；只用 `McpClient.sync()`，业务代码不出现 `Mono` / `Flux`
   - **验收**：表述与实际依赖一致
 
@@ -119,7 +138,6 @@
 
 - 合并 PR 后在远程 main 上打 tag `v0.2.0`
 - 归档本 change，把 `specs/mcp-client` 落为主 spec，并把 `react-loop` 的 MODIFIED 合并进基线
-- **阻塞项（2026-11-13）**：`run-all.ps1` 退出码 1，两个原因性质不同：
-  - `05-audit-invariant` NOT_READY：空壳，等审计写入链路落地（属 storage change）。**只要它还是空壳，`run-all.ps1` 就结构性返回 1**——这是「还没做到审计那一步」的真实状态，不是本次 change 的缺陷。
-  - `07-week1-acceptance` FAIL：3 条对话断言，本机 `DEEPSEEK_API_KEY` 返回 401；`08` 的 1 / 2 / 3 同理。
-  - **结论**：本次 change 的「功能已调通」由 07 的 1 / 2 / 4 与 08 的 4 / 5 / 6a / 6b / 7 证明（MCP 两种形态的真实连接均有工具清单与日志）。「完整验收通过」要等 05 落地且有效 key 把 07 / 08 跑绿，届时 run-all 返回 0。
+- **当前状态（2026-11-13 07:30）**：07 六条全 PASS、08 八条全 PASS，均退出码 0；`run-all.ps1` 仍返回 1，唯一原因是下面第一条
+- **阻塞项**：`05-audit-invariant` NOT_READY——空壳，等审计写入链路落地（属 storage change）。**只要它还是空壳，`run-all.ps1` 就结构性返回 1**——这是「还没做到审计那一步」的真实状态，不是本次 change 的缺陷
+- **结论**：本次 change 的「功能已调通」由 07 与 08 全绿证明；「完整验收通过」要等 05 落地，届时 run-all 才能返回 0

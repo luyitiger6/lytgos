@@ -28,7 +28,7 @@ identity:
 
 provider:
   name: deepseek          # 对应已注册的 Provider 名称
-  model: deepseek-chat
+  model: deepseek-flash
   temperature: 0.7
   api_key: ${DEEPSEEK_API_KEY}
 

@@ -707,7 +707,7 @@ Returns all three categories at once.
 {
   "file": ["/home/user/project/.lytgos"],
   "shell": ["ls", "cat", "echo", "grep"],
-  "http": ["*.open-meteo.com", "hn.algolia.com"]
+  "http": ["*.amap.com", "hn.algolia.com"]
 }
 ```
 
@@ -728,7 +728,7 @@ Adds one entry (idempotent) and returns whether it changed plus the category's l
   "category": "http",
   "value": "*.example.com",
   "changed": true,
-  "entries": ["*.open-meteo.com", "hn.algolia.com", "*.example.com"]
+  "entries": ["*.amap.com", "hn.algolia.com", "*.example.com"]
 }
 ```
 
@@ -744,7 +744,7 @@ The `value` is a **query parameter**; a blank value returns `400`.
   "category": "http",
   "value": "*.example.com",
   "changed": true,
-  "entries": ["*.open-meteo.com", "hn.algolia.com"]
+  "entries": ["*.amap.com", "hn.algolia.com"]
 }
 ```
 
