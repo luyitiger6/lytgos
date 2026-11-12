@@ -73,6 +73,8 @@
   - 边界提示按形态分：远程断言「地址已通过域名白名单校验」，本地断言「域名白名单不覆盖该 server」
   - 沙箱两条都不需要 key：命令白名单为空 → 本地起不来；域名白名单缺 `mcp.amap.com` → 远程连不上，都要含 `sandbox`
   - **实测**（仅有 `AMAP_MCP_KEY`）：4 / 5 / 6a / 6b / 7 全 PASS，1 / 2 / 3 记 SKIP，退出码 2；无 key 时同样退出码 2，无 FAIL
+  - **实测（2026-11-13 07:05，`DEEPSEEK_API_KEY` 无效）**：4 / 5 / 6a / 6b / 7 全 PASS；1 / 2 / 3 记 FAIL，三条的失败点完全相同——`401: Authentication Fails, Your api key: ****38b8 is invalid`，且都发生在 MCP 连接已就绪（远程 15 个工具 / 本地 2 个工具）之后、模型调用阶段
+  - **待复验**：第 1 / 2 / 3 条需有效 `DEEPSEEK_API_KEY`。恢复后应变为 8 条全 PASS、退出码 0
 
 - [x] 6.2 同步闸门清单
   - 闸门文件数量未变，`AGENTS.md` 的 `harness-checks` 标记行已含 00–08 九道；`harness/README.md` 的 08 描述改为三路径与两个 key
@@ -96,6 +98,17 @@
   - **根因**：`& java ... 2> file` 会把原生命令的 stderr 包成 ErrorRecord 并按控制台宽度折行写入，长消息被拆成两行
   - **修复**：`Invoke-Lytgos` 改用 `ProcessStartInfo` 直接重定向（UTF-8），拿原始 stderr；顺带消除了满屏的红色错误噪音
 
+- [x] 7.4 07 闸门有同一处折行缺陷，且缺失 stdin 显式关闭
+  - **证据**：同一份脚本用 `2> file` 时报错被折成 `request\nst_id: ...`；第 5 条的断言 `tool_call:\s*http_get\s+args=\{[^}]*example\.com` 是跨词匹配，一旦折行就永远匹配不上
+  - **修复**：与 08 同构——`Quote-Arg` + `ProcessStartInfo`；额外把 stdin 显式重定向并在无输入时立刻关闭，否则 `chat` 的交互模式会等一次永远不来的输入
+  - **验证**：改后 401 消息以完整单行出现，3 条 FAIL 的原因一眼可读；1 / 2 / 4 仍 PASS
+
+- [x] 7.5 `target/classes` 被 IDE 的 ecj 增量编译写脏
+  - **现象**：`mvn package` 报 12 个 `Unresolved compilation problem: LytgosException cannot be resolved`，但报错行号（169）超出 `SandboxChecker.java` 的实际行数（162），且刚跑过 `mvn clean test` 是绿的
+  - **根因**：`mvn clean` 之后 IDE 抢先用 ecj 编译了单个文件，解析不到同模块的 `LytgosException`，把错误标记写进 class；Maven 按时间戳判新旧，class 比源码新就跳过重编译，坏 class 一路进到 surefire
+  - **判据**：直接搜 class 里有没有 `Unresolved compilation problem` 字符串；有就是被污染的
+  - **修复**：`mvn clean package`（不是 `mvn package`）；排障方法写进 `harness/README.md` 的坑清单
+
 ## 8. 文档修正
 
 - [x] 8.1 `docs/design/architecture.md` 补 Reactor 说明
@@ -106,3 +119,7 @@
 
 - 合并 PR 后在远程 main 上打 tag `v0.2.0`
 - 归档本 change，把 `specs/mcp-client` 落为主 spec，并把 `react-loop` 的 MODIFIED 合并进基线
+- **阻塞项（2026-11-13）**：`run-all.ps1` 退出码 1，两个原因性质不同：
+  - `05-audit-invariant` NOT_READY：空壳，等审计写入链路落地（属 storage change）。**只要它还是空壳，`run-all.ps1` 就结构性返回 1**——这是「还没做到审计那一步」的真实状态，不是本次 change 的缺陷。
+  - `07-week1-acceptance` FAIL：3 条对话断言，本机 `DEEPSEEK_API_KEY` 返回 401；`08` 的 1 / 2 / 3 同理。
+  - **结论**：本次 change 的「功能已调通」由 07 的 1 / 2 / 4 与 08 的 4 / 5 / 6a / 6b / 7 证明（MCP 两种形态的真实连接均有工具清单与日志）。「完整验收通过」要等 05 落地且有效 key 把 07 / 08 跑绿，届时 run-all 返回 0。
