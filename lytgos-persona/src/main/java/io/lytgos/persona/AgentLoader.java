@@ -159,6 +159,7 @@ public final class AgentLoader {
             asMap(entry.get("env")).forEach((k, v) -> env.put(k, String.valueOf(v)));
             servers.add(new Profile.McpServer(
                     text(entry.get("name")),
+                    text(entry.get("url")),
                     text(entry.get("command")),
                     asStrings(entry.get("args")),
                     env));

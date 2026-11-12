@@ -99,6 +99,6 @@ class McpToolTest {
         args.addAll(extraArgs);
         String javaName = File.separatorChar == '\\' ? "java.exe" : "java";
         String executable = Path.of(System.getProperty("java.home"), "bin", javaName).toString();
-        return new Profile.McpServer(name, executable, args, Map.of());
+        return new Profile.McpServer(name, null, executable, args, Map.of());
     }
 }

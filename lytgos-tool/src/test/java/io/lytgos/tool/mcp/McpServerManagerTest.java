@@ -20,6 +20,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -74,7 +76,7 @@ class McpServerManagerTest {
     @DisplayName("命令不存在时启动失败，消息含 server 名与 command")
     void failsOnMissingCommand() {
         Profile.McpServer missing = new Profile.McpServer(
-                "ghost", "lytgos-no-such-command-xyz", List.of(), Map.of());
+                "ghost", null, "lytgos-no-such-command-xyz", List.of(), Map.of());
 
         LytgosException.InvalidConfiguration failure = assertThrows(
                 LytgosException.InvalidConfiguration.class,
@@ -89,7 +91,7 @@ class McpServerManagerTest {
     @Test
     @DisplayName("缺少 name 的声明在启动前就被拒绝")
     void rejectsDeclarationWithoutName() {
-        Profile.McpServer nameless = new Profile.McpServer(null, javaExecutable(), List.of(), Map.of());
+        Profile.McpServer nameless = new Profile.McpServer(null, null, javaExecutable(), List.of(), Map.of());
 
         LytgosException.InvalidConfiguration failure = assertThrows(
                 LytgosException.InvalidConfiguration.class,
@@ -146,8 +148,98 @@ class McpServerManagerTest {
                 "close() 之后子进程 " + pid + " 仍在运行，会在用户机器上留下孤儿进程");
     }
 
+    @Test
+    @DisplayName("远程地址不在域名白名单时拒绝启动，消息含 sandbox")
+    void rejectsRemoteUrlOutsideWhitelist() {
+        Profile.McpServer remote = new Profile.McpServer(
+                "amap", "https://mcp.amap.com/mcp?key=k", null, List.of(), Map.of());
+
+        LytgosException.InvalidConfiguration failure = assertThrows(
+                LytgosException.InvalidConfiguration.class,
+                () -> start(List.of(remote), Set.of("java")));
+
+        assertTrue(failure.getMessage().contains("sandbox"),
+                "域名被拒必须能被验收脚本识别: " + failure.getMessage());
+        assertTrue(failure.getMessage().contains("mcp.amap.com"),
+                "必须指出是哪个域名被拒: " + failure.getMessage());
+    }
+
+    @Test
+    @DisplayName("远程服务连不上时报告 server 名与地址，不泄漏 query 里的 key")
+    void failsOnUnreachableRemote() {
+        Profile.McpServer remote = new Profile.McpServer(
+                "dead", "http://127.0.0.1:1/mcp?key=secret-value", null, List.of(), Map.of());
+
+        LytgosException.InvalidConfiguration failure = assertThrows(
+                LytgosException.InvalidConfiguration.class,
+                () -> start(List.of(remote), Set.of("java"), Set.of("127.0.0.1")));
+
+        assertTrue(failure.getMessage().contains("dead"),
+                "必须指出是哪个 server 连不上: " + failure.getMessage());
+        assertTrue(failure.getMessage().contains("127.0.0.1"),
+                "必须指出是哪个地址: " + failure.getMessage());
+        assertFalse(failure.getMessage().contains("secret-value"),
+                "错误消息与日志不能带上 query 里的 key: " + failure.getMessage());
+    }
+
+    @Test
+    @DisplayName("远程地址拆分后 base + endpoint 能原样拼回，query 里的 key 不会在 endpoint 解析时被丢掉")
+    void splitRemoteUrlKeepsQuery() {
+        assertTarget("https://mcp.amap.com/mcp?key=abc",
+                "https://mcp.amap.com", "/mcp?key=abc");
+        assertTarget("https://mcp.amap.com/mcp",
+                "https://mcp.amap.com", "/mcp");
+        assertTarget("http://127.0.0.1:8080/mcp?key=x&v=1",
+                "http://127.0.0.1:8080", "/mcp?key=x&v=1");
+        assertTarget("http://127.0.0.1:8080/mcp",
+                "http://127.0.0.1:8080", "/mcp");
+    }
+
+    @Test
+    @DisplayName("地址只有域名时 endpoint 留空，交给 SDK 的默认 /mcp")
+    void splitRemoteUrlWithoutPath() {
+        McpServerManager.RemoteTarget target =
+                McpServerManager.splitRemoteUrl("https://mcp.example.com");
+
+        assertEquals("https://mcp.example.com", target.baseUri());
+        assertNull(target.endpoint(),
+                "没有 path 时不能给 endpoint 传空串——那会把请求打到根路径，而不是 MCP 惯例的 /mcp");
+    }
+
+    @Test
+    @DisplayName("错误消息带出 cause 链，且原文 URL 一律替换成脱敏版本")
+    void describeIncludesCauseAndRedactsUrl() {
+        String url = "https://mcp.amap.com/mcp?key=secret-value";
+        RuntimeException root = new IllegalStateException("request to " + url + " returned INVALID_USER_KEY");
+        RuntimeException outer = new RuntimeException("Client failed to initialize by explicit API call", root);
+
+        String text = McpServerManager.describe(outer, url);
+
+        assertTrue(text.contains("explicit API call"),
+                "外层消息要保留，否则看不出是哪一步失败的: " + text);
+        assertTrue(text.contains("INVALID_USER_KEY"),
+                "cause 必须带出来，否则真正的原因全被吞掉: " + text);
+        assertFalse(text.contains("secret-value"),
+                "cause 里带的完整 URL 会让 key 漏进日志: " + text);
+        assertTrue(text.contains("?***"), text);
+    }
+
+    private static void assertTarget(String url, String baseUri, String endpoint) {
+        McpServerManager.RemoteTarget target = McpServerManager.splitRemoteUrl(url);
+
+        assertEquals(baseUri, target.baseUri(), "baseUri 只保留 scheme + authority: " + url);
+        assertEquals(endpoint, target.endpoint(), "endpoint 必须带上 path 与 query: " + url);
+        assertEquals(url, target.baseUri() + target.endpoint(),
+                "拆完拼回去必须与配置地址完全一致，否则请求会打到别的地址");
+    }
+
     private McpServerManager start(List<Profile.McpServer> servers, Set<String> allowedCommands) {
-        SandboxChecker sandbox = new SandboxChecker(workspace, allowedCommands, Set.of());
+        return start(servers, allowedCommands, Set.of());
+    }
+
+    private McpServerManager start(List<Profile.McpServer> servers, Set<String> allowedCommands,
+                                   Set<String> allowedDomains) {
+        SandboxChecker sandbox = new SandboxChecker(workspace, allowedCommands, allowedDomains);
         return McpServerManager.start(servers, sandbox, MAPPER);
     }
 
@@ -156,7 +248,7 @@ class McpServerManagerTest {
         List<String> args = new java.util.ArrayList<>(List.of(
                 "-cp", System.getProperty("java.class.path"), FAKE_SERVER_CLASS));
         args.addAll(extraArgs);
-        return new Profile.McpServer(name, javaExecutable(), args, Map.of());
+        return new Profile.McpServer(name, null, javaExecutable(), args, Map.of());
     }
 
     private static String javaExecutable() {
