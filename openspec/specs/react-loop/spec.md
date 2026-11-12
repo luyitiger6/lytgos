@@ -1,8 +1,6 @@
-# react-loop
+## Purpose
 
-Agent 运行时内核：工作区初始化、Agent 定义加载、Provider 显式映射、ReAct 循环、工具执行与沙箱、会话上下文与命令行对话。
-
-本基线来自 `add-react-loop`，于 `v0.1.0` 落定。
+Agent 运行时内核：工作区初始化、Agent 定义加载、Provider 显式映射、ReAct 循环、工具执行与沙箱、会话上下文与命令行对话。本基线来自 `add-react-loop`，于 `v0.1.0` 落定。
 
 ## Requirements
 
