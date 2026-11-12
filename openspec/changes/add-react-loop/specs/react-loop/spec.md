@@ -2,7 +2,7 @@
 
 ### Requirement: 工作区初始化
 
-系统 SHALL 提供 `lytgos init` 命令，在当前目录创建 `.lytgos/` 工作区，包含 `agents/`、`skills/`、`output/`、`memory/`、`sessions/`、`logs/` 六个目录与 `AGENTS.md`、`SOUL.md`、`USER.md` 三个 Bootstrap 文件。
+系统 SHALL 提供 `lytgos init` 命令，在当前目录创建 `.lytgos/` 工作区，包含 `agents/`、`skills/`、`output/`、`memory/`、`sessions/`、`logs/` 六个目录与 `AGENTS.md`、`SOUL.md`、`USER.md` 三个 Bootstrap 文件；`memory/` 下同时创建空的 `MEMORY.md`。
 
 该命令 MUST 幂等：已存在的目录与文件一律不覆盖。
 
@@ -123,8 +123,8 @@ LLM 调用 MUST 只经由 `ChatModel.call()`，禁止使用 `ChatClient` 或 `To
 
 #### Scenario: 单条模式
 
-- **WHEN** 执行 `lytgos chat --message "北京今天穿什么"`
-- **THEN** 输出模型响应，退出码 0
+- **WHEN** 执行 `lytgos chat --message "查一下 luyitiger6/lytgos 这个仓库"`
+- **THEN** 调用 `http_get` 获取仓库信息，输出包含 star 数或主语言，退出码 0
 
 #### Scenario: 交互模式退出
 

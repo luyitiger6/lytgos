@@ -5,7 +5,8 @@
 ## 1. 工作区与 Profile
 
 - [ ] 1.1 `lytgos init` 建出 `.lytgos/` 工作区
-  - 9 个条目：`agents/` `skills/` `output/` `memory/` `sessions/` `logs/` `AGENTS.md` `SOUL.md` `USER.md`
+  - 9 项 = 6 个目录（`agents/` `skills/` `output/` `memory/` `sessions/` `logs/`）+ 3 个 Bootstrap 文件（`AGENTS.md` `SOUL.md` `USER.md`）
+  - `memory/` 下同时建空的 `MEMORY.md`（第 2 周才写入，本周只建文件）
   - 幂等：已存在的文件不覆盖
   - **验收**：空目录执行两次，`Get-ChildItem .lytgos -Recurse | Measure-Object` 计数两次相同
 
@@ -14,7 +15,7 @@
   - **验收**：`ProfileTest` 构造后尝试改字段，编译期报错（record 或 final + 无 setter）
 
 - [ ] 1.3 `AgentLoader` 解析 `AGENT.md` frontmatter
-  - 按 `---` 切分 frontmatter 与正文，YAML 解析，映射到 `Profile`
+  - 按 `---` 切分 frontmatter 与正文，用 SnakeYAML 解析，映射到 `Profile`
   - 缺 `provider.name` 或 `provider.model` 抛 `InvalidAgentDefinitionException`，消息含缺失字段名
   - **验收**：给一份缺 `provider.model` 的 AGENT.md，异常消息含字面量 `provider.model`
 
@@ -67,7 +68,7 @@
 - [ ] 3.5 内置 `http_get` Tool
   - 执行前强制 `SandboxChecker.checkDomain()`
   - 超时上限 10 秒
-  - **验收**：请求 `https://wttr.in/Beijing?format=3` 返回文本；请求 `https://example.com` 抛 `SandboxViolationException`，消息含 `sandbox`
+  - **验收**：请求 `https://api.github.com/repos/luyitiger6/lytgos` 返回 JSON；请求 `https://example.com` 抛 `SandboxViolationException`，消息含 `sandbox`
 
 - [ ] 3.6 `ReActLoop` 主循环
   - 组装 → 调 `ChatModel` → 判断有无 tool_call → 执行并回填 → 计数上限
@@ -103,7 +104,7 @@
   - 全仓无 `ChatClient` / `ToolCallingManager` / `@ConditionalOnBean` / `ObjectProvider` / `getBeansOfType`
   - **验收**：04 号闸门退出码 0
 
-**组验收**：`lytgos chat --message "北京今天穿什么"` 输出含穿衣建议，控制台日志出现 `tool_call: http_get` 至少一次。
+**组验收**：`lytgos chat --message "查一下 luyitiger6/lytgos 这个仓库"` 输出含 star 数或主语言，控制台日志出现 `tool_call: http_get` 至少一次。
 
 ## 5. 验收脚本
 
@@ -123,7 +124,7 @@
 |---|---|---|---|
 | 1 | 工作区初始化 | `lytgos init` | 9 个条目创建，退出码 0 |
 | 2 | 幂等 | 改 `AGENTS.md` 一行后重跑 `lytgos init` | 改动仍在，未被覆盖 |
-| 3 | 单轮对话 | `lytgos chat --message "北京今天穿什么"` | stdout 含温度或穿衣建议，退出码 0 |
+| 3 | 单轮对话 | `lytgos chat --message "查一下 luyitiger6/lytgos 这个仓库"` | stdout 含 star 数或主语言，退出码 0 |
 | 4 | 反例·缺 key | 清空 `DEEPSEEK_API_KEY` 后启动 | 退出码非 0，stderr 含变量名 |
 | 5 | 反例·沙箱 | 让 Agent 请求非白名单域名 | 被拒，消息含 `sandbox` |
 | 6 | 多轮上下文 | 交互模式连问两轮，第二问用「那」指代 | 第二轮能理解指代对象 |

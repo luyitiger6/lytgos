@@ -65,17 +65,23 @@ lytgos:
 
 `CliChannel` 两个职责：交互循环（读一行 → 调 `ReActLoop` → 打印）和 `--message` 单条模式。不做流式输出，第 1 周直接等完整响应。
 
+## 已定口径
+
+| 事项 | 结论 |
+|---|---|
+| 首个 Provider | DeepSeek，模型 `deepseek-chat` |
+| API key 存放 | 环境变量 `DEEPSEEK_API_KEY`；`.lytgos/` 与 `.env` 已在 `.gitignore`，不入库 |
+| 工作区条目 | 9 项 = 6 个目录 + 3 个 Bootstrap 文件 |
+| YAML 解析 | SnakeYAML |
+| 工具演示场景 | 查 GitHub 仓库信息（`api.github.com`），**不做天气查询** |
+
 ## 待决项
 
 | 问题 | 级别 | 影响任务 | 默认倾向 |
 |---|---|---|---|
-| 先接 DeepSeek 还是 Kimi | 一般 | 3 | DeepSeek（文档示例用得多） |
-| 天气接口用哪个 | 一般 | 5、验收 | `wttr.in`（免费、无 key、纯文本） |
-| `lytgos init` 建 8 项还是 9 项 | 一般 | 1 | 按需求文档 5.1 的 9 项（含 `memory/`） |
-| frontmatter 解析用 SnakeYAML 还是 Jackson YAML | 一般 | 2 | SnakeYAML（Jackson 那份要额外引 `jackson-dataformat-yaml`） |
-| 单条模式与交互模式是否共用同一 Session | 一般 | 6 | 共用，`--message` 只影响是否进入循环 |
+| 单条模式与交互模式是否共用同一 Session | 一般 | 6 | 共用；`--message` 只影响是否进入交互循环 |
 
-级别为「阻塞」的条目必须在开工前答复；本表全部为「一般」，按默认倾向推进，实施到对应任务时如与预期不符再停。
+级别为「阻塞」的条目必须在开工前答复；剩余的「一般」条目按默认倾向推进，实施到对应任务时如与预期不符再停。
 
 ## 不做什么
 
@@ -89,9 +95,9 @@ lytgos:
 
 `harness/checks/07-week1-acceptance.ps1` 覆盖六条：
 
-1. `lytgos init` 在临时目录建出 9 个条目，退出码 0
-2. 重复 `init` 不覆盖已有 `AGENT.md`（改一行再跑，内容不变）
-3. `lytgos chat --message "..."` 返回非空，退出码 0
+1. `lytgos init` 在临时目录建出 9 项，退出码 0
+2. 重复 `init` 不覆盖已有 `AGENTS.md`（改一行再跑，内容不变）
+3. `lytgos chat --message "查一下 luyitiger6/lytgos 这个仓库"` 输出含 star 数或主语言，日志出现 `tool_call: http_get`
 4. 无 API key 时启动失败，错误消息含 `DEEPSEEK_API_KEY` 字样
 5. HTTP Tool 访问非白名单域名被拒，错误消息含 `sandbox` 字样
 6. 两轮对话第二轮能引用第一轮内容

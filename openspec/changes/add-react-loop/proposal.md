@@ -8,11 +8,11 @@
 
 ## What Changes
 
-- `lytgos init`：创建 `.lytgos/` 工作区，8 个条目（agents / skills / output / memory / sessions / logs / AGENTS.md / SOUL.md / USER.md），幂等，已存在的不覆盖
+- `lytgos init`：创建 `.lytgos/` 工作区，共 9 项——6 个目录（`agents/`、`skills/`、`output/`、`memory/`、`sessions/`、`logs/`）+ 3 个 Bootstrap 文件（`AGENTS.md`、`SOUL.md`、`USER.md`）；幂等，已存在的不覆盖
 - `AGENT.md` frontmatter 解析：`.lytgos/agents/<name>/AGENT.md` → `Profile` 对象；`lytgos profile create / list / show / delete` 四个命令
 - Provider 显式映射：配置文件声明 `provider name → 连接参数`，启动时构造 `Map<String, ChatModel>`；先接一个 provider（DeepSeek 或 Kimi）
 - ReAct 循环：`ReActLoop` + `PromptBuilder` + `ToolExecutor`，最大迭代次数可配（默认 10）
-- 内置 `http_get` Tool，域名白名单校验
+- 内置 `http_get` Tool，域名白名单校验；演示场景为查 GitHub 仓库信息（`api.github.com`），不做天气查询
 - `CliChannel` + `lytgos chat`，支持多轮与 `--message` 单条模式
 - Session 内存版（第 4 周切 SQLite）
 - 新增验收脚本 `harness/checks/07-week1-acceptance.ps1`
@@ -32,6 +32,12 @@
 禁止 `@ConditionalOnBean`、`ObjectProvider<ChatModel>`、`getBeansOfType` 之类的类型扫描。多引一个 starter 就凭空多出一个 provider，配置驱动会退化成 classpath 驱动。
 
 映射在启动时从 `lytgos.providers` 配置节构造，构造完不可变。找不到指定 provider 时启动即失败，报错列出已注册的 provider 名。
+
+### 密钥只从环境变量注入
+
+`.lytgos/` 工作区由 `lytgos init` 生成在用户目录下，含 Provider 配置与长期记忆，**该目录已加入 `.gitignore`，绝不入库**。
+
+API key 只以 `${DEEPSEEK_API_KEY}` 占位形式出现在配置文件里，真实值由环境变量注入。`AGENT.md` 的 frontmatter 不承载密钥。
 
 ### Session 先内存后持久化
 
