@@ -48,4 +48,4 @@
 - [x] 7.2 `README.md` badges 增加官网入口
 - [x] 7.3 `pnpm build` 通过：`BUILD_EXIT=0`，2.76s，35 个 HTML，无 dead link
 - [x] 7.4 产物校验：`dist/index.html` 内资源路径含 `/lytgos/assets/` 前缀，`dist/images/lytgos-overview-*.svg` 已改名
-- [ ] 7.5 视觉核对：本地 `pnpm dev` 打开首页确认黑底无白条、中英不乱码（待人工确认）
+- [x] 7.5 视觉核对：线上 https://lytgos.tigerustmq.com 确认黑底无白条、中英不乱码（2026-11-13 用户确认）
