@@ -45,36 +45,59 @@ function Record {
     Write-Host ("  [{0}] {1}. {2} — {3}" -f $Status, $Id, $Name, $Detail) -ForegroundColor $color
 }
 
+function Quote-Arg {
+    param([string]$Value)
+    if ($Value -match '[\s"]') {
+        return '"' + ($Value -replace '"', '\"') + '"'
+    }
+    return $Value
+}
+
 function Invoke-Lytgos {
     param(
         [string]$WorkDir,
         [string[]]$CliArgs,
         [string]$StdinText
     )
-    $stdoutFile = Join-Path $WorkDir '_stdout.txt'
-    $stderrFile = Join-Path $WorkDir '_stderr.txt'
-    Push-Location $WorkDir
-    # PowerShell 5.1 会把原生命令的 stderr 转成 ErrorRecord；在 EAP=Stop 下即使写了
-    # `2>` 重定向，这个转换也发生在重定向之前，直接终止脚本。验收要跑「预期失败」的
-    # 反例（缺 key、沙箱拒绝），所以这里必须局部放宽——判定仍然只看 $LASTEXITCODE。
-    $ErrorActionPreference = 'Continue'
-    try {
-        if ($PSBoundParameters.ContainsKey('StdinText')) {
-            $StdinText | & java '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' -jar $jar @CliArgs 1> $stdoutFile 2> $stderrFile
-        }
-        else {
-            & java '-Dstdout.encoding=UTF-8' '-Dstderr.encoding=UTF-8' -jar $jar @CliArgs 1> $stdoutFile 2> $stderrFile
-        }
-        $code = $LASTEXITCODE
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+
+    # 不能用 `& java ... 2> file`：PowerShell 会把原生命令的 stderr 包成 ErrorRecord，
+    # 再按控制台宽度硬折行写进文件。长日志被拆成两行后，跨词断言（tool_call 与 args={...}
+    # 之间隔着换行）会永远匹配不上——08 闸门就因此误报过一次 FAIL。
+    # ProcessStartInfo 直接重定向拿到的是原始 stderr，不做任何再加工。
+    # 必须显式重定向 stdin 并在无输入时立刻关闭：否则 chat 的交互模式会等一次永远不来的输入。
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = 'java'
+    $psi.WorkingDirectory = $WorkDir
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.StandardOutputEncoding = $utf8
+    $psi.StandardErrorEncoding = $utf8
+    $psi.CreateNoWindow = $true
+    $arguments = @('-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8', '-jar', $jar) + $CliArgs
+    $psi.Arguments = ($arguments | ForEach-Object { Quote-Arg $_ }) -join ' '
+
+    $process = [System.Diagnostics.Process]::Start($psi)
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    if ($PSBoundParameters.ContainsKey('StdinText')) {
+        $process.StandardInput.Write($StdinText)
     }
-    finally {
-        $ErrorActionPreference = 'Stop'
-        Pop-Location
-    }
+    $process.StandardInput.Close()
+    $process.WaitForExit()
+    $stdout = $stdoutTask.Result
+    $stderr = $stderrTask.Result
+
+    # 失败时留着原文供人工排查
+    [System.IO.File]::WriteAllText((Join-Path $WorkDir '_stdout.txt'), $stdout, $utf8)
+    [System.IO.File]::WriteAllText((Join-Path $WorkDir '_stderr.txt'), $stderr, $utf8)
+
     return [pscustomobject]@{
-        ExitCode = $code
-        Stdout   = [string](Get-Content -LiteralPath $stdoutFile -Raw -Encoding UTF8)
-        Stderr   = [string](Get-Content -LiteralPath $stderrFile -Raw -Encoding UTF8)
+        ExitCode = $process.ExitCode
+        Stdout   = $stdout
+        Stderr   = $stderr
     }
 }
 

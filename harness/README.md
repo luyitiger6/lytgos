@@ -83,6 +83,14 @@ Get-ChildItem . -Recurse -Filter *.ps1 | ForEach-Object {
 
 Markdown / YAML / Java 不受此约束（Maven 与 git 都按 UTF-8 处理），只对 `.ps1` 强制。
 
+## 构建产物被 IDE 污染（踩过的坑）
+
+**现象**：`mvn test` 报 `Unresolved compilation problem: <某类型> cannot be resolved to a type`，但源码里的 import 明明在，IDE 里也不报红。
+
+**判据**：看报错指向的行号。若超出了文件的实际行数，说明 `target/classes` 里的那个 class 不是 Maven 编译的——IDE 的增量编译器（ecj）在 `mvn clean` 之后抢先写入了带错误标记的版本。Maven 增量编译按时间戳判新旧，class 比源码新就跳过重编译，于是坏 class 一路进到 surefire。
+
+**清理**：`mvn clean package`。不要用 `mvn package`——它不会删掉已被写脏的 class。判断一个 class 是否被污染，直接搜里面有没有 `Unresolved compilation problem` 字符串。
+
 ## 两条不写进来的东西
 
 - **不做「自动修复」**：闸门只判不改。改是人的事，闸门自己改会让证据失真。
