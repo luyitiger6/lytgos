@@ -179,7 +179,17 @@ settings:
 
 ### 接入 MCP server
 
-`mcp_servers` 里声明一个外部进程，lytgos 在加载 Agent 时把它拉起来、握手、拉取工具清单，然后把工具当成内置工具一样交给模型：
+`mcp_servers` 里声明外部 MCP 服务，lytgos 在加载 Agent 时连上去、握手、拉取工具清单，然后把工具当成内置工具一样交给模型。两种形态二选一：
+
+**远程（推荐）**：在 `url` 里写对方托管的 MCP 地址，本机不需要任何额外运行时：
+
+```yaml
+mcp_servers:
+  - name: amap
+    url: https://mcp.amap.com/mcp?key=YOUR_KEY
+```
+
+**本地**：用 `command` 拉起本机子进程走 stdio，适合只能在本机起的服务（访问本机文件、内网 CLI）：
 
 ```yaml
 mcp_servers:
@@ -191,13 +201,23 @@ mcp_servers:
       LOG_LEVEL: warn
 ```
 
-三个前提：
+`url` 与 `command` 必须且只能填一个，两个都填或都不填都会在加载 Agent 时直接报错。
 
-1. `command` 必须在 `config.yaml` 的 `sandbox.allowed-commands` 里，否则拒绝启动。
+四个前提：
+
+1. 远程形态的 `url` 域名必须在 `config.yaml` 的 `sandbox.allowed-domains` 里，否则拒绝连接；本地形态的 `command` 必须在 `sandbox.allowed-commands` 里，否则拒绝启动。
 2. 工具名与内置工具重名会直接启动失败，错误消息会写清两边来源。
-3. 目前只支持 stdio 传输。
+3. 远程地址里的 key 属于环境信息，不要提交进版本库。
+4. 只做 tools，不支持 resources / prompts / sampling。
 
-**治理边界必须说清**：内置 `http_get` 受 `allowed-domains` 约束；MCP server 是独立子进程，它自己的网络访问 lytgos 看不到，域名白名单对它无效。沙箱对它的约束只有「启动命令白名单」这一层。启动日志会逐个 server 打一行提示，`lytgos tool list` 里 MCP 工具的描述带 `[mcp:<server>]` 来源标注。
+**治理边界按形态不同，必须说清：**
+
+| 形态 | 沙箱约束 | 网络可见性 |
+|---|---|---|
+| 远程 `url` | 域名白名单 | lytgos 自己发 HTTP，与内置 `http_get` 同级 |
+| 本地 `command` | 只有启动命令白名单 | 网络访问在子进程内，域名白名单管不到 |
+
+启动日志会逐个 server 打一行边界提示，`lytgos tool list` 里 MCP 工具的描述带 `[mcp:<server>]` 来源标注。
 
 运行时工作区结构：
 
@@ -270,7 +290,7 @@ lytgos 目前处于**骨架阶段**：
 - [x] 项目骨架与工程约束
 - [ ] Provider 抽象与 ReAct 循环
 - [ ] Memory 会话 + 长期记忆
-- [x] 内置工具 + MCP Client + Sandbox（MCP 仅 stdio，只做 tools）
+- [x] 内置工具 + MCP Client + Sandbox（MCP 支持远程 HTTP 与本地 stdio，只做 tools）
 - [ ] CLI、REST API 与定时触发
 - [ ] SQLite 持久化与 Day-one 审计落库
 - [ ] 端到端 Demo：每日天气、每日科技日报

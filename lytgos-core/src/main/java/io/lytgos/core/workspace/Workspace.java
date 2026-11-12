@@ -191,14 +191,16 @@ public final class Workspace {
                 base-url: https://api.deepseek.com
 
             sandbox:
-              # 域名白名单：为空时全部拒绝。
-              # 它只覆盖 lytgos 进程内发起的请求；MCP server 是独立子进程，
-              # 它自己的网络访问不受这里约束（启动时会打一行提示）。
+              # 域名白名单：为空时全部拒绝。lytgos 进程内发起的请求都受它约束：
+              # 内置 http_get 与远程 MCP 的 url（远程 MCP 的域名必须写在这里，否则连不上）。
+              # 只有本地形态的 MCP server（用 command 起的子进程）不受它约束，
+              # 它的网络访问发生在子进程内（启动时会打一行提示）。
               allowed-domains:
                 - geocoding-api.open-meteo.com
                 - api.open-meteo.com
-              # 命令白名单：MCP server 的启动命令必须先在这里出现，否则拒绝启动。
-              # 例如允许用 node 起 server 就写 - node。留空 = 任何 MCP server 都起不来。
+                - mcp.amap.com
+              # 命令白名单：本地形态 MCP server 的启动命令必须先在这里出现，否则拒绝启动。
+              # 例如允许用 node 起 server 就写 - node。留空 = 任何本地 MCP server 都起不来。
               allowed-commands: []
             """;
 
