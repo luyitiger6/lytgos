@@ -55,15 +55,15 @@
 
 ## 5. 装配与配置模板
 
-- [ ] 5.1 `lytgos init` 的 `config.yaml` 模板补远程 MCP 说明
-  - `allowed-domains` 示例中加入 `mcp.amap.com`
-  - 注释补一句：远程 MCP 的地址必须在白名单里才连得上
-  - **验收**：`08-mcp-acceptance` 从 `init` 产物改配置后沙箱断言通过；`07-week1-acceptance` 第 1 条（10 个顶层条目）仍通过
+- [x] 5.1 `lytgos init` 的 `config.yaml` 模板补远程 MCP 说明
+  - `allowed-domains` 示例含 `restapi.amap.com` 与 `mcp.amap.com`
+  - 注释写明：远程 MCP 的域名必须写在这里，否则连不上；本地形态只受命令白名单约束
+  - **验收**：`08-mcp-acceptance` 从 `init` 产物改配置后沙箱断言全部通过（07:30 实测八条全 PASS）；`07-week1-acceptance` 第 1 条 10 个顶层条目通过
 
-- [ ] 5.2 README 补远程 MCP 配置与两种形态的边界
-  - 「接入 MCP server」小节改为双形态：远程 URL 示例（推荐）+ 本地 command 示例
-  - 写清远程形态 URL 域名必须在 `allowed-domains` 里；本地形态命令必须在 `allowed-commands` 里
-  - **验收**：字段名逐个对照 `Profile.McpServer` 与 `AgentLoader` 核对一致
+- [x] 5.2 README 补远程 MCP 配置与两种形态的边界
+  - 「接入 MCP server」小节为双形态：远程 URL 示例（推荐）+ 本地 command 示例
+  - 写清远程形态 URL 域名必须在 `allowed-domains` 里；本地形态命令必须在 `allowed-commands` 里；附治理边界对照表
+  - **验收**：README 示例字段 `name` / `url` / `command` / `args` / `env` 与 `Profile.McpServer` 的 record 组件逐个一致
 
 ## 6. 验收闸门
 
