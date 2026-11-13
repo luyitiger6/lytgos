@@ -36,8 +36,10 @@
 
 - [x] 5.1 新建 `lytgos-test` 模块，`test` scope 依赖全部业务模块与 `archunit-junit5`；`ArchitectureTest` 实现四条规则：禁 `org.springframework.ai.chat.client..`、禁 `ToolCallingManager`、禁 `@ConditionalOnBean`/`@ConditionalOnMissingBean`、禁 `getBeansOfType` 与 `ObjectProvider<ChatModel>`。验证：`mvn -o -pl lytgos-test -am test -Dtest=ArchitectureTest` 退出码 0；临时在任一业务模块加一行 `import org.springframework.ai.chat.client.ChatClient` 时该测试必须失败，验完删除
   - 实现记录：模块 pom 在 1.1 已就位，本次补 `io.lytgos.arch.ArchitectureTest`（ArchUnit 1.4.1，四条 @ArchTest）。条件注解与 `getBeansOfType/getBeanProvider` 按类名/方法名用 `DescribedPredicate` 匹配（`spring-boot-autoconfigure` 不在测试 classpath，且 `ObjectProvider<ChatModel>` 泛型被擦除，只能整类禁用）；`getBeansOfType` 与 `ObjectProvider` 用 `CompositeArchRule.and` 组合。验证：4 条全跑、`Tests run: 4, Failures: 0`、EXIT=0；反证：临时给 provider 加 `spring-ai-client-chat` 依赖 + `ChatClient.class` 探针，测试报 `noChatClient` 违规（`ProviderRegistry.<clinit> references ChatClient`、Failures: 1、EXIT=1），还原后复绿。注意：`-Dtest=ArchitectureTest` 必须带 `-DfailIfNoTests=false -Dsurefire.failIfNoSpecifiedTests=false`，否则其他模块无匹配测试会报错
-- [ ] 5.2 `04-dependency-direction.ps1` 改为调用 ArchUnit 测试，删除自造的「core 不得依赖 Spring AI / spring-boot-starter」与「Spring AI 仅允许在 provider」两条规则，保留三态退出语义。验证：`powershell -File harness\checks\04-dependency-direction.ps1` 退出码 0，输出四条规则全部 OK
-- [ ] 5.3 `harness/README.md` 的 04 闸门说明同步为 ArchUnit 实现与新的规则清单。验证：文档里的命令与实际脚本一致，手工执行一次通过
+- [x] 5.2 `04-dependency-direction.ps1` 改为调用 ArchUnit 测试，删除自造的「core 不得依赖 Spring AI / spring-boot-starter」与「Spring AI 仅允许在 provider」两条规则，保留三态退出语义。验证：`powershell -File harness\checks\04-dependency-direction.ps1` 退出码 0，输出四条规则全部 OK
+  - 实现记录：脚本改为 `mvn -B -pl lytgos-test -am test -Dtest=ArchitectureTest -DfailIfNoTests=false -Dsurefire.failIfNoSpecifiedTests=false`（`-am` 不可省；不带 failIfNoTests=false 时其他模块会报「无匹配测试」）；成功后再核对 surefire 报告 `Tests run` 行，少于 4 条判 FAIL 防假绿；原三态保留（无 pom/无模块源码 → 2，无 mvn/测试失败 → 1）。验证：单独执行 EXIT=0，输出「ArchUnit 4 条规则全过」+ 四条 [OK]；另：本机默认 `JAVA_HOME=C:\jdk17` 时 surefire fork 报 class file 65.0 vs 61.0，带 `C:\jdk21` 重跑通过
+- [x] 5.3 `harness/README.md` 的 04 闸门说明同步为 ArchUnit 实现与新的规则清单。验证：文档里的命令与实际脚本一致，手工执行一次通过
+  - 实现记录：表格行与正文两处已改：四条规则清单、实际执行的 mvn 命令、`-am` 必要性、surefire 报告核对、两条自造规则已删除的说明。验证：文档里的命令与脚本 `& mvn -B -pl lytgos-test -am test ...` 逐字一致；04 手工执行 EXIT=0；`00-layout-check.ps1` EXIT=0（闸门清单未变）
 
 ## 6. 契约修订与集成验证
 

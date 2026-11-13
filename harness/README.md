@@ -20,7 +20,7 @@
 | `01-compile` | `mvn -DskipTests compile` | 生效 |
 | `02-test` | `mvn test` | 生效 |
 | `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled` | 生效 |
-| `04-dependency-direction` | 依赖方向 + 禁 `ChatClient`/`ToolCallingManager` + core 不依赖 Spring | 生效 |
+| `04-dependency-direction` | ArchUnit 四条规则：禁 `ChatClient`、禁 `ToolCallingManager`、禁条件装配注解、禁类型扫描（`lytgos-test` 模块承载） | 生效 |
 | `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入（storage 未落地） |
 | `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
 | `07-week1-acceptance` | 第 1 周端到端：init → 幂等 → 对话+工具往返 → 反例 → 多轮上下文 | 生效（需 jar + `DEEPSEEK_API_KEY`；六条已全 PASS） |
@@ -30,7 +30,9 @@
 
 `03` 对 `lytgos-cli` 与 `lytgos-channel` 豁免「禁 System.out」那一条：这两个模块的 stdout 就是产品输出通道（命令结果、模型回复），不是拿 println 顶替日志。豁免只覆盖这一条，`TODO` / `@Disabled` / `skipTests` 仍然全场生效。
 
-`04` 的六条规则：`lytgos-provider` 之外禁止 import Spring AI；禁 `ChatClient`；禁 `ToolCallingManager`；禁 `@ConditionalOnBean` / `ObjectProvider<ChatModel>` / `getBeansOfType`（这三者会让 provider 集合从配置驱动退化成 classpath 驱动）；`lytgos-core` 的 pom 不依赖 Spring；`lytgos-core` 不 import 其他模块。
+`04` 用 ArchUnit 扫编译产物，四条规则定义在 `lytgos-test/src/test/java/io/lytgos/arch/ArchitectureTest.java`：禁依赖 `org.springframework.ai.chat.client..`（`ChatClient` 及其 Advisor）；禁依赖 `ToolCallingManager`；禁 `@ConditionalOnBean` / `ConditionalOnMissingBean`；禁 `getBeansOfType` / `getBeanProvider` 调用与 `ObjectProvider` 注入（后两者会让 provider 集合从配置驱动退化成 classpath 驱动）。脚本实际执行 `mvn -B -pl lytgos-test -am test -Dtest=ArchitectureTest -DfailIfNoTests=false -Dsurefire.failIfNoSpecifiedTests=false`；`-am` 不可省（本模块无生产代码，扫的是其余模块的编译产物，单独构建会扫不到类而静默通过）。成功后脚本还会核对 surefire 报告里的 `Tests run` 行：少于 4 条即判 FAIL，防止 `@ArchTest` 被删后假绿。
+
+旧的「`lytgos-provider` 之外禁止 import Spring AI」与「`lytgos-core` 不得依赖 Spring / starter」两条是自造规则，不在 `AGENTS.md` 契约里，已随本次改造删除。
 
 `07` 需要真实模型才能跑完第 3/5/6 条（对话、沙箱反例、多轮上下文）。没有 `DEEPSEEK_API_KEY` 时这三条记 SKIP 并返回 2——没跑过的检查不能算通过。
 
