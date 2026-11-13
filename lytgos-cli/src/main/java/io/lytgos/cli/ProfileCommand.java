@@ -36,6 +36,12 @@ import java.util.stream.Stream;
         })
 public final class ProfileCommand implements Runnable {
 
+    private final LazyContext context;
+
+    public ProfileCommand(LazyContext context) {
+        this.context = context;
+    }
+
     @Override
     public void run() {
         CommandLine.usage(this, System.out);
@@ -55,6 +61,12 @@ public final class ProfileCommand implements Runnable {
     /** {@code lytgos profile create <name>} */
     @Command(name = "create", description = "创建一个 Agent 定义模板")
     static final class Create implements Runnable {
+
+        private final LazyContext context;
+
+        Create(LazyContext context) {
+            this.context = context;
+        }
 
         @Parameters(index = "0", description = "Agent 名称")
         private String name;
@@ -113,6 +125,12 @@ public final class ProfileCommand implements Runnable {
     @Command(name = "list", description = "列出所有 Agent")
     static final class ListAll implements Runnable {
 
+        private final LazyContext context;
+
+        ListAll(LazyContext context) {
+            this.context = context;
+        }
+
         @Override
         public void run() {
             Path agentsRoot = workspace().agents();
@@ -146,6 +164,12 @@ public final class ProfileCommand implements Runnable {
     @Command(name = "show", description = "显示 Agent 定义原文")
     static final class Show implements Runnable {
 
+        private final LazyContext context;
+
+        Show(LazyContext context) {
+            this.context = context;
+        }
+
         @Parameters(index = "0", description = "Agent 名称")
         private String name;
 
@@ -167,6 +191,12 @@ public final class ProfileCommand implements Runnable {
     /** {@code lytgos profile delete <name>} */
     @Command(name = "delete", description = "删除一个 Agent（需二次确认）")
     static final class Delete implements Runnable {
+
+        private final LazyContext context;
+
+        Delete(LazyContext context) {
+            this.context = context;
+        }
 
         @Parameters(index = "0", description = "Agent 名称")
         private String name;

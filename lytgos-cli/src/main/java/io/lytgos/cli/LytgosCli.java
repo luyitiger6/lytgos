@@ -19,7 +19,7 @@ public final class LytgosCli {
     public static void main(String[] args) {
         int exitCode;
         try (LazyContext context = new LazyContext()) {
-            CommandLine commandLine = new CommandLine(new LytgosCommand());
+            CommandLine commandLine = new CommandLine(new LytgosCommand(), new SpringCommandFactory(context));
             commandLine.setExecutionExceptionHandler((ex, command, parseResult) -> {
                 // picocli 会把 Runnable 抛出的运行时异常再包一层 ExecutionException
                 Throwable cause = ex.getCause() == null ? ex : ex.getCause();

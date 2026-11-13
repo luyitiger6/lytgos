@@ -22,8 +22,14 @@ import java.util.List;
         subcommands = { ToolCommand.ListAll.class })
 public final class ToolCommand implements Runnable {
 
+    private final LazyContext context;
+
     @Option(names = {"-a", "--agent"}, defaultValue = "default", description = "Agent 名称（默认 default）")
     private String agent = "default";
+
+    public ToolCommand(LazyContext context) {
+        this.context = context;
+    }
 
     @Override
     public void run() {
@@ -49,6 +55,12 @@ public final class ToolCommand implements Runnable {
 
     @Command(name = "list", description = "列出所有已注册的工具")
     static final class ListAll implements Runnable {
+
+        private final LazyContext context;
+
+        ListAll(LazyContext context) {
+            this.context = context;
+        }
 
         @Option(names = {"-a", "--agent"}, defaultValue = "default", description = "Agent 名称（默认 default）")
         private String agent = "default";

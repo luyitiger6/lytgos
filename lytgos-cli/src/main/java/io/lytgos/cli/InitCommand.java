@@ -14,6 +14,12 @@ import java.nio.file.Path;
 @Command(name = "init", description = "在当前目录创建 .lytgos 工作区")
 public final class InitCommand implements Runnable {
 
+    private final LazyContext context;
+
+    public InitCommand(LazyContext context) {
+        this.context = context;
+    }
+
     @Override
     public void run() {
         Workspace workspace = Workspace.projectAt(Path.of(System.getProperty("user.dir")));

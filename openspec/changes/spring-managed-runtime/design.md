@@ -160,6 +160,8 @@ final class SpringCommandFactory implements CommandLine.IFactory {
 
 **关键事实（已实测坐实）：picocli 在 `CommandLine` 构造阶段就会通过 `IFactory` 实例化全部子命令**，不是等到执行时。`-verbose:class` 的时间线是：`LytgosCommand`(0.906s) → `SpringCommandFactory`(0.907s) → `ChatCommand`(1.238s) → `AnnotationConfigApplicationContext`(1.318s) → `CliConfiguration`(2.592s)。也就是说，只要工厂调 `createBean`，`--version` 一样会 refresh 容器，启动照样进秒级。
 
+同一个构造阶段还会经工厂实例化 `versionProvider` 指向的 `VersionProvider`：它原来只有无参构造，工厂退到 `createBean`，实测把 `--version` 最小值从 620ms 拉回 1502ms（`org.springframework.{context,beans,core}` 的类加载计数从 0 涨到 143/162/192）。因此 `VersionProvider` 也补了一个 `(LazyContext)` 构造器，只作为「不触发容器」的分支标记。
+
 所以命令类**不能**让容器注入业务 Bean，只能接收 `LazyContext` 句柄：
 
 ```java

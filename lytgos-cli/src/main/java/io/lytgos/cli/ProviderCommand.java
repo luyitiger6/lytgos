@@ -20,6 +20,12 @@ import java.util.List;
         subcommands = { ProviderCommand.ListAll.class })
 public final class ProviderCommand implements Runnable {
 
+    private final LazyContext context;
+
+    public ProviderCommand(LazyContext context) {
+        this.context = context;
+    }
+
     @Override
     public void run() {
         list();
@@ -45,6 +51,12 @@ public final class ProviderCommand implements Runnable {
 
     @Command(name = "list", description = "列出所有 provider")
     static final class ListAll implements Runnable {
+
+        private final LazyContext context;
+
+        ListAll(LazyContext context) {
+            this.context = context;
+        }
 
         @Override
         public void run() {

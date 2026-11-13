@@ -22,16 +22,22 @@ public final class ChatCommand implements Runnable {
     @Option(names = {"-a", "--agent"}, defaultValue = "default", description = "Agent 名称（默认 default）")
     private String agent;
 
-    private final CliContext context = CliContext.instance();
+    private final LazyContext context;
+
+    private final CliContext cliContext = CliContext.instance();
+
+    public ChatCommand(LazyContext context) {
+        this.context = context;
+    }
 
     @Override
     public void run() {
         // 必须在 try 里：runtimeFor 可能已经拉起了 MCP 子进程，
         // 不关就会在用户机器上留个孤儿
-        try (AgentRuntime runtime = context.runtimeFor(agent)) {
+        try (AgentRuntime runtime = cliContext.runtimeFor(agent)) {
             ReActLoop loop = runtime.loop();
-            SessionStore store = context.sessions();
-            Session session = store.get(context.sessionKey(agent));
+            SessionStore store = cliContext.sessions();
+            Session session = store.get(cliContext.sessionKey(agent));
 
             if (message != null) {
                 String reply;
