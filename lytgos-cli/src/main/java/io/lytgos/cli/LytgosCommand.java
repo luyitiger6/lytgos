@@ -4,15 +4,15 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 /**
- * lytgos 命令行入口。
+ * 根命令：只承载子命令声明与版本信息。
  *
- * <p>子命令在这里一次性声明完毕。它们都是无参构造——由 picocli 反射实例化，
- * 装配统一走 {@link CliContext#instance()}。</p>
+ * <p>刻意保持无参构造、不注入任何依赖——它是 {@code --version} / {@code --help} 路径上
+ * 唯一被实例化的命令，一旦它依赖容器，这两条命令就会连带启动容器，启动从百毫秒级掉到秒级。</p>
  *
- * <p>异常处理器把 {@code LytgosException} 的 message 原样打到 stderr 并返回 1。
- * 不用堆栈刷屏，是因为这些异常的消息本身就是给用户看的：缺哪个环境变量、
- * 哪个域名不在白名单、哪个 provider 没注册。堆栈只在需要时用 {@code --debug}
- * 之类的开关打开，那是后面的事。</p>
+ * <p>子命令由 {@link SpringCommandFactory} 向容器要实例，依赖走构造注入。
+ * 异常处理器在 {@link LytgosCli#main} 里安装：把 {@code LytgosException} 的 message
+ * 原样打到 stderr 并返回 1，不用堆栈刷屏——这些消息本身就是给用户看的：缺哪个环境变量、
+ * 哪个域名不在白名单、哪个 provider 没注册。</p>
  */
 @Command(
         name = "lytgos",
@@ -31,17 +31,5 @@ public class LytgosCommand implements Runnable {
     @Override
     public void run() {
         CommandLine.usage(this, System.out);
-    }
-
-    public static void main(String[] args) {
-        CommandLine commandLine = new CommandLine(new LytgosCommand());
-        commandLine.setExecutionExceptionHandler((ex, command, parseResult) -> {
-            // picocli 会把 Runnable 抛出的运行时异常再包一层 ExecutionException
-            Throwable cause = ex.getCause() == null ? ex : ex.getCause();
-            String message = cause.getMessage();
-            System.err.println(message == null || message.isBlank() ? cause.toString() : message);
-            return 1;
-        });
-        System.exit(commandLine.execute(args));
     }
 }

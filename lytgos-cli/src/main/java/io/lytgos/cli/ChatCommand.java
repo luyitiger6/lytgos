@@ -13,7 +13,7 @@ import picocli.CommandLine.Option;
  * 所以「先 --message 报名字，再交互问我是谁」能接上——这不是便利功能，
  * 是验证会话确实落盘的唯一用户可见证据。</p>
  */
-@Command(name = "chat", description = "与 Agent 对话（交互模式或单条模式）")
+@Command(name = "chat", mixinStandardHelpOptions = true, description = "与 Agent 对话（交互模式或单条模式）")
 public final class ChatCommand implements Runnable {
 
     @Option(names = {"-m", "--message"}, description = "单条模式：发送一条消息后退出")
@@ -22,16 +22,22 @@ public final class ChatCommand implements Runnable {
     @Option(names = {"-a", "--agent"}, defaultValue = "default", description = "Agent 名称（默认 default）")
     private String agent;
 
-    private final CliContext context = CliContext.instance();
+    private final LazyContext context;
+
+    public ChatCommand(LazyContext context) {
+        this.context = context;
+    }
 
     @Override
     public void run() {
+        AgentRuntimeFactory factory = context.getBean(AgentRuntimeFactory.class);
+        SessionStore store = context.getBean(SessionStore.class);
+
         // 必须在 try 里：runtimeFor 可能已经拉起了 MCP 子进程，
         // 不关就会在用户机器上留个孤儿
-        try (AgentRuntime runtime = context.runtimeFor(agent)) {
+        try (AgentRuntime runtime = factory.runtimeFor(agent)) {
             ReActLoop loop = runtime.loop();
-            SessionStore store = context.sessions();
-            Session session = store.get(context.sessionKey(agent));
+            Session session = store.get(factory.sessionKey(agent));
 
             if (message != null) {
                 String reply;

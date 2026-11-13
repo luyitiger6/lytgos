@@ -8,7 +8,7 @@
       1. TODO / FIXME / XXX 占位就宣布完成
       2. System.out.print* 代替日志（本地调试留下的噪音，且不可配置级别）
       3. @Disabled 让失败的测试消失
-      4. pom.xml 里写死 skipTests / maven.test.skip
+      4. 任意 pom.xml（根或子模块）里写死 skipTests / maven.test.skip
 
     例外：lytgos-cli 与 lytgos-channel 的 stdout 是产品输出通道本身
       （命令结果、模型回复），不是「用 println 代替日志」。
@@ -57,11 +57,20 @@ foreach ($file in $sources) {
     }
 }
 
-$pomPath = Join-Path $projectRoot 'pom.xml'
-if (Test-Path -LiteralPath $pomPath) {
-    $pom = Get-Content -LiteralPath $pomPath -Raw -Encoding UTF8
+# 遍历根 pom 与所有一级模块的 pom：skipTests 写进任意子模块的
+# <plugin><configuration> 同样能跳过测试，只扫根 pom 会漏掉这条红线。
+$pomFiles = @()
+$rootPom = Join-Path $projectRoot 'pom.xml'
+if (Test-Path -LiteralPath $rootPom) { $pomFiles += Get-Item -LiteralPath $rootPom }
+foreach ($dir in (Get-ChildItem $projectRoot -Directory -Force | Where-Object { $_.Name -notin $skipDirs })) {
+    $candidate = Join-Path $dir.FullName 'pom.xml'
+    if (Test-Path -LiteralPath $candidate) { $pomFiles += Get-Item -LiteralPath $candidate }
+}
+foreach ($pomFile in $pomFiles) {
+    $pomRel = $pomFile.FullName.Substring($projectRoot.Length + 1)
+    $pom = Get-Content -LiteralPath $pomFile.FullName -Raw -Encoding UTF8
     if ($pom -match '<skipTests>\s*true\s*</skipTests>' -or $pom -match 'maven\.test\.skip') {
-        [void]$violations.Add('pom.xml  [禁止跳过测试] 检出 skipTests 配置')
+        [void]$violations.Add("${pomRel}  [禁止跳过测试] 检出 skipTests 配置")
     }
 }
 

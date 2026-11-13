@@ -24,6 +24,12 @@
     <logger name="org.springframework" level="WARN"/>
     <logger name="org.springframework.ai" level="WARN"/>
     <!--
+      容器 refresh 失败时这个 logger 会打一条带内部类名的 WARN 加堆栈；用户真正需要的
+      只有领域消息（如「当前目录不在 lytgos 工作区内」），由 LytgosCli 的异常处理器输出。
+      中文 Windows 控制台按 GBK 解码 UTF-8 日志，这条 WARN 还会显示成乱码。
+    -->
+    <logger name="org.springframework.context.annotation.AnnotationConfigApplicationContext" level="OFF"/>
+    <!--
       MCP SDK 在 INFO 上打的是每条协议帧与连接状态。用户关心的是「哪个 server 起来了、
       带了什么工具」，那不是 SDK 能告诉他的，由 McpServerManager 自己打。
     -->

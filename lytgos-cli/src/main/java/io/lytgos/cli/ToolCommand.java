@@ -18,20 +18,28 @@ import java.util.List;
  */
 @Command(
         name = "tool",
+        mixinStandardHelpOptions = true,
         description = "查看已注册的工具",
         subcommands = { ToolCommand.ListAll.class })
 public final class ToolCommand implements Runnable {
 
+    private final LazyContext context;
+
     @Option(names = {"-a", "--agent"}, defaultValue = "default", description = "Agent 名称（默认 default）")
     private String agent = "default";
 
-    @Override
-    public void run() {
-        list(agent);
+    public ToolCommand(LazyContext context) {
+        this.context = context;
     }
 
-    static void list(String agentName) {
-        try (AgentRuntime runtime = CliContext.instance().toolsFor(agentName)) {
+    @Override
+    public void run() {
+        list(context, agent);
+    }
+
+    private static void list(LazyContext context, String agentName) {
+        AgentRuntimeFactory factory = context.getBean(AgentRuntimeFactory.class);
+        try (AgentRuntime runtime = factory.toolsFor(agentName)) {
             List<ToolSpec> specs = runtime.tools().specs();
 
             if (specs.isEmpty()) {
@@ -50,12 +58,18 @@ public final class ToolCommand implements Runnable {
     @Command(name = "list", description = "列出所有已注册的工具")
     static final class ListAll implements Runnable {
 
+        private final LazyContext context;
+
+        ListAll(LazyContext context) {
+            this.context = context;
+        }
+
         @Option(names = {"-a", "--agent"}, defaultValue = "default", description = "Agent 名称（默认 default）")
         private String agent = "default";
 
         @Override
         public void run() {
-            list(agent);
+            list(context, agent);
         }
     }
 }

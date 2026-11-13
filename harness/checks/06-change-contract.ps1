@@ -43,7 +43,7 @@ foreach ($dir in $dirs) {
         continue
     }
 
-    $text = Get-Content -LiteralPath $proposal -Raw
+    $text = Get-Content -LiteralPath $proposal -Raw -Encoding UTF8
     if ($text -notmatch '(?m)^##\s+Why\s*$') {
         $problems += "$($dir.Name)：proposal.md 缺少 '## Why' 小节"
     }

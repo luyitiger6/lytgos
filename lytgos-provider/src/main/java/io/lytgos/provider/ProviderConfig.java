@@ -11,6 +11,9 @@ import io.lytgos.core.LytgosException;
  */
 public record ProviderConfig(String name, String model, String apiKey, String baseUrl) {
 
+    /** 宽松占位解析的起始标记。 */
+    private static final String PLACEHOLDER_START = "${";
+
     public ProviderConfig {
         if (name == null || name.isBlank()) {
             throw new LytgosException.InvalidConfiguration("provider 缺少 name");
@@ -25,5 +28,23 @@ public record ProviderConfig(String name, String model, String apiKey, String ba
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new LytgosException.InvalidConfiguration("provider " + name + " 缺少 base-url");
         }
+    }
+
+    /**
+     * 值里残留的 {@code ${VAR}} 变量名；没有残留返回 {@code null}。
+     *
+     * <p>Spring 的宽松占位解析会把缺失的环境变量原样保留，这里负责把它认出来，
+     * 好让错误消息直接报变量名，而不是等上游返回 401 再绕一圈排查。</p>
+     */
+    public static String unresolvedVariable(String value) {
+        if (value == null) {
+            return null;
+        }
+        int start = value.indexOf(PLACEHOLDER_START);
+        if (start < 0) {
+            return null;
+        }
+        int end = value.indexOf('}', start + PLACEHOLDER_START.length());
+        return end < 0 ? null : value.substring(start + PLACEHOLDER_START.length(), end);
     }
 }

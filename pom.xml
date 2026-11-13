@@ -24,6 +24,7 @@
         <spring-ai.version>2.0.2</spring-ai.version>
         <!-- 与 spring-ai-mcp:2.0.2 内部依赖的版本保持一致，便于将来一起升级 -->
         <mcp-sdk.version>2.1.0</mcp-sdk.version>
+        <archunit.version>1.4.1</archunit.version>
     </properties>
 
     <modules>
@@ -38,6 +39,7 @@
         <module>lytgos-web</module>
         <module>lytgos-cli</module>
         <module>lytgos-boot</module>
+        <module>lytgos-test</module>
     </modules>
 
     <dependencyManagement>
@@ -48,6 +50,13 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- 架构约束测试只需要在 lytgos-test 里以 test scope 使用 -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

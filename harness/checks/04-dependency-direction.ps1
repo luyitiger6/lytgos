@@ -5,119 +5,96 @@
         编译通过、测试通过、界面正常，只是配额、白名单、沙箱、审计全部静默失效。
         这是本项目唯一一条「违反后没有任何症状」的约束，必须由机器守。
 
-    判据（源码 + pom 两层）：
-      1. org.springframework.ai.* 的 import 只允许出现在 lytgos-provider
-      2. 全仓禁 import org.springframework.ai.chat.client.*（ChatClient 自动驱动工具循环）
-      3. 全仓禁 import org.springframework.ai.model.tool.ToolCallingManager
-      4. 全仓禁 @ConditionalOnBean / ObjectProvider<ChatModel / getBeansOfType(
-         —— 类型扫描会让「配一个 provider」退化成「多放一个 jar 就多一个 provider」
-      5. lytgos-core 的 pom 不得依赖 spring-ai 或 spring-boot-starter
-      6. lytgos-core 不得 import 本项目其他模块（core 是最底层）
+    判据：执行 lytgos-test 模块里的 ArchitectureTest（ArchUnit 扫字节码），四条规则：
+      1. 禁依赖 org.springframework.ai.chat.client..（ChatClient 及其 Advisor）
+      2. 禁依赖 ToolCallingManager
+      3. 禁 @ConditionalOnBean / @ConditionalOnMissingBean（类与方法级都算）
+      4. 禁 getBeansOfType / getBeanProvider 调用与 ObjectProvider 注入
 
-    注释行（* / // / /* 开头）不参与匹配：文档里点名禁止某样东西是合规且必要的，
-    要拦的是真的 import 与真的注解。
+    前置对账：每个业务模块都必须出现在 lytgos-test 的 test 依赖里，否则该模块的
+    字节码不在扫描范围，规则对它静默失效——这种假绿比测试失败更难发现。
+
+    为什么不再扫源码正则：import 写了不引用不构成依赖，正则会放过；反过来注释里
+    点名某个类又可能被误伤（旧版靠「注释行跳过」补丁式处理）。ArchUnit 看的是编译
+    产物里真实的引用，这才是「约束」该有的判定面。旧的「Spring AI 只允许在 provider」
+    与「core 不得依赖 spring-boot-starter」两条是自造规则，不在契约里，已删除。
 
     三态：
-      0        规则全部满足
-      2        尚无模块源码，无判定对象
-      1        检出违规
+      0        四条规则全部满足
+      2        尚无判定对象（无 pom.xml，或无 lytgos-test / 业务模块源码）
+      1        检出违规，或缺 mvn 工具链
 #>
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $projectRoot
 
-$modules = @(Get-ChildItem $projectRoot -Directory -Force | Where-Object {
-        $_.Name -like 'lytgos-*' -and (Test-Path -LiteralPath (Join-Path $_.FullName 'src'))
-    })
-
-if ($modules.Count -eq 0) {
-    Write-Host 'NOT_READY: 尚无 lytgos-* 模块源码，依赖方向与自动执行禁令无从判定' -ForegroundColor DarkYellow
+if (-not (Test-Path -LiteralPath 'pom.xml')) {
+    Write-Host 'NOT_READY: 尚无 pom.xml —— 无判定对象' -ForegroundColor DarkYellow
     exit 2
 }
 
-$violations = New-Object System.Collections.ArrayList
-
-# ---------- 规则 2/3/4：全仓源码 ----------
-$forbidden = @(
-    @{
-        Pattern = 'import\s+org\.springframework\.ai\.chat\.client\.'
-        Label   = '禁止 ChatClient（会自动驱动工具循环，工具执行必须只由 ToolExecutor 发起）'
-    }
-    @{
-        Pattern = 'import\s+org\.springframework\.ai\.model\.tool\.ToolCallingManager'
-        Label   = '禁止 ToolCallingManager（自动工具执行的入口）'
-    }
-    @{
-        Pattern = '@ConditionalOnBean'
-        Label   = '禁止 @ConditionalOnBean（provider 必须由配置显式声明，不接受类型扫描）'
-    }
-    @{
-        Pattern = 'ObjectProvider\s*<\s*ChatModel'
-        Label   = '禁止 ObjectProvider<ChatModel>（provider 必须由配置显式声明）'
-    }
-    @{
-        Pattern = 'getBeansOfType\s*\('
-        Label   = '禁止 getBeansOfType（provider 必须由配置显式声明）'
-    }
-)
-
-$javaFiles = @($modules | ForEach-Object {
-        Get-ChildItem (Join-Path $_.FullName 'src') -Recurse -File -Filter '*.java' -ErrorAction SilentlyContinue
-    })
-
-foreach ($file in $javaFiles) {
-    $rel = $file.FullName.Substring($projectRoot.Length + 1)
-    $module = ($rel -split '[\\/]')[0]
-    $lines = [IO.File]::ReadAllLines($file.FullName)
-
-    for ($i = 0; $i -lt $lines.Length; $i++) {
-        $text = $lines[$i]
-        $trimmed = $text.Trim()
-        if ($trimmed.StartsWith('*') -or $trimmed.StartsWith('//') -or $trimmed.StartsWith('/*')) { continue }
-
-        foreach ($rule in $forbidden) {
-            if ($text -match $rule.Pattern) {
-                [void]$violations.Add("${rel}:$($i + 1)  [$($rule.Label)] $trimmed")
-            }
-        }
-
-        # 规则 1：Spring AI 只允许出现在 provider 模块
-        if ($module -ne 'lytgos-provider' -and $text -match 'import\s+org\.springframework\.ai\.') {
-            [void]$violations.Add("${rel}:$($i + 1)  [Spring AI 仅允许在 lytgos-provider 中出现] $trimmed")
-        }
-
-        # 规则 6：core 是最底层，不得反向引用其他模块
-        if ($module -eq 'lytgos-core' -and $text -match 'import\s+io\.lytgos\.(?!core\.)') {
-            [void]$violations.Add("${rel}:$($i + 1)  [lytgos-core 不得依赖其他模块] $trimmed")
-        }
-    }
-}
-
-# ---------- 规则 5：core 的 pom ----------
-$corePom = Join-Path $projectRoot 'lytgos-core/pom.xml'
-if (Test-Path -LiteralPath $corePom) {
-    $pomText = Get-Content -LiteralPath $corePom -Raw -Encoding UTF8
-    $pomWithoutComments = ($pomText -split "`n" | Where-Object { -not $_.TrimStart().StartsWith('<!--') }) -join "`n"
-
-    if ($pomWithoutComments -match '<groupId>org\.springframework\.ai</groupId>') {
-        [void]$violations.Add('lytgos-core/pom.xml  [core 不得依赖 Spring AI] 检出 org.springframework.ai 依赖')
-    }
-    if ($pomWithoutComments -match '<artifactId>spring-boot-starter') {
-        [void]$violations.Add('lytgos-core/pom.xml  [core 不得依赖 Spring Boot starter] 检出 spring-boot-starter')
-    }
-}
-
-if ($violations.Count -gt 0) {
-    Write-Host "依赖方向 / 自动执行禁令 FAILED - $($violations.Count) 处违规：" -ForegroundColor Red
-    foreach ($v in $violations) { Write-Host "  - $v" -ForegroundColor Red }
+if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
+    Write-Host 'FAIL: 找不到 mvn 命令（pom.xml 已存在，说明工具链缺失，不是未就绪）' -ForegroundColor Red
     exit 1
 }
 
-Write-Host "依赖方向与自动执行禁令确认（扫描 $($javaFiles.Count) 个 Java 文件）：" -ForegroundColor Green
-Write-Host '  [OK] 1. org.springframework.ai.* 仅出现在 lytgos-provider' -ForegroundColor Green
-Write-Host '  [OK] 2. 全仓未 import ChatClient' -ForegroundColor Green
-Write-Host '  [OK] 3. 全仓未 import ToolCallingManager' -ForegroundColor Green
-Write-Host '  [OK] 4. 全仓无 @ConditionalOnBean / ObjectProvider<ChatModel / getBeansOfType' -ForegroundColor Green
-Write-Host '  [OK] 5. lytgos-core/pom.xml 不依赖 Spring AI 与 Spring Boot starter' -ForegroundColor Green
-Write-Host '  [OK] 6. lytgos-core 不 import 本项目其他模块' -ForegroundColor Green
+$testModule = Join-Path $projectRoot 'lytgos-test'
+$architectureTest = Join-Path $testModule 'src/test/java/io/lytgos/arch/ArchitectureTest.java'
+$businessModules = @(Get-ChildItem $projectRoot -Directory -Force | Where-Object {
+        $_.Name -like 'lytgos-*' -and $_.Name -ne 'lytgos-test' -and
+        (Test-Path -LiteralPath (Join-Path $_.FullName 'src'))
+    })
+
+if (-not (Test-Path -LiteralPath $architectureTest) -or $businessModules.Count -eq 0) {
+    Write-Host 'NOT_READY: 缺 lytgos-test 的 ArchitectureTest，或尚无业务模块源码 —— 无判定对象' -ForegroundColor DarkYellow
+    exit 2
+}
+
+Write-Host "执行 ArchUnit 架构测试（业务模块 $($businessModules.Count) 个）..." -ForegroundColor DarkGray
+
+# 模块登记对账：新模块忘了在 lytgos-test 登记时，ArchUnit 扫不到它的字节码，
+# 四条规则对那个模块静默失效——与「通过」不可区分，所以先对账再跑测试。
+$testPomText = Get-Content -LiteralPath (Join-Path $testModule 'pom.xml') -Raw
+$registered = @([regex]::Matches($testPomText, '<artifactId>(lytgos-[^<]+)</artifactId>') |
+    ForEach-Object { $_.Groups[1].Value })
+$unregistered = @($businessModules | Where-Object { $registered -notcontains $_.Name } |
+    ForEach-Object { $_.Name })
+if ($unregistered.Count -gt 0) {
+    Write-Host "FAIL: 业务模块未登记到 lytgos-test 的 test 依赖，ArchUnit 扫不到（规则静默失效）：$($unregistered -join ', ')" -ForegroundColor Red
+    exit 1
+}
+
+# 旧报告绝不得复用：上一轮成功留下的 .txt 会让「本轮一条测试都没跑」
+# （测试类被改名、@ArchTest 被删、模块被临时摘除）误判为 PASS。
+$report = Join-Path $testModule 'target/surefire-reports/io.lytgos.arch.ArchitectureTest.txt'
+Remove-Item -LiteralPath $report -Force -ErrorAction SilentlyContinue
+
+# -am 不可省：lytgos-test 没有生产代码，规则扫描的是其余模块的编译产物；
+# 单独构建 lytgos-test 会扫不到类而静默通过——比失败更危险。
+& mvn -B -pl lytgos-test -am test "-Dtest=ArchitectureTest" `
+    "-DfailIfNoTests=false" "-Dsurefire.failIfNoSpecifiedTests=false"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "依赖方向 / 自动执行禁令 FAILED（ArchUnit 测试失败，mvn exit $LASTEXITCODE）" -ForegroundColor Red
+    exit 1
+}
+
+# mvn 成功也可能「一条规则都没跑」：@ArchTest 被删、测试类被改名都会静默变绿。
+# surefire 报告里有 Tests run 行才算真的执行过；少于四条说明规则集被削减。
+# 报告不存在时 $ran 保持 0，同样判 FAIL。
+$ran = 0
+if (Test-Path -LiteralPath $report) {
+    $m = Select-String -LiteralPath $report -Pattern 'Tests run: (\d+), Failures: 0, Errors: 0, Skipped: 0' |
+        Select-Object -First 1
+    if ($m) { $ran = [int]$m.Matches[0].Groups[1].Value }
+}
+if ($ran -lt 4) {
+    Write-Host "FAIL: ArchitectureTest 未完整执行（Tests run 为 $ran，预期至少 4 条）——拒绝给出通过结论" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "依赖方向与自动执行禁令确认（ArchUnit $ran 条规则全过）：" -ForegroundColor Green
+Write-Host '  [OK] 1. 无类依赖 org.springframework.ai.chat.client..（ChatClient 及其 Advisor）' -ForegroundColor Green
+Write-Host '  [OK] 2. 无类依赖 ToolCallingManager' -ForegroundColor Green
+Write-Host '  [OK] 3. 无类/方法/字段使用 @ConditionalOnBean / @ConditionalOnMissingBean' -ForegroundColor Green
+Write-Host '  [OK] 4. 无 getBeansOfType / getBeanProvider 调用与 ObjectProvider 注入' -ForegroundColor Green
 exit 0

@@ -2,6 +2,7 @@ package io.lytgos.cli;
 
 import io.lytgos.core.LytgosException;
 import io.lytgos.core.workspace.Workspace;
+import io.lytgos.core.workspace.WorkspaceLocator;
 import io.lytgos.persona.AgentLoader;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -22,11 +23,12 @@ import java.util.stream.Stream;
 /**
  * {@code lytgos profile}：Agent 定义的增删查。
  *
- * <p>子命令各自 {@code discover} 工作区，而不是由父命令注入——{@code init} 之后
- * 工作区才存在，父命令构造时拿不到它。</p>
+ * <p>工作区从容器的 {@link WorkspaceLocator} 取——首次访问才 discover，
+ * 所以 {@code init} 之后工作区才存在的先后关系不受影响。</p>
  */
 @Command(
         name = "profile",
+        mixinStandardHelpOptions = true,
         description = "管理 Agent 定义",
         subcommands = {
                 ProfileCommand.Create.class,
@@ -36,13 +38,19 @@ import java.util.stream.Stream;
         })
 public final class ProfileCommand implements Runnable {
 
+    private final LazyContext context;
+
+    public ProfileCommand(LazyContext context) {
+        this.context = context;
+    }
+
     @Override
     public void run() {
         CommandLine.usage(this, System.out);
     }
 
-    private static Workspace workspace() {
-        return Workspace.discover(Path.of(System.getProperty("user.dir")));
+    private static Workspace workspace(LazyContext context) {
+        return context.getBean(WorkspaceLocator.class).get();
     }
 
     private static void requireValidName(String name) {
@@ -56,6 +64,12 @@ public final class ProfileCommand implements Runnable {
     @Command(name = "create", description = "创建一个 Agent 定义模板")
     static final class Create implements Runnable {
 
+        private final LazyContext context;
+
+        Create(LazyContext context) {
+            this.context = context;
+        }
+
         @Parameters(index = "0", description = "Agent 名称")
         private String name;
 
@@ -65,7 +79,7 @@ public final class ProfileCommand implements Runnable {
         @Override
         public void run() {
             requireValidName(name);
-            Path directory = workspace().agents().resolve(name);
+            Path directory = workspace(context).agents().resolve(name);
             Path file = directory.resolve("AGENT.md");
 
             if (Files.exists(file) && !force) {
@@ -113,9 +127,15 @@ public final class ProfileCommand implements Runnable {
     @Command(name = "list", description = "列出所有 Agent")
     static final class ListAll implements Runnable {
 
+        private final LazyContext context;
+
+        ListAll(LazyContext context) {
+            this.context = context;
+        }
+
         @Override
         public void run() {
-            Path agentsRoot = workspace().agents();
+            Path agentsRoot = workspace(context).agents();
             List<Path> files;
             try (Stream<Path> stream = Files.list(agentsRoot)) {
                 files = stream
@@ -132,7 +152,7 @@ public final class ProfileCommand implements Runnable {
                 System.out.println("（没有 Agent，执行 lytgos profile create <name> 创建）");
                 return;
             }
-            AgentLoader loader = new AgentLoader();
+            AgentLoader loader = context.getBean(AgentLoader.class);
             for (Path file : files) {
                 var definition = loader.load(file);
                 System.out.printf("%-16s %s%n",
@@ -146,13 +166,19 @@ public final class ProfileCommand implements Runnable {
     @Command(name = "show", description = "显示 Agent 定义原文")
     static final class Show implements Runnable {
 
+        private final LazyContext context;
+
+        Show(LazyContext context) {
+            this.context = context;
+        }
+
         @Parameters(index = "0", description = "Agent 名称")
         private String name;
 
         @Override
         public void run() {
             requireValidName(name);
-            Path file = workspace().agents().resolve(name).resolve("AGENT.md");
+            Path file = workspace(context).agents().resolve(name).resolve("AGENT.md");
             if (!Files.isRegularFile(file)) {
                 throw new LytgosException.InvalidAgentDefinition("Agent 不存在: " + name);
             }
@@ -168,6 +194,12 @@ public final class ProfileCommand implements Runnable {
     @Command(name = "delete", description = "删除一个 Agent（需二次确认）")
     static final class Delete implements Runnable {
 
+        private final LazyContext context;
+
+        Delete(LazyContext context) {
+            this.context = context;
+        }
+
         @Parameters(index = "0", description = "Agent 名称")
         private String name;
 
@@ -177,7 +209,7 @@ public final class ProfileCommand implements Runnable {
         @Override
         public void run() {
             requireValidName(name);
-            Path directory = workspace().agents().resolve(name);
+            Path directory = workspace(context).agents().resolve(name);
             if (!Files.isDirectory(directory)) {
                 throw new LytgosException.InvalidAgentDefinition("Agent 不存在: " + name);
             }

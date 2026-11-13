@@ -11,11 +11,21 @@ import java.nio.file.Path;
  * <p>幂等是硬要求——重复执行不能覆盖用户改过的 {@code AGENTS.md}。
  * 这条约束的实现落在 {@link Workspace#initialize()}，命令本身只负责报告结果。</p>
  */
-@Command(name = "init", description = "在当前目录创建 .lytgos 工作区")
+@Command(name = "init", mixinStandardHelpOptions = true, description = "在当前目录创建 .lytgos 工作区")
 public final class InitCommand implements Runnable {
+
+    /**
+     * 参数刻意不保存：{@code init} 自己必须不碰容器（此刻工作区还不存在，
+     * refresh 必然失败）。但构造器签名必须保留——{@link SpringCommandFactory}
+     * 优先走 {@code (LazyContext)} 分支；若改成无参构造，工厂会退到
+     * {@code createBean}，{@code init} 就会被自己的容器启动拦死。
+     */
+    public InitCommand(LazyContext context) {
+    }
 
     @Override
     public void run() {
+        // 刻意不碰容器：这一步工作区还不存在，容器刷新会在工作区发现处失败。
         Workspace workspace = Workspace.projectAt(Path.of(System.getProperty("user.dir")));
         int created = workspace.initialize();
 
