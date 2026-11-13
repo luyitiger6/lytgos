@@ -72,7 +72,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>io.lytgos.cli.LytgosCommand</mainClass>
+                    <mainClass>io.lytgos.cli.LytgosCli</mainClass>
                     <classifier>boot</classifier>
                 </configuration>
                 <executions>

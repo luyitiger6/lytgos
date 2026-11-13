@@ -141,20 +141,45 @@ public class ProviderRegistry {
 
 ### D6 picocli 与 Spring 的桥：自定义 `IFactory`
 
-picocli 默认用反射 `new` 子命令，拿不到容器里的依赖。实现 `CommandLine.IFactory`，把创建委托给 `LazyContext`：
+picocli 默认用反射 `new` 子命令，拿不到容器里的依赖。实现 `CommandLine.IFactory`：
 
 ```java
 final class SpringCommandFactory implements CommandLine.IFactory {
-    private final LazyContext ctx;
+    private final LazyContext context;
 
     @Override
     public <K> K create(Class<K> cls) {
-        return ctx.createBean(cls);
+        try {
+            return cls.getDeclaredConstructor(LazyContext.class).newInstance(context);
+        } catch (NoSuchMethodException e) {
+            return context.createBean(cls);
+        }
     }
 }
 ```
 
-`LazyContext.createBean(Class)` 在 `refresh()` 之后调 `AutowireCapableBeanFactory.createBean(cls)`，走完整的依赖注入与生命周期回调；`refresh()` 仍由第一次调用触发。
+**关键事实（已实测坐实）：picocli 在 `CommandLine` 构造阶段就会通过 `IFactory` 实例化全部子命令**，不是等到执行时。`-verbose:class` 的时间线是：`LytgosCommand`(0.906s) → `SpringCommandFactory`(0.907s) → `ChatCommand`(1.238s) → `AnnotationConfigApplicationContext`(1.318s) → `CliConfiguration`(2.592s)。也就是说，只要工厂调 `createBean`，`--version` 一样会 refresh 容器，启动照样进秒级。
+
+所以命令类**不能**让容器注入业务 Bean，只能接收 `LazyContext` 句柄：
+
+```java
+@Command(name = "chat")
+public class ChatCommand implements Callable<Integer> {
+    private final LazyContext context;
+
+    public ChatCommand(LazyContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public Integer call() {
+        AgentRuntimeFactory factory = context.getBean(AgentRuntimeFactory.class);  // 这里才 refresh
+        ...
+    }
+}
+```
+
+这样 `--version` 造出来的 5 个命令对象只是各自持有一个未启动的容器句柄，不加载任何 Spring 类型。工厂保留 `createBean` 兜底分支：将来有命令类确实需要容器构造器注入时，仍能走完整注入，但那个命令一被创建就会把容器拉起来。
 
 命令类**不加 `@Component`**：它们不是单例，由 picocli 按需创建一个实例。加了 `@Component` 会在容器里多留一份没人用的实例，且掩盖「命令实例是否真由工厂创建」这一事实。
 
@@ -196,13 +221,17 @@ final class SpringCommandFactory implements CommandLine.IFactory {
 
 由此定三层口径：
 
-| 层 | 命令 | 是否刷新容器 | 预算（p95） |
+| 层 | 命令 | 是否刷新容器 | 预算 |
 |---|---|---|---|
-| L0 | `--version`、`--help` | 否 | ≤ 900ms |
-| L1 | `provider list`、`tool list`、`profile list` | 是 | ≤ 2500ms |
+| L0 | `--version`、`--help` | 否 | 30 次采样最小值 ≤ 900ms |
+| L1 | `provider list`、`tool list`、`profile list` | 是 | 30 次采样最小值 ≤ 2500ms |
 | L2 | `chat` | 是 | 不设启动预算（网络往返主导） |
 
-L0 的 900ms 相对现状留了约 15% 余量，用于吸收 jar 数变化与机器波动。它不是一个「Spring 化后的新目标」，而是**回归护栏**：任何把依赖注入到根命令、或改成 `SpringApplication` 的改动，都会把 L0 顶到 1.5s，闸门必须红。
+**用最小值而非 p95 的实测依据**：本机 `--version` 的 30 次采样呈双峰（736-880ms 与 1089-1361ms），两簇之间没有中间值，差值来自杀软扫描与页面回收，与代码路径无关。最小值稳定复现 736ms（与改造前的 650-790ms 重合），能真实反映启动成本；p95 会把环境噪声当回归、把闸门变成随机红绿。
+
+L0 的 900ms 相对现状留了约 20% 余量，用于吸收 jar 数变化与机器波动。它不是一个「Spring 化后的新目标」，而是**回归护栏**：任何把依赖注入到根命令、或改成 `SpringApplication` 的改动，都会把 L0 顶到 1.5s，闸门必须红。
+
+**验证 L0 是否真的没碰容器，不能只看耗时**（机器抖动可达 600ms，会淹没 815ms 的差异）。必须同时检查：`java -verbose:class` 的输出里不出现 `org.springframework.context.*`。这是不会被噪声干扰的硬判据。
 
 新增 `harness/checks/09-startup-budget.ps1`，纳入 `run-all.ps1`，同步更新 `AGENTS.md` 的 `<!-- harness-checks: -->` 清单行与 `harness/README.md`。
 

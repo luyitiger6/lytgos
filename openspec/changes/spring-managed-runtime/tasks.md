@@ -3,8 +3,8 @@
 ## 1. 容器骨架与依赖
 
 - [x] 1.1 根 pom 增加 `lytgos-test` 模块声明与 `archunit-junit5` 版本管理；`lytgos-cli/pom.xml` 增加 `spring-boot`（核心 artifact，**不是** `spring-boot-starter`），保留 `spring-boot-maven-plugin`。验证：`mvn -o -q clean package` 退出码 0；`lytgos-cli-boot.jar` 的 `BOOT-INF/lib` 从 66 个 jar 增至 67 个（只多一个 `spring-boot-4.1.2.jar`），`spring-context` 等不重复
-- [ ] 1.2 新增 `CliConfiguration`（`@Configuration(proxyBeanMethods = false)` + `@Import` 显式登记）与 `LazyContext`（首次 `getBean` 才 `refresh()`，实现 `AutoCloseable`），新增 `io.lytgos.cli.LytgosCli` 作为 `main` 入口。**不使用 `SpringApplication` / `@SpringBootApplication` / `@ComponentScan` / 自动配置 / banner**。验证：`java -jar lytgos-cli-boot.jar --version` 退出码 0，stdout 只有版本号一行，stderr 不含 Spring 日志；连续 5 次 p95 ≤ 900ms
-- [ ] 1.3 新增 `SpringCommandFactory implements CommandLine.IFactory`，委托 `AutowireCapableBeanFactory.createBean`；五个子命令类只保留 `@Command`，**不加 `@Component`**（避免容器里多一份没人用的实例）。验证：`java -jar lytgos-cli-boot.jar provider list` 在无工作区时给出与改造前一致的报错且退出码非 0
+- [x] 1.2 新增 `CliConfiguration`（`@Configuration(proxyBeanMethods = false)` + `@Import` 显式登记）与 `LazyContext`（首次 `getBean` 才 `refresh()`，实现 `AutoCloseable`），新增 `io.lytgos.cli.LytgosCli` 作为 `main` 入口，**暂不接 `SpringCommandFactory`**（1.3 再接）。**不使用 `SpringApplication` / `@SpringBootApplication` / `@ComponentScan` / 自动配置 / banner**。验证：`java -jar lytgos-cli-boot.jar --version` 退出码 0，stdout 只有版本号一行，stderr 不含 Spring 日志；`-verbose:class` 中不出现 `org.springframework.context.*`；连续 30 次最小值 ≤ 900ms（最小值反映真实启动成本，p95 受杀软与页面回收干扰可达 1400ms，不作为硬阈值）
+- [ ] 1.3 新增 `SpringCommandFactory implements CommandLine.IFactory`：优先用命令类的 `LazyContext` 构造器创建（不触发容器），没有该构造器时才退回 `AutowireCapableBeanFactory.createBean`。五个子命令加 `LazyContext` 构造器并删掉无参构造，**不加 `@Component`**；内部仍暂用 `CliContext.instance()` 取依赖，4.1 再改。**注意 picocli 在 `CommandLine` 构造阶段就实例化全部子命令**，所以命令类只能持有 `LazyContext` 句柄。验证：`--version` 的 `-verbose:class` 里不出现 `org.springframework.context.*` 且 30 次最小值 ≤ 900ms；`provider list` 报错与改造前一致
 - [ ] 1.4 根命令 `LytgosCommand` 保持无参构造、不注入任何依赖，只承载 `@Command(subcommands = ...)` 与版本信息。验证：`--version` 连续 5 次 p95 与改造前持平（±100ms）；临时给根命令加一个注入字段，耗时升到 1.5s 级别，确认分层生效后撤销
 
 ## 2. 配置绑定迁移
@@ -39,7 +39,7 @@
 
 ## 7. 启动预算闸门
 
-- [ ] 7.1 新增 `harness/checks/09-startup-budget.ps1`：`--version` 跑 30 次取 p95 断言 ≤ 900ms；`provider list`（无工作区，快速失败路径）跑 5 次取 p95 断言 ≤ 2500ms；超预算退出码 1，缺 jar 退出码 2（沿用现有三态语义）。验证：脚本单独执行退出码 0，输出两级实测数值
+- [ ] 7.1 新增 `harness/checks/09-startup-budget.ps1`：`--version` 跑 30 次取**最小值**断言 ≤ 900ms 且 `-verbose:class` 不含 `org.springframework.context.*`；`provider list`（无工作区，快速失败路径）跑 10 次取最小值断言 ≤ 2500ms；超预算退出码 1，缺 jar 退出码 2（沿用现有三态语义）。验证：脚本单独执行退出码 0，输出两级实测数值
 - [ ] 7.2 `harness/run-all.ps1` 接入 09；`AGENTS.md` 的 `<!-- harness-checks: -->` 清单行与 `harness/README.md` 的闸门清单同步增加 `09-startup-budget`。验证：`00-layout-check.ps1` 退出码 0（清单与实际文件一致），`run-all.ps1` 输出里出现 09
 
 ## Workflow follow-up
