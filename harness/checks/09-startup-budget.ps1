@@ -11,7 +11,7 @@
     判据：
       L0  --version                        30 次采样最小值 ≤ 900ms
           -verbose:class                   不含 org.springframework.context.*
-      L1  provider list（无工作区快速失败） 10 次采样最小值 ≤ 2500ms
+      L1  provider list（无工作区快速失败） 10 次采样最小值 ≤ 2500ms，且每次都退出 1
 
     三态：
       0  两级均在预算内，且 L0 未加载容器类
@@ -46,10 +46,11 @@ $L1_BUDGET_MS = 2500
 $L1_SAMPLES = 10
 
 # 直接起进程计时；ReadToEnd 必须在 WaitForExit 之前，否则子进程写满管道会死锁
+# 退出码逐次收集：只看末次会把「偶发失败但最后一次恰好吃好」当成全绿
 function Invoke-Measure {
     param([string]$CliArgs, [string]$WorkDir, [int]$Samples)
     $times = @()
-    $lastExit = 0
+    $exits = @()
     for ($i = 0; $i -lt $Samples; $i++) {
         $psi = [Diagnostics.ProcessStartInfo]::new('java', $CliArgs)
         $psi.UseShellExecute = $false
@@ -63,14 +64,14 @@ function Invoke-Measure {
         $p.WaitForExit()
         $sw.Stop()
         $times += $sw.Elapsed.TotalMilliseconds
-        $lastExit = $p.ExitCode
+        $exits += $p.ExitCode
         $p.Dispose()
     }
     [pscustomobject]@{
         Min   = [math]::Round(($times | Measure-Object -Minimum).Minimum)
         Max   = [math]::Round(($times | Measure-Object -Maximum).Maximum)
         Times = $times
-        Exit  = $lastExit
+        Exits = $exits
     }
 }
 
@@ -80,8 +81,10 @@ $failures = @()
 $l0 = Invoke-Measure -CliArgs ('-jar "' + $jar + '" --version') -Samples $L0_SAMPLES
 $l0Samples = ($l0.Times | ForEach-Object { [math]::Round($_) }) -join ','
 Write-Host ("[L0] --version {0} 次采样：min={1}ms max={2}ms  预算 {3}ms" -f $L0_SAMPLES, $l0.Min, $l0.Max, $L0_BUDGET_MS)
-if ($l0.Exit -ne 0) {
-    $failures += "--version 退出码 $($l0.Exit)，命令本身异常"
+$l0Bad = @($l0.Exits | Where-Object { $_ -ne 0 })
+if ($l0Bad.Count -gt 0) {
+    $kinds = ($l0Bad | Sort-Object -Unique) -join ','
+    $failures += "--version $($l0Bad.Count)/$($L0_SAMPLES) 次退出码非 0（出现: $kinds），命令本身异常"
 } elseif ($l0.Min -gt $L0_BUDGET_MS) {
     $failures += "--version 最小值 $($l0.Min)ms 超预算 $($L0_BUDGET_MS)ms（samples: $l0Samples）"
 }
@@ -117,8 +120,11 @@ try {
 }
 $l1Samples = ($l1.Times | ForEach-Object { [math]::Round($_) }) -join ','
 Write-Host ("[L1] provider list {0} 次采样：min={1}ms max={2}ms  预算 {3}ms" -f $L1_SAMPLES, $l1.Min, $l1.Max, $L1_BUDGET_MS)
-if ($l1.Exit -ne 0 -and $l1.Exit -ne 1) {
-    $failures += "provider list 退出码 $($l1.Exit)（预期 0 或 1），命令异常"
+$l1Bad = @($l1.Exits | Where-Object { $_ -ne 1 })
+if ($l1Bad.Count -gt 0) {
+    # 无工作区就该稳定退出 1；出现 0 意味着「没工作区也能跑」，行为已经变了
+    $kinds = ($l1Bad | Sort-Object -Unique) -join ','
+    $failures += "provider list 无工作区应稳定退出 1，$($l1Bad.Count)/$($L1_SAMPLES) 次为 $kinds"
 } elseif ($l1.Min -gt $L1_BUDGET_MS) {
     $failures += "provider list 最小值 $($l1.Min)ms 超预算 $($L1_BUDGET_MS)ms（samples: $l1Samples）"
 }

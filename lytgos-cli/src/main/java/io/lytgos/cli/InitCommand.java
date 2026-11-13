@@ -14,10 +14,13 @@ import java.nio.file.Path;
 @Command(name = "init", mixinStandardHelpOptions = true, description = "在当前目录创建 .lytgos 工作区")
 public final class InitCommand implements Runnable {
 
-    private final LazyContext context;
-
+    /**
+     * 参数刻意不保存：{@code init} 自己必须不碰容器（此刻工作区还不存在，
+     * refresh 必然失败）。但构造器签名必须保留——{@link SpringCommandFactory}
+     * 优先走 {@code (LazyContext)} 分支；若改成无参构造，工厂会退到
+     * {@code createBean}，{@code init} 就会被自己的容器启动拦死。
+     */
     public InitCommand(LazyContext context) {
-        this.context = context;
     }
 
     @Override

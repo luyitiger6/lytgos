@@ -57,6 +57,30 @@
 - [x] 7.2 `harness/run-all.ps1` 接入 09；`AGENTS.md` 的 `<!-- harness-checks: -->` 清单行与 `harness/README.md` 的闸门清单同步增加 `09-startup-budget`。验证：`00-layout-check.ps1` 退出码 0（清单与实际文件一致），`run-all.ps1` 输出里出现 09
   - 实现记录：run-all 本就按 `checks/*.ps1` 目录扫描执行，放入文件即接入，无需改 run-all 代码。AGENTS.md 目录地图与 `<!-- harness-checks: -->` 清单行、README 闸门表格与正文（含 CLI boot jar 口径、最小值 vs p95 理由、Start-Process 计时噪声坑）均已同步。验证：`00-layout-check.ps1` EXIT=0（「闸门清单一致：10 道」）；`run-all.ps1` 输出出现 `[PASS] 09-startup-budget (45.4s)`，汇总 9 PASS + 05 NOT_READY，EXIT=1（与 6.3 同一诚实结论口径）
 
+## 验收整改（代码审查发现，全部已修并有反证）
+
+- [x] R1 04 闸门假绿：复用上一轮 surefire 报告会把「本轮一条没跑」误判为 PASS
+  - 根因：旧 `.txt` 报告未清理；影响面：04 的「4 条规则全过」结论不可信
+  - 修复：mvn 前删报告（`04-dependency-direction.ps1`）；回归位置：脚本内注释 + 报告缺失时 $ran=0 判 FAIL
+- [x] R2 ArchUnit 规则 3 只查类级注解：`@Bean` 方法上的 `@ConditionalOnBean` 漏检
+  - 修复：`noClasses()` → `noCodeUnits()`（类/方法/字段全覆盖）
+  - 反证：临时给 `ProviderRegistry` 加方法级 `@ConditionalOnBean` 探针，测试精确报 `ProviderRegistry.java:73`，`Tests run: 4, Failures: 1`；还原后复绿
+- [x] R3 容器 Bean 创建失败时用户看到 Spring 包装消息 + 中文控制台乱码 WARN
+  - 修复：`LytgosCli` 沿 cause 链找最深的 `LytgosException`；logback 关闭 `AnnotationConfigApplicationContext` 的 WARN
+  - 真实链路：无工作区 `provider list` / 坏 YAML，stderr 均只剩一行领域消息，EXIT=1，无堆栈
+- [x] R4 配置校验：重复键静默合并、空 provider 列表提示误导
+  - 根因澄清：反证实验 + `javap` 字节码证实 Spring Boot 4.1.2 的 `OriginTrackedYamlLoader` 已默认 `allowDuplicateKeys=false`——「重复键静默合并」不成立，因此**不引入**二次解析
+  - 保留回归用例 `WorkspaceConfigProviderTest.rejectsDuplicateProviderKeys` 守外部契约（升级 Boot 若默认值变化会先红）；错误消息含文件路径与两处行号
+  - `ProviderRegistry.require()` 空列表报「配置文件里没有任何 provider，无法提供 <name>；先在 providers 段添加一个」；新增 `ProviderRegistryTest` 4 例
+- [x] R5 09 闸门退出码判定过宽：只看末次采样、L1 接受 0
+  - 修复：逐次收集退出码；L0 全部必须为 0；L1 全部必须为 1（无工作区快速失败的标准行为）
+- [x] R6 建议项清理
+  - `WorkspaceConfig.load(Path, boolean strictEnv)` 哑参数删除，统一为单参入口
+  - `LazyContext` refresh 失败时 close 已创建的单例（close 异常作 suppressed，不掩盖原异常）
+  - `InitCommand` 死字段移除，构造器 `(LazyContext)` 保留并注释原因（否则工厂退到 `createBean`，init 会被容器启动拦死）
+  - 04 新增模块登记对账：业务模块未登记到 `lytgos-test` 时先 FAIL（反证：摘除 `lytgos-memory` 精确报出并退出 1）
+  - 文档漂移：`AGENTS.md` 模块数 11→12、单测数 41→79；`design.md` D9/L1 采样数与「p95」残留表述统一为最小值口径
+
 ## Workflow follow-up
 
 - 分支 `feat/spring-managed-runtime-20261113` 跑通后交用户审阅，通过后合并 main。

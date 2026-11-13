@@ -226,7 +226,7 @@ public class ChatCommand implements Callable<Integer> {
 | 层 | 命令 | 是否刷新容器 | 预算 |
 |---|---|---|---|
 | L0 | `--version`、`--help` | 否 | 30 次采样最小值 ≤ 900ms |
-| L1 | `provider list`、`tool list`、`profile list` | 是 | 30 次采样最小值 ≤ 2500ms |
+| L1 | `provider list`、`tool list`、`profile list` | 是 | 10 次采样最小值 ≤ 2500ms，且每次都退出 1 |
 | L2 | `chat` | 是 | 不设启动预算（网络往返主导） |
 
 **用最小值而非 p95 的实测依据**：本机 `--version` 的 30 次采样呈双峰（736-880ms 与 1089-1361ms），两簇之间没有中间值，差值来自杀软扫描与页面回收，与代码路径无关。最小值稳定复现 736ms（与改造前的 650-790ms 重合），能真实反映启动成本；p95 会把环境噪声当回归、把闸门变成随机红绿。
@@ -242,7 +242,7 @@ L0 的 900ms 相对现状留了约 20% 余量，用于吸收 jar 数变化与机
 ## Risks / Trade-offs
 
 - **容器首次刷新 815ms 是硬成本** → L1/L2 命令每次子进程调用都要付一次，07/08 会变慢。`WaitForExit()` 无超时，不会因此失败。L0 通过「不刷新容器」规避；一旦有人把依赖注入到根命令 `LytgosCommand`，或改回 `SpringApplication`，L0 立刻退化到 1.5s——这必须由 09 闸门守住，不能靠 review 时记得。
-- **09 闸门阈值受机器性能影响** → 900ms / 2500ms 是本机实测加余量得出的，冷启动、杀软扫描、CI 低配机都可能推高。取 p95 而非单次，阈值定稿前先跑 30 次采样校准。
+- **09 闸门阈值受机器性能影响** → 900ms / 2500ms 是本机实测加余量得出的，冷启动、杀软扫描、CI 低配机都可能推高。取最小值而非单次或 p95（见 D9：p95 会把环境噪声当回归），阈值定稿前先跑 30 次采样校准。
 - **JVM 参数能再省 100-200ms，但只在闸门里用会失真** → `-XX:TieredStopAtLevel=1 -XX:+UseSerialGC` 能让首次 refresh 快一截，但写进 07/08 的子进程调用点会造成「闸门测的启动」与「用户实际启动」不是同一条路径。要么统一进启动脚本，要么两边都不用。
 - **stderr 断言可能被容器异常栈干扰** → 新方案不引 `SpringApplication`，没有 `LogbackLoggingSystem` 接管，logback 仍只由 `logback.xml` 初始化，`org.springframework` 已是 WARN。但容器 refresh 失败时异常栈会进 stderr。07/08 的断言是正向匹配（要求出现某文本），多出的栈不会误伤；仍要在任务里实测一次，不能只看编译通过。
 - **`mvn -pl lytgos-test test` 单独跑会拿不到其他模块的 class** → 必须带 `-am`，否则 ArchUnit 扫不到类而静默通过（比失败更危险）。

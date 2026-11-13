@@ -39,7 +39,7 @@ public class CoreBeans {
      */
     @Bean
     public WorkspaceConfig workspaceConfig(WorkspaceLocator locator) {
-        return WorkspaceConfig.load(locator.get().configFile(), false);
+        return WorkspaceConfig.load(locator.get().configFile());
     }
 
     @Bean

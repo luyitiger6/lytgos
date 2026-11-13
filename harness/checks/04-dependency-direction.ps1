@@ -11,6 +11,9 @@
       3. 禁 @ConditionalOnBean / @ConditionalOnMissingBean（类与方法级都算）
       4. 禁 getBeansOfType / getBeanProvider 调用与 ObjectProvider 注入
 
+    前置对账：每个业务模块都必须出现在 lytgos-test 的 test 依赖里，否则该模块的
+    字节码不在扫描范围，规则对它静默失效——这种假绿比测试失败更难发现。
+
     为什么不再扫源码正则：import 写了不引用不构成依赖，正则会放过；反过来注释里
     点名某个类又可能被误伤（旧版靠「注释行跳过」补丁式处理）。ArchUnit 看的是编译
     产物里真实的引用，这才是「约束」该有的判定面。旧的「Spring AI 只允许在 provider」
@@ -48,6 +51,18 @@ if (-not (Test-Path -LiteralPath $architectureTest) -or $businessModules.Count -
 }
 
 Write-Host "执行 ArchUnit 架构测试（业务模块 $($businessModules.Count) 个）..." -ForegroundColor DarkGray
+
+# 模块登记对账：新模块忘了在 lytgos-test 登记时，ArchUnit 扫不到它的字节码，
+# 四条规则对那个模块静默失效——与「通过」不可区分，所以先对账再跑测试。
+$testPomText = Get-Content -LiteralPath (Join-Path $testModule 'pom.xml') -Raw
+$registered = @([regex]::Matches($testPomText, '<artifactId>(lytgos-[^<]+)</artifactId>') |
+    ForEach-Object { $_.Groups[1].Value })
+$unregistered = @($businessModules | Where-Object { $registered -notcontains $_.Name } |
+    ForEach-Object { $_.Name })
+if ($unregistered.Count -gt 0) {
+    Write-Host "FAIL: 业务模块未登记到 lytgos-test 的 test 依赖，ArchUnit 扫不到（规则静默失效）：$($unregistered -join ', ')" -ForegroundColor Red
+    exit 1
+}
 
 # 旧报告绝不得复用：上一轮成功留下的 .txt 会让「本轮一条测试都没跑」
 # （测试类被改名、@ArchTest 被删、模块被临时摘除）误判为 PASS。

@@ -31,14 +31,6 @@ public final class WorkspaceConfig {
     }
 
     public static WorkspaceConfig load(Path configFile) {
-        return load(configFile, true);
-    }
-
-    /**
-     * @param strictEnv 保留只为签名兼容：严格校验已移到 provider 构造（残留占位即报错），
-     *                  两种取值都做宽松解析
-     */
-    public static WorkspaceConfig load(Path configFile, boolean strictEnv) {
         return WorkspaceConfigProvider.load(configFile);
     }
 

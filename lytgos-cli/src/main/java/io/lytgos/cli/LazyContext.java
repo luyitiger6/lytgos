@@ -50,7 +50,19 @@ public final class LazyContext implements AutoCloseable {
         if (context == null) {
             AnnotationConfigApplicationContext created = new AnnotationConfigApplicationContext();
             created.register(configuration());
-            created.refresh();
+            try {
+                created.refresh();
+            } catch (RuntimeException refreshFailure) {
+                // refresh 失败时 Spring 不会替你释放已创建的单例：数据源、文件句柄、
+                // MCP 子进程都会挂着。close 自身再失败只作为 suppressed 附上，
+                // 不能它盖住真正的失败原因。
+                try {
+                    created.close();
+                } catch (RuntimeException closeFailure) {
+                    refreshFailure.addSuppressed(closeFailure);
+                }
+                throw refreshFailure;
+            }
             context = created;
         }
         return context;
