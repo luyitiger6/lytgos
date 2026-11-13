@@ -80,6 +80,33 @@ class WorkspaceConfigProviderTest {
         assertTrue(error.getMessage().contains("YAML"), error.getMessage());
     }
 
+    /**
+     * 重复键必须报错而不是「后者覆盖前者」——用户拼错时一个 provider 块会被无声吞掉。
+     *
+     * <p>守的是外部契约，不绑实现：当前靠 Spring Boot 4 的 {@code OriginTrackedYamlLoader}
+     * 默认 {@code allowDuplicateKeys=false}，升级 Boot 若该默认值变化，这条会先红。</p>
+     */
+    @Test
+    void rejectsDuplicateProviderKeys() throws IOException {
+        Path config = tempDir.resolve("config.yaml");
+        Files.writeString(config, """
+                providers:
+                  deepseek:
+                    model: deepseek-flash
+                    api-key: sk-first
+                  deepseek:
+                    model: deepseek-pro
+                    api-key: sk-second
+                """, StandardCharsets.UTF_8);
+
+        LytgosException.InvalidConfiguration error = assertThrows(
+                LytgosException.InvalidConfiguration.class,
+                () -> WorkspaceConfigProvider.load(config, new StandardEnvironment()));
+
+        assertTrue(error.getMessage().contains(config.toString()), error.getMessage());
+        assertTrue(error.getMessage().contains("deepseek"), error.getMessage());
+    }
+
     private Path writeConfig(String apiKey) throws IOException {
         Path config = tempDir.resolve("config.yaml");
         Files.writeString(config, """

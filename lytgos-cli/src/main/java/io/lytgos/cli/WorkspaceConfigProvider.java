@@ -62,6 +62,13 @@ final class WorkspaceConfigProvider {
         return new WorkspaceConfig(configs, sandbox.allowedDomains(), sandbox.allowedCommands());
     }
 
+    /**
+     * 把 YAML 读成 PropertySource。<p>重复键不需要在这里预检：
+     * Spring Boot 4 的 {@code OriginTrackedYamlLoader} 内部已设
+     * {@code LoaderOptions.setAllowDuplicateKeys(false)}，重复键会在这里抛出
+     * 「found duplicate key ...」。将来升级 Boot 时若该默认值发生变化，
+     * {@code WorkspaceConfigProviderTest.rejectsDuplicateProviderKeys} 会先红。
+     */
     private static void addYamlSource(Path configFile, ConfigurableEnvironment environment) {
         List<PropertySource<?>> sources;
         try {

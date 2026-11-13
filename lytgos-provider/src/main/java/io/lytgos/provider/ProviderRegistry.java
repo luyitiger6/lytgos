@@ -46,6 +46,11 @@ public final class ProviderRegistry {
      * 在连接之前就报错，且消息里带变量名——用户不需要猜是哪个 key。</p>
      */
     public ChatModel require(String name) {
+        if (configs.isEmpty()) {
+            // 空列表时最该告诉用户的是「你还没配 provider」，而不是「未知 provider: xxx」
+            throw new LytgosException.InvalidConfiguration(
+                    "配置文件里没有任何 provider，无法提供 " + name + "；先在 providers 段添加一个");
+        }
         ProviderConfig config = configs.get(name);
         if (config == null) {
             throw new LytgosException.UnknownProvider(name, configs.keySet());
