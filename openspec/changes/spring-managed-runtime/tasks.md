@@ -16,9 +16,12 @@
 
 ## 3. 能力类 Bean 化
 
-- [ ] 3.1 `ObjectMapper`、`WorkspaceLocator`、`SandboxChecker`、`SessionStore`、`AgentLoader`、`ProviderRegistry` 改为容器管理，构造函数注入。验证：`mvn -o test` 退出码 0，11 个既有测试类不因构造方式变化而失败
-- [ ] 3.2 `ProviderRegistry` 改为内部懒创建 `ChatModel`：首次 `require(name)` 时构造并缓存，不使用 `ObjectProvider`、`getBeansOfType` 或类型扫描。验证：`provider list` 在缺 key 时成功；`chat` 在缺 key 时退出码 1 且消息含变量名
-- [ ] 3.3 新增 `AgentRuntimeFactory` 承接 `CliContext.runtimeFor()` / `toolsFor()`：按 Agent 名组装 `McpServerManager`、`ToolRegistry`、`ToolExecutor`、`ReActLoop`、`PromptBuilder`，失败路径先回收已拉起的 MCP 子进程。验证：`McpServerManagerTest`、`ReActLoopTest` 全绿
+- [x] 3.1 `ObjectMapper`、`WorkspaceLocator`、`SandboxChecker`、`SessionStore`、`AgentLoader`、`ProviderRegistry` 改为容器管理，构造函数注入。验证：`mvn -o test` 退出码 0，11 个既有测试类不因构造方式变化而失败
+  - 实现记录：新增 `WorkspaceLocator`（core/workspace，构造不碰磁盘、首次 `get()` 才 discover 并缓存）；新增 `CoreBeans`（ObjectMapper、WorkspaceLocator、WorkspaceConfig、SandboxChecker、SessionStore、AgentLoader）与 `ProviderBeans`（ProviderRegistry），`CliConfiguration` 用 `@Import` 显式登记；能力类保持纯 POJO 不加 `@Component`。验证：`mvn -o -B clean test -pl lytgos-cli -am` 退出码 0，11 个测试类全绿
+- [x] 3.2 `ProviderRegistry` 改为内部懒创建 `ChatModel`：首次 `require(name)` 时构造并缓存，不使用 `ObjectProvider`、`getBeansOfType` 或类型扫描。验证：`provider list` 在缺 key 时成功；`chat` 在缺 key 时退出码 1 且消息含变量名
+  - 实现记录：构造器只登记 `ProviderConfig`（重名仍报错），`require` 先在 `ConcurrentHashMap` 里查缓存，未缓存则检查残留 `${` 再 `ChatModelFactory.create` 并缓存；`names()`/`size()` 不再隐含任何模型构造。同时删除已无调用方的 `ChatModelFactory.createAll`。验证：缺 `DEEPSEEK_API_KEY` 时 `provider list` EXIT=0；`chat -m hello` stderr「环境变量未设置: DEEPSEEK_API_KEY（provider deepseek 需要）」、EXIT=1；容器探针输出 `providers=[deepseek] (models not created)`
+- [x] 3.3 新增 `AgentRuntimeFactory` 承接 `CliContext.runtimeFor()` / `toolsFor()`：按 Agent 名组装 `McpServerManager`、`ToolRegistry`、`ToolExecutor`、`ReActLoop`、`PromptBuilder`，失败路径先回收已拉起的 MCP 子进程。验证：`McpServerManagerTest`、`ReActLoopTest` 全绿
+  - 实现记录：工厂构造注入 WorkspaceLocator/SandboxChecker/AgentLoader/ProviderRegistry/ObjectMapper/HttpTool/FileTool；per-Agent 对象不进容器；新增 `ToolBeans`（HttpTool、FileTool）与 `CliBeans`（AgentRuntimeFactory），`CliConfiguration` 一并 `@Import`。验证：`McpServerManagerTest` 11/11、`ReActLoopTest` 4/4 全绿；用 PropertiesLauncher 探针在真实工作区实测容器刷新后 `toolsFor("default")` 返回 `[http_get, file_read]`，`PROBE_OK`
 
 ## 4. 装配切换
 
