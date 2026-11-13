@@ -1,5 +1,7 @@
 package io.lytgos.cli;
 
+import io.lytgos.core.workspace.Workspace;
+import io.lytgos.core.workspace.WorkspaceLocator;
 import io.lytgos.provider.ProviderConfig;
 import picocli.CommandLine.Command;
 
@@ -16,6 +18,7 @@ import java.util.List;
  */
 @Command(
         name = "provider",
+        mixinStandardHelpOptions = true,
         description = "查看配置的模型 provider",
         subcommands = { ProviderCommand.ListAll.class })
 public final class ProviderCommand implements Runnable {
@@ -28,15 +31,15 @@ public final class ProviderCommand implements Runnable {
 
     @Override
     public void run() {
-        list();
+        list(context);
     }
 
-    static void list() {
-        CliContext context = CliContext.instance();
-        List<ProviderConfig> providers = context.config().providers();
+    private static void list(LazyContext context) {
+        List<ProviderConfig> providers = context.getBean(WorkspaceConfig.class).providers();
 
         if (providers.isEmpty()) {
-            System.out.println("（没有配置 provider，编辑 " + context.workspace().configFile() + " 添加）");
+            Workspace workspace = context.getBean(WorkspaceLocator.class).get();
+            System.out.println("（没有配置 provider，编辑 " + workspace.configFile() + " 添加）");
             return;
         }
 
@@ -60,7 +63,7 @@ public final class ProviderCommand implements Runnable {
 
         @Override
         public void run() {
-            list();
+            list(context);
         }
     }
 }

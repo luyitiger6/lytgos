@@ -11,7 +11,7 @@ import java.nio.file.Path;
  * <p>幂等是硬要求——重复执行不能覆盖用户改过的 {@code AGENTS.md}。
  * 这条约束的实现落在 {@link Workspace#initialize()}，命令本身只负责报告结果。</p>
  */
-@Command(name = "init", description = "在当前目录创建 .lytgos 工作区")
+@Command(name = "init", mixinStandardHelpOptions = true, description = "在当前目录创建 .lytgos 工作区")
 public final class InitCommand implements Runnable {
 
     private final LazyContext context;
@@ -22,6 +22,7 @@ public final class InitCommand implements Runnable {
 
     @Override
     public void run() {
+        // 刻意不碰容器：这一步工作区还不存在，容器刷新会在工作区发现处失败。
         Workspace workspace = Workspace.projectAt(Path.of(System.getProperty("user.dir")));
         int created = workspace.initialize();
 

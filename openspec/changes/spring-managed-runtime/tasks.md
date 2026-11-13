@@ -25,8 +25,10 @@
 
 ## 4. 装配切换
 
-- [ ] 4.1 五个 CLI 命令（`init`、`chat`、`profile`、`provider`、`tool`）改为从容器注入依赖，删除对 `CliContext.instance()` 的调用。验证：五个子命令 `--help` 均退出码 0
-- [ ] 4.2 删除 `CliContext` 的手工装配，把「懒加载」语义迁到 `WorkspaceLocator`。验证：全仓不再有 `CliContext` 引用；`mvn -o clean package` 退出码 0
+- [x] 4.1 五个 CLI 命令（`init`、`chat`、`profile`、`provider`、`tool`）改为从容器注入依赖，删除对 `CliContext.instance()` 的调用。验证：五个子命令 `--help` 均退出码 0
+  - 实现记录：命令不再持有装配对象，`run()` 里从 `LazyContext.getBean(...)` 取依赖（`chat` 取 `AgentRuntimeFactory`/`SessionStore`，`provider list` 取 `WorkspaceConfig`/`WorkspaceLocator`，`tool list` 取 `AgentRuntimeFactory.toolsFor`，`profile` 取 `WorkspaceLocator`/`AgentLoader`）；`init` 刻意保持不碰容器。子命令原本未注册 help（`--help` 报 Unknown option、退出码 2），一并补 `mixinStandardHelpOptions = true`。验证：五个 `--help` 全 EXIT=0；容器化后实测 `provider list`、`tool list`（http_get/file_read）、`profile list`（default 默认助手）EXIT=0，`chat -m hello` 缺 key EXIT=1 且 stderr 含 `DEEPSEEK_API_KEY`
+- [x] 4.2 删除 `CliContext` 的手工装配，把「懒加载」语义迁到 `WorkspaceLocator`。验证：全仓不再有 `CliContext` 引用；`mvn -o clean package` 退出码 0
+  - 实现记录：删除 `CliContext.java`（227 行），懒加载语义已由 3.1 的 `WorkspaceLocator` 双重检查锁承接，`AgentRuntimeFactory` 新增 `sessionKey(agent)` 补上原 `CliContext.sessionKey` 的职责。验证：全仓 grep `CliContext` 零命中（NO_CLI_CONTEXT_REFS）；`mvn -o clean package` EXIT=0
 - [ ] 4.3 跑 `harness\checks\07-week1-acceptance.ps1`，六条全 PASS 且退出码 0；重点确认第 3 条 stderr 仍有 `tool_call: http_get`、第 4 条仍能识别缺 key 文案
 
 ## 5. 架构闸门

@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 /**
  * 按 Agent 组装运行时：工具注册表 + 已启动的 MCP 子进程（+ 对话循环）。
  *
- * <p>替代原 {@code CliContext.runtimeFor()} / {@code toolsFor()}。单例依赖由容器注入；
+ * <p>运行时装配的唯一入口。单例依赖由容器注入；
  * {@link ReActLoop}、{@link ToolRegistry}、{@link ToolExecutor}、{@link McpServerManager}
  * 依赖具体 Agent 的 {@code Profile}，每个 Agent 各一份，不进容器。</p>
  *
@@ -91,6 +91,11 @@ public final class AgentRuntimeFactory {
             runtime.close();
             throw e;
         }
+    }
+
+    /** 会话键：channel + user + agent 三元组。第 1 周 user 固定为 local。 */
+    public String sessionKey(String agentName) {
+        return "cli:local:" + agentName;
     }
 
     /** 开工具（含 MCP 子进程），失败时自己回收已拉起的那部分。 */

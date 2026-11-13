@@ -18,6 +18,7 @@ import java.util.List;
  */
 @Command(
         name = "tool",
+        mixinStandardHelpOptions = true,
         description = "查看已注册的工具",
         subcommands = { ToolCommand.ListAll.class })
 public final class ToolCommand implements Runnable {
@@ -33,11 +34,12 @@ public final class ToolCommand implements Runnable {
 
     @Override
     public void run() {
-        list(agent);
+        list(context, agent);
     }
 
-    static void list(String agentName) {
-        try (AgentRuntime runtime = CliContext.instance().toolsFor(agentName)) {
+    private static void list(LazyContext context, String agentName) {
+        AgentRuntimeFactory factory = context.getBean(AgentRuntimeFactory.class);
+        try (AgentRuntime runtime = factory.toolsFor(agentName)) {
             List<ToolSpec> specs = runtime.tools().specs();
 
             if (specs.isEmpty()) {
@@ -67,7 +69,7 @@ public final class ToolCommand implements Runnable {
 
         @Override
         public void run() {
-            list(agent);
+            list(context, agent);
         }
     }
 }
