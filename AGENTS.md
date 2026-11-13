@@ -59,8 +59,8 @@ Spring AI 的 `ChatClient` 会自动驱动工具调用循环（`ToolCallingAdvis
 lytgos 的工具执行必须 100% 由自己的 `ToolExecutor` 发起，因为**治理（配额、白名单、沙箱、审计）只能挂在执行路径上**。
 
 - 只允许 `ChatModel.call(prompt)`——它返回模型原样响应，不执行工具；
-- 只允许 `lytgos-provider` 模块 import `ChatModel`；
-- 04 号闸门用 ArchUnit 禁止依赖 `ChatClient` 与 `ToolCallingManager`。
+- 禁止 `ChatClient`、`ToolCallingManager`，以及任何能让 `@Tool` 方法被框架自动执行的机制：`@Tool` 只作为工具声明的元数据来源，执行入口始终是 `ToolExecutor`；
+- 04 号闸门由 `lytgos-test` 模块的 `ArchitectureTest`（ArchUnit）执行：禁依赖 `ChatClient` 与 `ToolCallingManager`，同时禁条件装配注解与类型扫描（后两条对应 4.2）。
 
 ### 4.2 Provider 显式映射
 
