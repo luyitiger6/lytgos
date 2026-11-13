@@ -45,7 +45,8 @@
 
 - [x] 6.1 修订 `AGENTS.md` 4.1：只禁 `ChatClient`、`ToolCallingManager`、`@Tool` 自动执行；删除「只允许 `lytgos-provider` import `ChatModel`」；把 ArchUnit 那句与实际实现对齐。验证：该节每条约束都能在 `ArchitectureTest` 中找到对应规则
   - 实现记录：4.1 三条改为「只允许 `ChatModel.call(prompt)`」→「禁 `ChatClient`、`ToolCallingManager` 及任何能让 `@Tool` 方法被自动执行的机制」→「04 闸门由 `lytgos-test` 的 `ArchitectureTest` 执行：禁 ChatClient / ToolCallingManager + 条件装配注解 + 类型扫描」。对应关系：ChatClient → `noChatClient`；ToolCallingManager → `noToolCallingManager`；`@Tool` 自动执行 → 无这两条链路时不可能发生，由上述两条规则封闭；条件装配/类型扫描 → `noConditionalAssembly` / `noTypeScanning`。全仓 grep 确认「只允许 `lytgos-provider` import `ChatModel`」表述不再存在
-- [ ] 6.2 跑 `harness\checks\08-mcp-acceptance.ps1`，八条全 PASS 且退出码 0；重点确认路径 A/B/C 的 stderr 断言与「边界提示」不受 Spring 启动日志影响
+- [x] 6.2 跑 `harness\checks\08-mcp-acceptance.ps1`，八条全 PASS 且退出码 0；重点确认路径 A/B/C 的 stderr 断言与「边界提示」不受 Spring 启动日志影响
+  - 实现记录：仅以进程环境变量注入 `AMAP_MCP_KEY`（不落盘）后执行，RESULT: 全部 PASS、EXIT=0。八条明细：路径 A 含温度且 http_get 1 次；路径 B 含天气描述、maps_weather 1 次、未越权；路径 C 含夹具气温、get_current_weather 1 次、未越权；来源标注 [mcp:amap]/[mcp:localweather] 可见；边界提示远程/本地各自正确；6a 命令白名单与 6b 域名白名单均退出码 1 且消息含 sandbox；7 无残留 FakeMcpServer 进程。Spring 启动日志未干扰 stderr 断言（第 2/3/4/5 条全部命中预期的 tool_call 行与提示文案）
 - [ ] 6.3 跑 `mvn -o clean package` 与 `harness\run-all.ps1`，记录退出码与 05/06 的 NOT_READY 状态。验证：若 `run-all` 因 05/06 返回 1，汇报中如实标注，不得表述为「完整验收通过」
 
 ## 7. 启动预算闸门
