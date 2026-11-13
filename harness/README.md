@@ -25,6 +25,7 @@
 | `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
 | `07-week1-acceptance` | 第 1 周端到端：init → 幂等 → 对话+工具往返 → 反例 → 多轮上下文 | 生效（需 jar + `DEEPSEEK_API_KEY`；六条已全 PASS） |
 | `08-mcp-acceptance` | MCP 两种形态走同一条治理路径：三条路径（内置 / 远程 URL / 本地 stdio）各留 `tool_call` 日志、来源标注、按形态的边界提示、命令白名单与域名白名单、无残留子进程 | 生效（需 jar + 测试夹具；第 1/2/3 条需 `DEEPSEEK_API_KEY`，第 2/4/5 条的远程部分需 `AMAP_MCP_KEY`） |
+| `09-startup-budget` | L0 `--version` 30 次采样最小值 ≤ 900ms 且 `-verbose:class` 不含 `org.springframework.context.*`；L1 `provider list`（无工作区快速失败）10 次采样最小值 ≤ 2500ms | 生效（需 `lytgos-cli/target/lytgos-cli-boot.jar`） |
 
 `05` 是**空壳**，只有一句 `NOT_READY` 和一段计划说明。空壳比没有更诚实：它让每次跑 harness 都能看见「这道还没接」，而不是在 README 里被忘掉。
 
@@ -37,6 +38,10 @@
 `07` 需要真实模型才能跑完第 3/5/6 条（对话、沙箱反例、多轮上下文）。没有 `DEEPSEEK_API_KEY` 时这三条记 SKIP 并返回 2——没跑过的检查不能算通过。
 
 `08` 的三条路径：A 内置 `http_get`、B 远程高德 `maps_weather`（`url`）、C 本地 stdio 夹具（`command`）。缺对应 key 时该条记 SKIP 并返回 2；两条沙箱断言不依赖任何 key，因为拒绝发生在建连接之前。
+
+`09` 测的是 `lytgos-cli/target/lytgos-cli-boot.jar`（CLI 入口），**不是** `lytgos-boot/target/lytgos.jar`（后者是 Web 服务入口，`@SpringBootApplication` 直接起 Tomcat，不接 CLI 参数，拿它测 `--version` 会得到 3.8s 的假回归）。判据取 30 次采样的**最小值**而非均值/p95：本机 `--version` 采样呈双峰（600-900ms 与 1.0-1.3s，差值来自杀软扫描与页缓存回收，与代码路径无关），最小值才能稳定反映启动成本。L0 还额外用 `-verbose:class` 断言不出现 `org.springframework.context.*`——耗时会被机器噪声淹没，类加载记录不会。
+
+**测量方式有坑**：不能用 `Start-Process -RedirectStandardOutput` 计时，PowerShell 的流重定向会给每次测量注入约 350ms 开销（同一 jar 实测 1038ms vs 650ms），足以把 PASS 判成 FAIL。09 用 `System.Diagnostics.Process` 直接起进程计时，用 PATH 上的 `java`（与 07/08 验收调用点一致）。
 
 `06` 的存在理由：`openspec/changes/` 下一旦出现只有目录、没有 proposal 的空壳，汇报时只能给出「0/0，无 tasks」这类状态——**状态不是工作内容**，读者看完仍不知道该 change 要交付什么。这条闸门把「必须能说清工作内容」变成可判定条件。
 

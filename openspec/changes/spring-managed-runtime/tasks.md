@@ -52,8 +52,10 @@
 
 ## 7. 启动预算闸门
 
-- [ ] 7.1 新增 `harness/checks/09-startup-budget.ps1`：`--version` 跑 30 次取**最小值**断言 ≤ 900ms 且 `-verbose:class` 不含 `org.springframework.context.*`；`provider list`（无工作区，快速失败路径）跑 10 次取最小值断言 ≤ 2500ms；超预算退出码 1，缺 jar 退出码 2（沿用现有三态语义）。验证：脚本单独执行退出码 0，输出两级实测数值
-- [ ] 7.2 `harness/run-all.ps1` 接入 09；`AGENTS.md` 的 `<!-- harness-checks: -->` 清单行与 `harness/README.md` 的闸门清单同步增加 `09-startup-budget`。验证：`00-layout-check.ps1` 退出码 0（清单与实际文件一致），`run-all.ps1` 输出里出现 09
+- [x] 7.1 新增 `harness/checks/09-startup-budget.ps1`：`--version` 跑 30 次取**最小值**断言 ≤ 900ms 且 `-verbose:class` 不含 `org.springframework.context.*`；`provider list`（无工作区，快速失败路径）跑 10 次取最小值断言 ≤ 2500ms；超预算退出码 1，缺 jar 退出码 2（沿用现有三态语义）。验证：脚本单独执行退出码 0，输出两级实测数值
+  - 实现记录：单独执行 EXIT=0——L0 `--version` 30 次 min=601ms/max=1294ms（预算 900ms）；`-verbose:class` 容器类加载数 0（硬判据）；L1 `provider list` 无工作区 10 次 min=1430ms/max=2419ms（预算 2500ms，退出码 1 属快速失败的预期行为）。两个关键发现：① `lytgos-boot/target/lytgos.jar` 是 Web 入口（`@SpringBootApplication` 直接起 Tomcat，`--version` 实测 3.8s 假回归），09 必须测 `lytgos-cli/target/lytgos-cli-boot.jar`（与 07/08 同一调用点）；② `Start-Process -RedirectStandardOutput` 计时注入约 350ms 开销（同一 jar 1038ms vs 650ms），改用 `System.Diagnostics.Process` 直接计时。三态完备：缺 jar / PATH 无 java → 2；超预算 / 加载容器类 / 异常退出码 → 1
+- [x] 7.2 `harness/run-all.ps1` 接入 09；`AGENTS.md` 的 `<!-- harness-checks: -->` 清单行与 `harness/README.md` 的闸门清单同步增加 `09-startup-budget`。验证：`00-layout-check.ps1` 退出码 0（清单与实际文件一致），`run-all.ps1` 输出里出现 09
+  - 实现记录：run-all 本就按 `checks/*.ps1` 目录扫描执行，放入文件即接入，无需改 run-all 代码。AGENTS.md 目录地图与 `<!-- harness-checks: -->` 清单行、README 闸门表格与正文（含 CLI boot jar 口径、最小值 vs p95 理由、Start-Process 计时噪声坑）均已同步。验证：`00-layout-check.ps1` EXIT=0（「闸门清单一致：10 道」）；`run-all.ps1` 输出出现 `[PASS] 09-startup-budget (45.4s)`，汇总 9 PASS + 05 NOT_READY，EXIT=1（与 6.3 同一诚实结论口径）
 
 ## Workflow follow-up
 
