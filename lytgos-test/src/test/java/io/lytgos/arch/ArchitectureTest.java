@@ -10,6 +10,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noCodeUnits;
 
 /**
  * 四条不可越线的架构约束，是 {@code AGENTS.md} 4.1 / 4.2 的机器化表达。
@@ -67,10 +68,14 @@ public class ArchitectureTest {
      *
      * <p>用 {@code @ConditionalOnBean} 这类注解，多引一个 starter 就会凭空多出一个 provider，
      * 配置驱动退化成 classpath 驱动。</p>
+     *
+     * <p>必须用 {@code noCodeUnits()} 而不是 {@code noClasses()}：{@code @ConditionalOnBean}
+     * 在实际代码里的主流写法是挂在 {@code @Bean} 方法上，类级规则看不到方法注解——
+     * 只查类会让最该防的那类违规直接漏检。</p>
      */
     @ArchTest
     static final ArchRule noConditionalAssembly =
-            noClasses().should().beAnnotatedWith(CONDITIONAL_ASSEMBLY_ANNOTATIONS)
+            noCodeUnits().should().beAnnotatedWith(CONDITIONAL_ASSEMBLY_ANNOTATIONS)
                     .because("provider 必须是配置里的显式映射，不能随 classpath 变化");
 
     /**

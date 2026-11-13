@@ -8,7 +8,7 @@
     判据：执行 lytgos-test 模块里的 ArchitectureTest（ArchUnit 扫字节码），四条规则：
       1. 禁依赖 org.springframework.ai.chat.client..（ChatClient 及其 Advisor）
       2. 禁依赖 ToolCallingManager
-      3. 禁 @ConditionalOnBean / @ConditionalOnMissingBean
+      3. 禁 @ConditionalOnBean / @ConditionalOnMissingBean（类与方法级都算）
       4. 禁 getBeansOfType / getBeanProvider 调用与 ObjectProvider 注入
 
     为什么不再扫源码正则：import 写了不引用不构成依赖，正则会放过；反过来注释里
@@ -49,6 +49,11 @@ if (-not (Test-Path -LiteralPath $architectureTest) -or $businessModules.Count -
 
 Write-Host "执行 ArchUnit 架构测试（业务模块 $($businessModules.Count) 个）..." -ForegroundColor DarkGray
 
+# 旧报告绝不得复用：上一轮成功留下的 .txt 会让「本轮一条测试都没跑」
+# （测试类被改名、@ArchTest 被删、模块被临时摘除）误判为 PASS。
+$report = Join-Path $testModule 'target/surefire-reports/io.lytgos.arch.ArchitectureTest.txt'
+Remove-Item -LiteralPath $report -Force -ErrorAction SilentlyContinue
+
 # -am 不可省：lytgos-test 没有生产代码，规则扫描的是其余模块的编译产物；
 # 单独构建 lytgos-test 会扫不到类而静默通过——比失败更危险。
 & mvn -B -pl lytgos-test -am test "-Dtest=ArchitectureTest" `
@@ -60,7 +65,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # mvn 成功也可能「一条规则都没跑」：@ArchTest 被删、测试类被改名都会静默变绿。
 # surefire 报告里有 Tests run 行才算真的执行过；少于四条说明规则集被削减。
-$report = Join-Path $testModule 'target/surefire-reports/io.lytgos.arch.ArchitectureTest.txt'
+# 报告不存在时 $ran 保持 0，同样判 FAIL。
 $ran = 0
 if (Test-Path -LiteralPath $report) {
     $m = Select-String -LiteralPath $report -Pattern 'Tests run: (\d+), Failures: 0, Errors: 0, Skipped: 0' |
@@ -75,6 +80,6 @@ if ($ran -lt 4) {
 Write-Host "依赖方向与自动执行禁令确认（ArchUnit $ran 条规则全过）：" -ForegroundColor Green
 Write-Host '  [OK] 1. 无类依赖 org.springframework.ai.chat.client..（ChatClient 及其 Advisor）' -ForegroundColor Green
 Write-Host '  [OK] 2. 无类依赖 ToolCallingManager' -ForegroundColor Green
-Write-Host '  [OK] 3. 无类使用 @ConditionalOnBean / @ConditionalOnMissingBean' -ForegroundColor Green
+Write-Host '  [OK] 3. 无类/方法/字段使用 @ConditionalOnBean / @ConditionalOnMissingBean' -ForegroundColor Green
 Write-Host '  [OK] 4. 无 getBeansOfType / getBeanProvider 调用与 ObjectProvider 注入' -ForegroundColor Green
 exit 0
