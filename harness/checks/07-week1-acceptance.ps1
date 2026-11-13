@@ -8,7 +8,7 @@
     六条（对应 openspec/changes/add-react-loop/tasks.md「本周验收总表」）：
       1. 工作区初始化：init 建出 10 个顶层条目，退出码 0
       2. 幂等：手改过的 AGENTS.md 不被重跑的 init 覆盖
-      3. 单轮对话 + 工具往返：问天气，stdout 含温度，stderr 出现至少两次 tool_call: http_get
+      3. 单轮对话 + 工具往返：问天气，stdout 含温度，stderr 出现至少一次 tool_call: http_get
       4. 反例·缺 key：清空 DEEPSEEK_API_KEY 后退出码非 0，输出含变量名
       5. 反例·沙箱：越界请求未发出——模型调用则被沙箱拦下，模型预判则不发起调用，
          两种都算过；但既没发起调用又没告知原因（静默失败）算 FAIL
@@ -197,7 +197,9 @@ else {
     #   ① 模型调用了 http_get：checkDomain() 在 client.send() 之前把它拦下，stderr 有 sandbox 拒绝
     #   ② 模型从工具描述里读到白名单，直接告知用户不能访问，从不产生 tool_call
     # ②比①更好（拦截更早、不浪费轮次）。只看 ① 会把「模型变聪明」误判成「治理失效」。
-    $attempted = $blocked.Stderr -match 'tool_call:\s*http_get\s+args=\{[^}]*example\.com'
+    # 同一行内匹配即可，不按 } 截断：args 是嵌套 JSON 时 [^}]* 会在第一个 } 处停下，
+    # 把「模型发起了调用并被拦下」误报成「模型直接拒绝」。
+    $attempted = $blocked.Stderr -match 'tool_call:\s*http_get[^\r\n]*example\.com'
     $denied = $combined -match 'sandbox 拒绝'
     $explained = $combined -match '沙箱|白名单|只被允许|允许访问|无法访问|无法完成'
 

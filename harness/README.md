@@ -18,8 +18,8 @@
 |---|---|---|
 | `00-layout-check` | 骨架文件齐全 + `AGENTS.md` 的 `harness-checks` 标记与实际文件一致 | 生效 |
 | `01-compile` | `mvn -DskipTests compile` | 生效 |
-| `02-test` | `mvn test` | 生效 |
-| `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled` | 生效 |
+| `02-test` | `mvn test` + 核对 surefire 报告里实际执行的用例数（0 即 FAIL） | 生效 |
+| `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled`、任意 pom 的 `skipTests` | 生效 |
 | `04-dependency-direction` | ArchUnit 四条规则：禁 `ChatClient`、禁 `ToolCallingManager`、禁条件装配注解、禁类型扫描（`lytgos-test` 模块承载） | 生效 |
 | `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入（storage 未落地） |
 | `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |

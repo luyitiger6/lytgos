@@ -66,7 +66,8 @@ foreach ($check in $checks) {
     $code = $LASTEXITCODE
     $sw.Stop()
 
-    if ($null -eq $code) { $code = 0 }
+    # 拿不到子进程退出码 = 无法证明通过；默认判 PASS 会把「没跑起来」变成绿灯。
+    if ($null -eq $code) { $code = 1 }
 
     $results += [pscustomobject]@{
         Check    = $check.BaseName
