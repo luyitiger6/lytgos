@@ -1,5 +1,6 @@
 package io.lytgos.cli;
 
+import io.lytgos.core.LytgosException;
 import picocli.CommandLine;
 
 /**
@@ -21,8 +22,16 @@ public final class LytgosCli {
         try (LazyContext context = new LazyContext()) {
             CommandLine commandLine = new CommandLine(new LytgosCommand(), new SpringCommandFactory(context));
             commandLine.setExecutionExceptionHandler((ex, command, parseResult) -> {
-                // picocli 会把 Runnable 抛出的运行时异常再包一层 ExecutionException
+                // picocli 会把 Runnable 抛出的运行时异常再包一层；容器 Bean 创建失败时
+                // Spring 还会把领域异常包进 BeanCreationException。沿 cause 链找最深的
+                // LytgosException，把它的 message 原样交给用户——「当前目录不在 lytgos
+                // 工作区内」不该被埋在一串 Spring 内部类名后面。
                 Throwable cause = ex.getCause() == null ? ex : ex.getCause();
+                for (Throwable t = ex; t != null; t = t.getCause()) {
+                    if (t instanceof LytgosException) {
+                        cause = t;
+                    }
+                }
                 String message = cause.getMessage();
                 System.err.println(message == null || message.isBlank() ? cause.toString() : message);
                 return 1;
