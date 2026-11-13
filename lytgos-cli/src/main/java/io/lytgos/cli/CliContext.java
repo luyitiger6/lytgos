@@ -14,7 +14,6 @@ import io.lytgos.core.tool.ToolExecutor;
 import io.lytgos.core.tool.ToolRegistry;
 import io.lytgos.core.workspace.Workspace;
 import io.lytgos.persona.AgentLoader;
-import io.lytgos.provider.ChatModelFactory;
 import io.lytgos.provider.ProviderConfig;
 import io.lytgos.provider.ProviderRegistry;
 import io.lytgos.tool.FileTool;
@@ -81,9 +80,9 @@ public final class CliContext {
     }
 
     /**
-     * 宽松加载：缺失的环境变量保留为 {@code ${missing:VAR}} 占位。
+     * 宽松加载：缺失的环境变量原样保留为 {@code ${VAR}} 占位。
      *
-     * <p>严格性推迟到 {@link #providers()}——只有真要连模型时才必须拿到 key。
+     * <p>严格性推迟到 {@link ProviderRegistry} 构造时——只有真要连模型时才必须拿到 key。
      * 否则 {@code provider list} / {@code tool list} 这类不碰网络的命令，
      * 也会因为一个没设的环境变量而跑不起来。</p>
      */
@@ -101,14 +100,7 @@ public final class CliContext {
                 throw new LytgosException.InvalidConfiguration(
                         "配置文件里没有任何 provider: " + workspace().configFile());
             }
-            for (ProviderConfig provider : configs) {
-                String missing = WorkspaceConfig.missingEnvVariable(provider.apiKey());
-                if (missing != null) {
-                    throw new LytgosException.InvalidConfiguration(
-                            "环境变量未设置: " + missing + "（provider " + provider.name() + " 需要）");
-                }
-            }
-            providers = new ProviderRegistry(ChatModelFactory.createAll(configs));
+            providers = new ProviderRegistry(configs);
         }
         return providers;
     }

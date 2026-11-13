@@ -9,9 +9,10 @@
 
 ## 2. 配置绑定迁移
 
-- [ ] 2.1 新增 `WorkspaceConfigProvider`：用 `YamlPropertySourceLoader` 把 `.lytgos/config.yaml` 载入 `Environment`，用 `environment.resolvePlaceholders` 做宽松解析，用 `Binder` 绑定 `providers` 与 `sandbox` 两段。验证：新增 `WorkspaceConfigProviderTest`，覆盖「占位符可解析」「占位符缺失时原样保留」「YAML 非法时报错含文件路径」三种情况并全绿
-- [ ] 2.2 删除 `WorkspaceConfig` 中手写的 snakeyaml 解析与 `Pattern ENV_PLACEHOLDER`，改为对绑定结果的薄访问器，公开方法签名保持不变。验证：`mvn -o test -pl lytgos-cli -am` 退出码 0；`java -jar lytgos-cli-boot.jar provider list` 在缺 `DEEPSEEK_API_KEY` 时仍能列出 provider 并返回 0
-- [ ] 2.3 `ProviderRegistry` 在构造 `ChatModel` 前检查残留 `${` 占位，抛出「环境变量未设置: <VAR>（provider <name> 需要）」。验证：未设 `DEEPSEEK_API_KEY` 时跑 `chat`，stderr 含字面量 `DEEPSEEK_API_KEY`、退出码 1
+- [x] 2.1 新增 `WorkspaceConfigProvider`：用 `YamlPropertySourceLoader` 把 `.lytgos/config.yaml` 载入 `Environment`，用宽松解析处理 `${VAR}`，用 `Binder` 绑定 `providers` 与 `sandbox` 两段。验证：新增 `WorkspaceConfigProviderTest`，覆盖「占位符可解析」「占位符缺失时原样保留」「YAML 非法时报错含文件路径」三种情况并全绿（3/3）
+  - 实现记录：宽松解析没有手写 `resolvePlaceholders`，而是由 `Binder.get(environment)` 自带的 `PropertySourcesPlaceholdersResolver` 在绑定时完成（同一套解析器，无法解析时原样保留）。另：Spring Boot 4 的 `YamlPropertySourceLoader` 遇到语法错误时直接让 SnakeYAML 的 `YAMLException`（RuntimeException）冒出，不包 `IOException`，已一并捕获并附文件路径
+- [x] 2.2 删除 `WorkspaceConfig` 中手写的 snakeyaml 解析与 `Pattern ENV_PLACEHOLDER`，改为对绑定结果的薄访问器，公开方法签名保持不变。验证：`mvn -o test -pl lytgos-cli -am` 退出码 0；`java -jar lytgos-cli-boot.jar provider list` 在缺 `DEEPSEEK_API_KEY` 时仍能列出 provider 并返回 0（实测输出 `deepseek … 未配置（环境变量 DEEPSEEK_API_KEY）`，EXIT=0）
+- [x] 2.3 `ProviderRegistry` 在构造 `ChatModel` 前检查残留 `${` 占位，抛出「环境变量未设置: <VAR>（provider <name> 需要）」。验证：未设 `DEEPSEEK_API_KEY` 时跑 `chat`，stderr 含字面量 `DEEPSEEK_API_KEY`、退出码 1（实测 stderr：`环境变量未设置: DEEPSEEK_API_KEY（provider deepseek 需要）`，EXIT=1）；同一构建 `--version` 30 次 min=529ms、`org.springframework.{context,beans,core,annotation}` 类加载计数 0
 
 ## 3. 能力类 Bean 化
 
