@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.lytgos</groupId>
+        <artifactId>lytgos</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>lytgos-test</artifactId>
+    <name>lytgos-test</name>
+    <description>架构约束测试：用 ArchUnit 在编译期之外守住跨模块规则，不含生产代码</description>
+
+    <dependencies>
+        <!-- 全部业务模块以 test scope 引入：ArchUnit 从 classpath 扫描它们的字节码，
+             不需要在本模块编译期可见，因此不污染任何生产依赖 -->
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-core</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-persona</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-provider</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-memory</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-knowledge</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-tool</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-storage</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-channel</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-web</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-cli</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-boot</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

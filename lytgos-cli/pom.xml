@@ -39,6 +39,14 @@
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
         </dependency>
+        <!-- Spring 容器与配置绑定。spring-context / spring-beans / spring-core 已由 spring-ai
+             传递引入，这里只补 Binder、@ConfigurationProperties 与 YamlPropertySourceLoader。
+             不引 spring-boot-starter：它会多带 autoconfigure（只服务自动配置，本项目不用）
+             与 starter-logging（与下面的 logback-classic 重复）。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
