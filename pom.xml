@@ -239,6 +239,8 @@
                         <version>${dependency-check-maven.version}</version>
                         <configuration>
                             <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <!-- 从环境变量取 key（插件推荐用法），避免命令行 / 日志暴露 -->
+                            <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
                             <dataDirectory>${dependency-check.dataDirectory}</dataDirectory>
                             <suppressionFiles>
                                 <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
