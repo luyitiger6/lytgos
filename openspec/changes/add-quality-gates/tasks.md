@@ -18,14 +18,17 @@
 ## 3. 静态缺陷与安全扫描
 
 - [x] 3.1 父 pom 配置 `spotbugs-maven-plugin`（effort Max、threshold Low、`findsecbugs-plugin`）+ 根目录 `spotbugs-exclude.xml` 骨架（含豁免书写规范的注释），验证：`mvn -B verify` 在 spotbugs 阶段执行；临时引入一处未关闭资源即失败，恢复后变绿（实测：插件 4.10.5.0 + findsecbugs 1.14.0；临时 `LeakProbe` 报 `OS_OPEN_STREAM` 等 3 条且 BUILD FAILURE，删除后 `BugInstance size is 0`）
-- [x] 3.2 按 Q2 默认倾向处理存量报告（含 `lytgos-test` 模块；修代码优先，误报进 exclude 并带理由），验证：`mvn -B verify` 退出码 0 且报告无未豁免缺陷（实际：41 条 → 修 27、类+模式豁免 14，见 design D9；13 模块 spotbugsXml 均为 0）
+- [x] 3.2 按 Q2 默认倾向处理存量报告（含 `lytgos-test` 模块；修代码优先，误报进 exclude 并带理由），验证：`mvn -B verify` 退出码 0 且报告无未豁免缺陷（实际：41 条 → 修 27、类+模式豁免 14，见 design D9；13 模块 spotbugsXml 均为 0；组 4 补扫出漏报 2 条 SIC_INNER_SHOULD_BE_STATIC_ANON 已于 2026-11-15 修复，累计 43 条）
 - [x] 3.3 提交本组改动，验证：提交后 `mvn -B test` 仍全绿
 
 ## 4. 依赖漏洞门禁
 
-- [ ] 4.1 父 pom 配置 `security` profile：`dependency-check-maven`、`failBuildOnCVSS=7`、`dependency-check-suppressions.xml` 骨架、data directory 属性化，验证：`mvn -B verify -Psecurity` 能启动扫描并记录首次 NVD 下载耗时
+- [x] 4.1 父 pom 配置 `security` profile：`dependency-check-maven`、`failBuildOnCVSS=7`、`dependency-check-suppressions.xml` 骨架、data directory 属性化，验证：`mvn -B verify -Psecurity` 能启动扫描并记录首次 NVD 下载耗时
+  - 实测（2026-11-15）：13.0.0 无 NVD key 直接报 Invalid API Key 失败，锁 12.2.2；12.2.2 默认 6 秒间隔数分钟内被 HTTP 429 限流，15 秒间隔约 2000 条/分钟、全量 425,749 条约 3.5 小时。扫描已能启动并进入 NVD 更新阶段（详见 design.md D3）。
 - [ ] 4.2 处理扫描结果（高危依赖升级；无法升级的 CVE 进 suppressions 并写明理由与复查日期），验证：`mvn -B verify -Psecurity` 退出码 0
-- [ ] 4.3 验证默认构建不受影响：`mvn -B verify`（不带 profile）不执行 dependency-check，耗时与 3.3 提交时相当
+  - ⏸ **后置（2026-11-15）**：本机无 `NVD_API_KEY`，首次全量下载约 3.5 小时且默认间隔触发 429，无法在本地完成；处置位置改为首次 CI security job（`NVD_API_KEY` secret + dataDirectory 缓存），该 job 变绿后回填本项与 CVE 结论。门禁本身无数据时 `NoDataException` BUILD FAILURE，不会假绿。
+- [x] 4.3 验证默认构建不受影响：`mvn -B verify`（不带 profile）不执行 dependency-check，耗时与 3.3 提交时相当
+  - 实测（2026-11-15）：BUILD SUCCESS，2:29 min；日志中 dependency-check 出现次数 0；12 个模块 `spotbugsXml` 全部 0 条（另修复了补扫出的 2 条匿名类，见 design D9 补扫修正）。
 - [ ] 4.4 提交本组改动
 
 ## 5. CI 强制门禁

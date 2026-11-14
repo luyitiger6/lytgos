@@ -93,18 +93,7 @@ class ReActLoopTest {
   @Test
   @DisplayName("工具自身失败时转成文本回填，循环继续而不是中断")
   void fillsRecoverableFailureAndContinues() {
-    Tool failing =
-        new Tool() {
-          @Override
-          public ToolSpec spec() {
-            return new ToolSpec("http_get", "总会失败", "{\"type\":\"object\"}");
-          }
-
-          @Override
-          public String execute(Map<String, Object> arguments) {
-            throw new IllegalStateException("上游 503");
-          }
-        };
+    Tool failing = new FailingTool();
     ToolRegistry registry = new ToolRegistry(List.of(failing));
     ScriptedModel model =
         new ScriptedModel(
@@ -124,18 +113,7 @@ class ReActLoopTest {
   @Test
   @DisplayName("沙箱拒绝时先补上失败结果再抛，历史不留「有调用无结果」的残局")
   void sandboxViolationPropagatesAfterHistoryIsCompleted() {
-    Tool blocked =
-        new Tool() {
-          @Override
-          public ToolSpec spec() {
-            return new ToolSpec("http_get", "被沙箱拦截", "{\"type\":\"object\"}");
-          }
-
-          @Override
-          public String execute(Map<String, Object> arguments) {
-            throw new LytgosException.SandboxViolationException("域名 example.com 不在白名单内");
-          }
-        };
+    Tool blocked = new SandboxBlockedTool();
     ToolRegistry registry = new ToolRegistry(List.of(blocked));
     ScriptedModel model =
         new ScriptedModel(
@@ -222,6 +200,34 @@ class ReActLoopTest {
     public String execute(Map<String, Object> arguments) {
       invocations.add(arguments);
       return name + "-result";
+    }
+  }
+
+  /** 执行时必然抛错，用于验证工具失败被转成文本回填给模型。 */
+  private static final class FailingTool implements Tool {
+
+    @Override
+    public ToolSpec spec() {
+      return new ToolSpec("http_get", "总会失败", "{\"type\":\"object\"}");
+    }
+
+    @Override
+    public String execute(Map<String, Object> arguments) {
+      throw new IllegalStateException("上游 503");
+    }
+  }
+
+  /** 执行时抛沙箱异常，用于验证拒绝路径先补 tool 消息再抛。 */
+  private static final class SandboxBlockedTool implements Tool {
+
+    @Override
+    public ToolSpec spec() {
+      return new ToolSpec("http_get", "被沙箱拦截", "{\"type\":\"object\"}");
+    }
+
+    @Override
+    public String execute(Map<String, Object> arguments) {
+      throw new LytgosException.SandboxViolationException("域名 example.com 不在白名单内");
     }
   }
 }

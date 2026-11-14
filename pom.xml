@@ -42,6 +42,11 @@
         <findsecbugs.version>1.14.0</findsecbugs.version>
         <!-- 默认阻断；本地排查存量问题时可用 -Dspotbugs.failOnError=false 先收集全量报告 -->
         <spotbugs.failOnError>true</spotbugs.failOnError>
+        <!-- 依赖漏洞门禁：只在 security profile 里生效，默认构建不加载 -->
+        <!-- 实测 13.0.0 在无 NVD API key 的环境直接报 Invalid API Key 无法初始化，故锁 12.x -->
+        <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
+        <!-- NVD 数据目录属性化：CI 缓存它，避免每次重新下载 -->
+        <dependency-check.dataDirectory>${user.home}/.m2/dependency-check-data</dependency-check.dataDirectory>
     </properties>
 
     <modules>
@@ -216,4 +221,40 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>security</id>
+            <!--
+                依赖漏洞门禁（SKILL 第 9 步）：OWASP Dependency-Check，默认不激活。
+                本地排查：mvn verify -Psecurity；CI 必跑。
+                NVD 数据缓存在 dataDirectory，首次下载耗时以分钟计，之后走增量更新。
+                豁免按「CVE + 依赖坐标」写在 dependency-check-suppressions.xml，必须带理由与复查日期。
+            -->
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>${dependency-check-maven.version}</version>
+                        <configuration>
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <dataDirectory>${dependency-check.dataDirectory}</dataDirectory>
+                            <suppressionFiles>
+                                <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
+                            </suppressionFiles>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>dependency-check</id>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
