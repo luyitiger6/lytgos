@@ -14,7 +14,7 @@
 - 新增 `site/` 目录：VitePress 静态站点，构建产物为纯静态文件
 - 支持中英双语，`/` 为英文、`/zh/` 为中文（沿用上游站点的语言分区），导航栏提供切换入口
 - 视觉方向：纯黑背景（导航与页脚同色，不留白条）+ 橙色主色，首页为自定义 `Home.vue`，不复用 VitePress 默认 Home 模板
-- 结构与文案基线取自 `oryxos-main/website`（同一作者的另一项目），只做品牌替换（`OryxOS`→`lytgos`、仓库→`luyitiger6/lytgos`、域名→`lytgos.tigerustmq.com`），不重写信息架构
+- 结构与文案基线取自 `lytgos-main/website`（同一作者的另一项目），只做品牌替换（`lytgos`→`lytgos`、仓库→`luyitiger6/lytgos`、域名→`lytgos.tigerustmq.com`），不重写信息架构
 - 部署：GitHub Pages，仓库 `luyitiger6/lytgos`，`base: '/lytgos/'`，自定义域名 `lytgos.tigerustmq.com`
 - 同步约定：README、官网首页、官网文档页三处内容任一变更时，必须在同一次提交内同步另外两处，不允许只改一处留下漂移
 
@@ -58,7 +58,7 @@
 
 ### 首页为什么是照搬而非重画
 
-上游 `oryxos-main/website` 与 lytgos 是同一作者、同一套信息架构的项目：同样是「受控执行的 Agent 运行时」，同样需要回答「是什么 / 为什么 / 怎么跑 / 当前到哪」。
+上游 `lytgos-main/website` 与 lytgos 是同一作者、同一套信息架构的项目：同样是「受控执行的 Agent 运行时」，同样需要回答「是什么 / 为什么 / 怎么跑 / 当前到哪」。
 
 首版直接移植其 `Home.vue`（1149 行，七个区块）+ `custom.css`（278 行橙黑变量），只做三件替换：品牌名、仓库地址、域名。理由是把设计迭代留给真正有差异化的那一轮，而不是在「先能上线」的阶段重做一遍布局。
 

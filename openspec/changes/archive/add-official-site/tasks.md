@@ -2,17 +2,17 @@
 
 ## 1. 工程骨架
 
-- [x] 1.1 移植 `oryxos-main/website` 全量文件到 `site/`（`.vitepress/`、`docs/`、`zh/docs/`、`public/`、`index.md`、`zh/index.md`、`package.json`）
+- [x] 1.1 移植 `lytgos-main/website` 全量文件到 `site/`（`.vitepress/`、`docs/`、`zh/docs/`、`public/`、`index.md`、`zh/index.md`、`package.json`）
 - [x] 1.2 `site/package.json`：`name` 改 `lytgos-site`，scripts 补 `dev` / `build` / `preview`
 - [x] 1.3 `site/.gitignore`：`node_modules` / `.vitepress/dist` / `.vitepress/cache`
 - [x] 1.4 删除上游 `package-lock.json`，改 `pnpm install` 生成 `pnpm-lock.yaml`（15.5s，126 包）
 
 ## 2. 品牌替换
 
-- [x] 2.1 `OryxOS` → `lytgos`、`/oryxos/` → `/lytgos/`（47 个文件）
-- [x] 2.2 `github.com/oryx-labs/oryxos` → `github.com/luyitiger6/lytgos`、`oryx-labs.github.io/oryxos` → `lytgos.tigerustmq.com`
+- [x] 2.1 `lytgos` → `lytgos`、`/lytgos/` → `/lytgos/`（47 个文件）
+- [x] 2.2 `github.com/oryx-labs/lytgos` → `github.com/luyitiger6/lytgos`、`oryx-labs.github.io/lytgos` → `lytgos.tigerustmq.com`
 - [x] 2.3 `OryxTool` → `LytgosTool`、API key 前缀 `oryx_` → `lytgos_`（含中英两套文档）
-- [x] 2.4 文件名替换：`oryxos-overview-*.svg` → `lytgos-overview-*.svg`
+- [x] 2.4 文件名替换：`lytgos-overview-*.svg` → `lytgos-overview-*.svg`
 - [x] 2.5 `config.mts` 移除上游 Demo 链接（`demo.robustmq.com:1524`），改写 `description` 与 `keywords`
 
 ## 3. 主题与首页
