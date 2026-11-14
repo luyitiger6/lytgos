@@ -36,9 +36,9 @@
 
 - [ ] 5.1 新增 `.github/workflows/verify.yml`：JDK 21 temurin + Maven 缓存 + `mvn -B verify`（job 1）与 `mvn -B verify -Psecurity` + NVD 缓存（job 2），触发条件按 Q4 默认倾向（`pull_request` 与 `push main`），验证：推送本分支后在 Actions 页面两个 job 均为绿（security job 首次因 NVD 下载较慢属正常）
   - 已实现并提交（2a62a19）：两个 job、缺 `NVD_API_KEY` 直接报错退出、`actions/cache` 缓存 `~/.m2/dependency-check-data`；YAML 经 `python -c yaml.safe_load` 校验。
-  - ⏸ **阻塞（2026-11-15）**：推送被 GitHub 拒绝——gh 的 OAuth token 缺 `workflow` scope（`refusing to allow an OAuth App to create or update workflow ... without workflow scope`）。需 `gh auth refresh -h github.com -s workflow` 重新授权后推送，再观测两个 job 变绿。
-- [ ] 5.2 验证阻断行为：临时在分支上提交一行未格式化代码并推送，确认 verify job 变红；revert 后重新推送变绿
-  - ⏸ 与 5.1 同一阻塞：需先完成带 `workflow` scope 的推送。
+  - 观测（2026-11-15，PR #10 / run 43625796141）：gh 的 OAuth token 缺 `workflow` scope 被拒后，改用 SSH 地址直推成功（未改 remote 配置）；verify job ✅，security job ❌ 停在本设计要求的「缺 `NVD_API_KEY` 直接报错」，待仓库配置 secret 后才可能全绿。
+- [x] 5.2 验证阻断行为：临时在分支上提交一行未格式化代码并推送，确认 verify job 变红；revert 后重新推送变绿
+  - 实测（2026-11-15，run 43626129271）：`FormatProbeCi.java` 探针提交（`--no-verify`）推送后 verify job 在 spotless 阶段 BUILD FAILURE，报出文件名与违规行；revert 后（run 43626382961，254c634）verify job 恢复 success。
 - [x] 5.3 提交本组改动
   - 已提交 2a62a19（verify.yml 62 行）。
 
@@ -66,5 +66,5 @@
 
 ## Workflow follow-up
 
-- 推送分支 `feat/quality-gates-20261114` 并开 PR，等待人工审阅放行。
+- 推送分支 `feat/quality-gates-20261114` 并开 PR，等待人工审阅放行（已完成：已推送并开 PR #10；security job 待配置 `NVD_API_KEY` secret）。
 - 审阅通过后合并 main，再归档 change（同步 `engineering-baseline` 主 spec）。
