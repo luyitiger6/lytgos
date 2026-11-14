@@ -10,19 +10,18 @@ import org.springframework.context.annotation.Configuration;
 /**
  * 内置工具的 Bean 声明。
  *
- * <p>两个工具都不随 Agent 变化，全进程各一个；按 Agent 筛选用哪些工具发生在
- * {@link AgentRuntimeFactory} 里，不进容器。</p>
+ * <p>两个工具都不随 Agent 变化，全进程各一个；按 Agent 筛选用哪些工具发生在 {@link AgentRuntimeFactory} 里，不进容器。
  */
 @Configuration(proxyBeanMethods = false)
 public class ToolBeans {
 
-    @Bean
-    public HttpTool httpTool(SandboxChecker sandbox) {
-        return new HttpTool(sandbox);
-    }
+  @Bean
+  public HttpTool httpTool(SandboxChecker sandbox) {
+    return new HttpTool(sandbox);
+  }
 
-    @Bean
-    public FileTool fileTool(SandboxChecker sandbox, WorkspaceLocator locator) {
-        return new FileTool(sandbox, locator.get().root());
-    }
+  @Bean
+  public FileTool fileTool(SandboxChecker sandbox, WorkspaceLocator locator) {
+    return new FileTool(sandbox, locator.get().root());
+  }
 }

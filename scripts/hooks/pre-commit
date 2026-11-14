@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# pre-commit：只校验格式，不编译、不跑测试，目标 10 秒内完成。
+#
+# 安装：powershell -File scripts/install-hooks.ps1
+# 卸载：powershell -File scripts/install-hooks.ps1 -Uninstall
+# 临时跳过：git commit --no-verify
+#
+# 为什么只查格式：编译与测试留给 CI，提交回路才守得住 10 秒。
+# spotless:check 只读文件、不改内容，失败时工作区字节不变。
+
+if ! mvn -q spotless:check; then
+  printf '\n[pre-commit] 格式校验未通过 / format check failed\n'
+  printf '   运行 "mvn spotless:apply" 自动修复后重新提交 / run it, then commit again\n\n'
+  exit 1
+fi

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+    xmlns="https://github.com/spotbugs/filter/3.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/master/spotbugs/etc/findbugsfilter.xsd">
+
+    <!--
+      豁免书写规范（新增前必读）：
+
+      1. 每条豁免用 <Match> 限定到「类 + 缺陷模式」，禁止只写 <Bug pattern> 全局放水；
+      2. 每个 <Match> 前必须有 XML 注释说明：为什么是误报、什么条件下需要重审；
+      3. 豁免的增删同步记录在 openspec/changes/add-quality-gates/design.md 的 D6 豁免台账里，
+         保证「为什么放宽」有唯一可审计的出处。
+
+      以下条目来自 2026-11-14 首次全量扫描（effort Max / threshold Low），
+      真问题已在代码里修掉，这里只留框架语义导致的误报。
+    -->
+
+    <!--
+      EI_EXPOSE_REP2：构造器保存外部传入的可变引用。
+
+      这些类保存的是 Spring 容器持有的共享单例（ObjectMapper、ToolRegistry、
+      McpSyncClient、OpenAiChatModel 等），生命周期不短于本类，构造器只是转交引用。
+      逐个防御性拷贝既不现实也没有意义：调用方本来就是容器本身。
+
+      重审条件：类改为自行 new 这些依赖，或允许业务代码传入可变配置对象。
+    -->
+    <Match>
+        <Class name="io.lytgos.cli.AgentRuntimeFactory"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.core.session.FileSessionStore"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.core.tool.ToolExecutor"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.provider.SpringAiChatModel"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.tool.mcp.McpTool"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.cli.CliChannel"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
+      CRLF_INJECTION_LOGS：本类所有日志参数已经过 LogSafe.sanitize 转义后再输出。
+
+      FindSecBugs 的 taint 分析不识别自定义 sanitizer，因此即使参数已在日志前清洗，仍会报点。
+      本类剩下的日志点全部属于这种情况；新增日志如果引入未清洗的外部字符串，本条豁免会一并放行，
+      所以 code review 必须人工确认新日志参数也走了 LogSafe.sanitize。
+
+      重审条件：FindSecBugs 支持自定义 sanitizer 标注，或本类日志改为结构化字段输出。
+    -->
+    <Match>
+        <Class name="io.lytgos.tool.mcp.McpServerManager"/>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
+    <!--
+      THROWS_METHOD_THROWS_RUNTIMEEXCEPTION：catch 后原样 rethrow 被识别成「故意抛 RuntimeException」。
+
+      这些都是「先清理再抛出」的失败路径：catch (RuntimeException e) 里先 close 半启动资源
+      或补齐会话历史，然后 throw e 保留原始堆栈。转成受检异常或包装成新异常都会丢堆栈，
+      反而降低可诊断性。
+
+      重审条件：这些 catch 块开始构造新的 RuntimeException 而不是 rethrow 原异常。
+    -->
+    <Match>
+        <Class name="io.lytgos.cli.AgentRuntimeFactory"/>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.cli.LazyContext"/>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.core.agent.ReActLoop"/>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.tool.mcp.McpServerManager"/>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+
+    <!--
+      VA_FORMAT_STRING_USES_NEWLINE：text block 作为「文件内容模板」时，换行是内容而不是控制台格式。
+
+      AGENT.md 模板与测试里的 YAML 夹具都用 text block 拼文件内容，换行跟随源码的 LF；
+      改成 %n 会让同一份模板在 Windows 上产出 CRLF，与仓库 LF 口径冲突。
+
+      重审条件：这些 text block 改为直接输出到控制台。
+    -->
+    <Match>
+        <Class name="io.lytgos.cli.ProfileCommand$Create"/>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.cli.WorkspaceConfigProviderTest"/>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    </Match>
+
+    <!--
+      NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE：Binder.bind(...) 的返回值按 Spring 契约不会为 null，
+      .orElse(...) 已经覆盖「未绑定」的情况；SpotBugs 没有该方法的 @NonNull 注解可依据。
+
+      重审条件：Spring Boot 升级后 Binder 契约变化，或该处改为 chain 上的第三方方法。
+    -->
+    <Match>
+        <Class name="io.lytgos.cli.WorkspaceConfigProvider"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+
+</FindBugsFilter>

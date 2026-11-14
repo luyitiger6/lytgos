@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+      豁免书写规范（新增前必读）：
+
+      1. 每条豁免必须限定到「CVE 编号 + 依赖坐标（groupId:artifactId[:version]）」，
+         禁止只写 CVE 全局放水；
+      2. 每条豁免必须有注释说明：为什么当前无法升级、补偿措施是什么、下次复查日期；
+      3. 复查日期到期后必须重新评估：能升级就删豁免升级依赖，不能升级就更新理由与日期。
+
+      当前没有任何豁免。首次扫描的高危结果按「能升级就升级、升不了才豁免」处理。
+    -->
+
+</suppressions>

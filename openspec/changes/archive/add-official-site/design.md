@@ -2,7 +2,7 @@
 
 ## 一句话
 
-`site/` 是 VitePress 静态站点。结构与文案基线取自同作者的 `oryxos-main/website`，首版只做品牌替换，不重做信息架构。
+`site/` 是 VitePress 静态站点。结构与文案基线取自同作者的 `lytgos-main/website`，首版只做品牌替换，不重做信息架构。
 
 ## 为什么照搬
 
@@ -49,10 +49,10 @@ site/
 
 | 原值 | 新值 |
 |---|---|
-| `OryxOS` | `lytgos` |
-| `/oryxos/` | `/lytgos/` |
-| `github.com/oryx-labs/oryxos` | `github.com/luyitiger6/lytgos` |
-| `oryx-labs.github.io/oryxos` | `lytgos.tigerustmq.com` |
+| `lytgos` | `lytgos` |
+| `/lytgos/` | `/lytgos/` |
+| `github.com/oryx-labs/lytgos` | `github.com/luyitiger6/lytgos` |
+| `oryx-labs.github.io/lytgos` | `lytgos.tigerustmq.com` |
 | `OryxTool` | `LytgosTool` |
 | API key 前缀 `oryx_` | `lytgos_` |
 

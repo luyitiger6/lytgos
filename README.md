@@ -29,6 +29,7 @@
 - [模块](#模块)
 - [技术栈](#技术栈)
 - [快速开始](#快速开始)
+- [工程质量门禁](#工程质量门禁)
 - [定义一个 Agent](#定义一个-agent)
 - [命令行](#命令行)
 - [REST API](#rest-api)
@@ -147,6 +148,46 @@ powershell -File harness/run-all.ps1
 ```
 
 退出码 `0` 表示全部闸门真实通过；`2` 表示前置条件尚未就绪；其他非零为失败。
+
+## 工程质量门禁
+
+六层门禁全部挂在 Maven 生命周期上，日常不需要记额外命令：
+
+| 层 | 命令 / 触发点 | 说明 |
+|---|---|---|
+| 格式 | `mvn spotless:apply` | Google Java Format（2 空格）；`verify` 时 `spotless:check` 阻断 |
+| 编码规约 | 随 `mvn verify` | Checkstyle（google_checks）+ PMD / 阿里 P3C |
+| 静态缺陷与安全 | 随 `mvn verify` | SpotBugs（effort Max / threshold Low）+ FindSecBugs，含测试代码 |
+| 依赖漏洞 | `mvn verify -Psecurity` | OWASP Dependency-Check，CVSS ≥ 7 阻断；独立 profile，不拖慢日常构建 |
+| CI | PR 与 push main | `.github/workflows/verify.yml`：verify 与 security 两个 job |
+| 本地提交前 | `powershell -File scripts/install-hooks.ps1` | 只跑 `mvn -q spotless:check`，实测 6 秒；卸载加 `-Uninstall` |
+
+日常用法：
+
+```bash
+mvn spotless:apply        # 自动格式化（提交前忘了跑格式时用这个）
+mvn verify                # 格式 + 规约 + 静态缺陷 + 测试
+mvn verify -Psecurity     # 追加依赖漏洞扫描，需 NVD 数据（见下）
+```
+
+**依赖漏洞扫描的数据源：NIST 官方 JSON feeds 2.0（不需要 API key）**。
+扫描按 `nvdDatafeedUrl` 拉取 `nvdcve-2.0-*.json.gz`：首次下载全部年度包约 4~5 分钟，
+之后靠 `~/.m2/dependency-check-data` 按 meta 做增量更新，CI 用 `actions/cache` 缓存该目录。
+不走 NVD REST API 2.0 的原因：2026-11-15 实测带有效 key 单次请求 200，
+但分页同步到 10,000/425,753 条后持续 503，重试与复跑都无法完成；官方 feeds 无此问题。
+仓库里的 `NVD_API_KEY` secret 已不再被任何步骤读取，仅作回退保留。
+
+**加豁免的规矩：**每条豁免必须写明「为什么修不了 / 补偿措施 / 复查日期」，
+按最小粒度落在对应文件里，不允许整类放行而不留原因：
+
+| 门禁 | 豁免文件 | 粒度 |
+|---|---|---|
+| Checkstyle | `config/checkstyle/suppressions.xml` | 文件 + 规则 |
+| PMD / P3C | `config/pmd/p3c-ruleset.xml` | 规则级 |
+| SpotBugs / FindSecBugs | `spotbugs-exclude.xml` | 类 + 缺陷模式 |
+| 依赖漏洞 | `dependency-check-suppressions.xml` | CVE + 依赖坐标 |
+
+格式门禁不设豁免：`mvn spotless:apply` 一键就能满足。
 
 ## 定义一个 Agent
 
