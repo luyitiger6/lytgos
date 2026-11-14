@@ -131,7 +131,9 @@ public final class Workspace {
 
       Path defaultAgent = agents().resolve(DEFAULT_AGENT_FILE);
       if (!Files.exists(defaultAgent)) {
-        Files.createDirectories(agents());
+        // 必须建出 default 子目录：只建 agents() 会让 writeString 抛 NoSuchFileException，
+        // init 直接失败（9a3c1a8 修 NP 警报时误改，07-week1-acceptance 报出）。
+        Files.createDirectories(agents().resolve("default"));
         Files.writeString(defaultAgent, DEFAULT_AGENT, StandardCharsets.UTF_8);
         created++;
       }

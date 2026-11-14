@@ -59,6 +59,8 @@
 - [ ] 7.3 集成验收：`mvn clean verify` 退出码 0；`mvn verify -Psecurity` 退出码 0；记录两者耗时写入提交说明
   - 实测（2026-11-15）：`mvn -B clean verify`（JDK 21）BUILD SUCCESS，2:45 min；12 个模块 `spotbugsXml` 全 0，测试全绿。
   - ⏸ `mvn verify -Psecurity` 本地无法完成：无 `NVD_API_KEY`，NVD 全量 425,751 条按限速需数小时；部分数据（约 80 MB）下仍先增量更新再扫描（30,000 条后持续 429 重试 4 分钟，主动终止），未观察到静默通过。该半项与 4.2 同一后置项，由首次 CI security job 完成并回填。
+  - 首轮 `harness\run-all.ps1` BLOCKED：07-week1-acceptance 的 init 失败，根因是 9a3c1a8 把 `Files.createDirectories(defaultAgent.getParent())` 误改成 `agents()`，少建 `agents/default/` 导致 `NoSuchFileException`；已修复并补回归测试 `WorkspaceTest`（先红后绿），`mvn -B verify` 2:35 BUILD SUCCESS。
+  - 复跑 `harness\run-all.ps1`：00/01/02/03/04/06/09 PASS，05/07/08 NOT_READY（缺审计写入实现、`DEEPSEEK_API_KEY` / `AMAP_MCP_KEY`），RESULT NOT READY；完整验收需在具备两个 key 的环境复跑。
 - [ ] 7.4 提交本组改动
 
 ## Workflow follow-up

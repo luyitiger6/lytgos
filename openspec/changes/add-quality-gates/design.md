@@ -101,6 +101,7 @@
 - 派生豁免 1 条类级：McpServerManager 的 7 个日志点已全部清洗，但 FindSecBugs 的 taint 分析不识别自定义 sanitizer，对该类加 `CRLF_INJECTION_LOGS` 豁免；代价是新日志若引入未清洗参数会被同一条豁免放行，review 必须人工确认（已写入 exclude 注释）。
 - 门禁有效性验证：临时植入一处未关闭 `FileInputStream`（`LeakProbe`）后 `spotbugs:check` 报 `OS_OPEN_STREAM` 等 3 条并 BUILD FAILURE；删除探针后 `BugInstance size is 0`、BUILD SUCCESS。
 - **补扫修正（2026-11-15）**：组 3 清单漏报 2 条 `SIC_INNER_SHOULD_BE_STATIC_ANON`（`ReActLoopTest` 里两个一次性匿名 `Tool` 实现）。组 4 跑默认构建时 SpotBugs 重新分析 `lytgos-core` test-classes 并报出，已按同口径提取为静态内部类 `FailingTool` / `SandboxBlockedTool`，修复后 12 个模块 `spotbugsXml` 全部 0 条。核对 `FindBugsSummary total_classes=43`（31 主类 + 12 测试类），确认测试类确实在分析范围内。**教训**：单模块 `compile spotbugs:check` 不编译测试类，不能用来断言「整模块 0 条」；模块级计数必须以 `mvn verify` 后的报告为准。
+- **静态扫描修复引入的回归（2026-11-15）**：9a3c1a8 处理 `Path.getParent()` 的 NP 警报时，把 `Files.createDirectories(defaultAgent.getParent())` 改成了 `Files.createDirectories(agents())`——只建 `agents/`、少建 `agents/default/`，随后写 `AGENT.md` 抛 `NoSuchFileException`，`lytgos init` 直接失败（`harness/checks/07-week1-acceptance.ps1` 的初始化与幂等用例连带红）。修复为 `Files.createDirectories(agents().resolve("default"))`：既避开 `getParent()` 可空告警，又保持原语义。补回归测试 `lytgos-core/src/test/java/io/lytgos/core/workspace/WorkspaceTest.java`（先红后绿，覆盖默认 Agent 落盘与重复 init 不覆盖）。**教训**：修静态告警前必须先证明语义等价；带副作用的路径参数不能“换个非空来源”就算修完。`mvn verify` 全绿只能证明静态规则与单测通过，`init → 改文件 → 再 init` 这类端到端链路必须由 07 闸门兜底。
 
 ## Risks / Trade-offs
 
