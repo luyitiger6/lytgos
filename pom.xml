@@ -25,6 +25,9 @@
         <!-- 与 spring-ai-mcp:2.0.2 内部依赖的版本保持一致，便于将来一起升级 -->
         <mcp-sdk.version>2.1.0</mcp-sdk.version>
         <archunit.version>1.4.1</archunit.version>
+        <!-- 格式门禁：google-java-format 1.27.0 起支持 JDK 21 -->
+        <spotless.version>2.44.5</spotless.version>
+        <google-java-format.version>1.27.0</google-java-format.version>
     </properties>
 
     <modules>
@@ -60,4 +63,37 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <plugins>
+            <!--
+                格式门禁（SKILL 第 7 步）：google-java-format 管「长什么样」。
+                check 默认绑定 verify，mvn package / test 不受影响（harness 01/02 依赖这一点）。
+                行尾统一交给 .gitattributes（* text=auto eol=lf），与仓库现有约定一致。
+            -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <lineEndings>GIT_ATTRIBUTES</lineEndings>
+                    <java>
+                        <googleJavaFormat>
+                            <version>${google-java-format.version}</version>
+                            <style>GOOGLE</style>
+                        </googleJavaFormat>
+                        <removeUnusedImports/>
+                        <importOrder/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
