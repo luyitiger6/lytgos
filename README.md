@@ -29,6 +29,7 @@
 - [模块](#模块)
 - [技术栈](#技术栈)
 - [快速开始](#快速开始)
+- [工程质量门禁](#工程质量门禁)
 - [定义一个 Agent](#定义一个-agent)
 - [命令行](#命令行)
 - [REST API](#rest-api)
@@ -147,6 +148,45 @@ powershell -File harness/run-all.ps1
 ```
 
 退出码 `0` 表示全部闸门真实通过；`2` 表示前置条件尚未就绪；其他非零为失败。
+
+## 工程质量门禁
+
+六层门禁全部挂在 Maven 生命周期上，日常不需要记额外命令：
+
+| 层 | 命令 / 触发点 | 说明 |
+|---|---|---|
+| 格式 | `mvn spotless:apply` | Google Java Format（2 空格）；`verify` 时 `spotless:check` 阻断 |
+| 编码规约 | 随 `mvn verify` | Checkstyle（google_checks）+ PMD / 阿里 P3C |
+| 静态缺陷与安全 | 随 `mvn verify` | SpotBugs（effort Max / threshold Low）+ FindSecBugs，含测试代码 |
+| 依赖漏洞 | `mvn verify -Psecurity` | OWASP Dependency-Check，CVSS ≥ 7 阻断；独立 profile，不拖慢日常构建 |
+| CI | PR 与 push main | `.github/workflows/verify.yml`：verify 与 security 两个 job |
+| 本地提交前 | `powershell -File scripts/install-hooks.ps1` | 只跑 `mvn -q spotless:check`，实测 6 秒；卸载加 `-Uninstall` |
+
+日常用法：
+
+```bash
+mvn spotless:apply        # 自动格式化（提交前忘了跑格式时用这个）
+mvn verify                # 格式 + 规约 + 静态缺陷 + 测试
+mvn verify -Psecurity     # 追加依赖漏洞扫描，需 NVD 数据（见下）
+```
+
+**依赖漏洞扫描的前置条件：`NVD_API_KEY`**（NVD 官方免费申请）。
+NVD 全量数据约 42.6 万条记录：有 key 时几分钟拉完；无 key 走限速通道，实测约 2000 条/分钟，
+且默认间隔会被 429 限流，全量需要数小时。CI 通过仓库 secret 提供 key，
+并用 `actions/cache` 缓存 `~/.m2/dependency-check-data` 做增量更新。
+仓库未配置 key 时 security job 会直接报错退出，不会伪装成通过。
+
+**加豁免的规矩：**每条豁免必须写明「为什么修不了 / 补偿措施 / 复查日期」，
+按最小粒度落在对应文件里，不允许整类放行而不留原因：
+
+| 门禁 | 豁免文件 | 粒度 |
+|---|---|---|
+| Checkstyle | `config/checkstyle/suppressions.xml` | 文件 + 规则 |
+| PMD / P3C | `config/pmd/p3c-ruleset.xml` | 规则级 |
+| SpotBugs / FindSecBugs | `spotbugs-exclude.xml` | 类 + 缺陷模式 |
+| 依赖漏洞 | `dependency-check-suppressions.xml` | CVE + 依赖坐标 |
+
+格式门禁不设豁免：`mvn spotless:apply` 一键就能满足。
 
 ## 定义一个 Agent
 

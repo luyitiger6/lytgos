@@ -49,6 +49,7 @@
   - dependency-check-maven **13.0.0 在无 NVD API key 环境直接失败**：`NvdApiException: Invalid API Key, length of 0 too short to provided a masked partial key`，重试 22 次后 BUILD FAILURE。故锁 **12.2.2**（12.x 允许无 key 走限速通道）。
   - 12.2.2 无 key 时走 NVD API 2.0：官方全量 **425,749 条**，按 2000 条/页分页。默认 6 秒间隔在数分钟内即被 **HTTP 429** 限流打断；调到 15 秒间隔后实测约 2000 条/分钟，全量约 **3.5 小时**。
   - 结论：首次全量 NVD 下载**后置到 CI security job**（`NVD_API_KEY` secret + dataDirectory 缓存），不在本地跑完。无数据时插件以 `NoDataException` 直接 BUILD FAILURE，不会假绿。
+  - **部分数据不假绿（2026-11-15 复测）**：缓存库已积累约 80 MB（30,000/425,751 条）时重跑 `-Psecurity`，插件仍先做 NVD 增量更新再扫描，未静默跳过：无 key 下持续出现 429 重试，4 分钟内推进 30,000 条，跑到终点需数小时，故主动终止。插件未关闭 `autoUpdate`、`failOnError` 保持默认 true，更新失败即 BUILD FAILURE；最终判定以带 key 的 CI security job 为准。
 
 ### D4 P3C 版本组合锁死 PMD 6
 
@@ -107,7 +108,7 @@
 - [全量格式化让 `git blame` 失效] → 格式化单独提交 + `.git-blame-ignore-revs`；审阅该提交时只看 `--stat`。
 - [SpotBugs threshold Low 在 Spring 代理/反射代码上误报（如 EI_EXPOSE_REP）] →  实测存量 43 条已按 D9 处置完毕（修 29 条 + 豁免 14 条，含补扫出的 2 条匿名类），误报进 `spotbugs-exclude.xml` 并写明理由；不放宽 threshold。
 - [McpServerManager 的类级 CRLF 豁免会一并放行未来新增的未清洗日志] → 豁免注释已写明 review 要求；新增日志必须走 `LogSafe.sanitize`。
-- [dep-check 首次 NVD 下载依赖 NVD_API_KEY] → 实测：13.0.0 无 key 直接失败；12.2.2 默认 6 秒间隔被 429 限流，15 秒间隔全量约 3.5 小时。故首次下载放 CI（NVD_API_KEY secret + actions/cache 缓存 dataDirectory），本地不跑；无数据时插件 `NoDataException` BUILD FAILURE，不假绿。
+- [dep-check 首次 NVD 下载依赖 NVD_API_KEY] → 实测：13.0.0 无 key 直接失败；12.2.2 默认 6 秒间隔被 429 限流，15 秒间隔全量约 3.5 小时。故首次下载放 CI（NVD_API_KEY secret + actions/cache 缓存 dataDirectory），本地不跑；无数据时插件 `NoDataException` BUILD FAILURE，不假绿；部分数据（80 MB）下同样先增量更新再扫描，未观察到静默跳过（见 D3 复测）。
 - [Windows 与 Linux 换行/编码差异导致 spotless 不一致] → `.editorconfig` 统一 UTF-8 / LF；Spotless 设 `lineEndings=GIT_ATTRIBUTES`，与现有 `.gitattributes` 对齐。
 - [Checkstyle google_checks 与 google-java-format 规则重叠] → 由 gjf 先产出，Checkstyle 只做兜底，不另设冲突规则；若出现冲突以 gjf 为准并调整 Checkstyle 配置。
 

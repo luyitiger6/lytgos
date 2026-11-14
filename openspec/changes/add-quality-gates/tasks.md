@@ -29,13 +29,18 @@
   - ⏸ **后置（2026-11-15）**：本机无 `NVD_API_KEY`，首次全量下载约 3.5 小时且默认间隔触发 429，无法在本地完成；处置位置改为首次 CI security job（`NVD_API_KEY` secret + dataDirectory 缓存），该 job 变绿后回填本项与 CVE 结论。门禁本身无数据时 `NoDataException` BUILD FAILURE，不会假绿。
 - [x] 4.3 验证默认构建不受影响：`mvn -B verify`（不带 profile）不执行 dependency-check，耗时与 3.3 提交时相当
   - 实测（2026-11-15）：BUILD SUCCESS，2:29 min；日志中 dependency-check 出现次数 0；12 个模块 `spotbugsXml` 全部 0 条（另修复了补扫出的 2 条匿名类，见 design D9 补扫修正）。
-- [ ] 4.4 提交本组改动
+- [x] 4.4 提交本组改动
+  - 已提交 198f342（pom security profile、suppressions 骨架、匿名类补扫修复、design / tasks 同步）。
 
 ## 5. CI 强制门禁
 
 - [ ] 5.1 新增 `.github/workflows/verify.yml`：JDK 21 temurin + Maven 缓存 + `mvn -B verify`（job 1）与 `mvn -B verify -Psecurity` + NVD 缓存（job 2），触发条件按 Q4 默认倾向（`pull_request` 与 `push main`），验证：推送本分支后在 Actions 页面两个 job 均为绿（security job 首次因 NVD 下载较慢属正常）
+  - 已实现并提交（2a62a19）：两个 job、缺 `NVD_API_KEY` 直接报错退出、`actions/cache` 缓存 `~/.m2/dependency-check-data`；YAML 经 `python -c yaml.safe_load` 校验。
+  - ⏸ **阻塞（2026-11-15）**：推送被 GitHub 拒绝——gh 的 OAuth token 缺 `workflow` scope（`refusing to allow an OAuth App to create or update workflow ... without workflow scope`）。需 `gh auth refresh -h github.com -s workflow` 重新授权后推送，再观测两个 job 变绿。
 - [ ] 5.2 验证阻断行为：临时在分支上提交一行未格式化代码并推送，确认 verify job 变红；revert 后重新推送变绿
-- [ ] 5.3 提交本组改动
+  - ⏸ 与 5.1 同一阻塞：需先完成带 `workflow` scope 的推送。
+- [x] 5.3 提交本组改动
+  - 已提交 2a62a19（verify.yml 62 行）。
 
 ## 6. 本地提交前校验
 
@@ -47,9 +52,13 @@
 
 ## 7. 集成验收与文档
 
-- [ ] 7.1 README 新增「工程质量门禁」小节：`mvn spotless:apply`、`mvn verify`、`mvn verify -Psecurity`、安装 hook、豁免流程与查阅位置，验证：文档中的每条命令在本仓库逐条执行通过
-- [ ] 7.2 验证 harness 判定口径未变：`powershell -File harness\checks\01-compile.ps1` 与 `02-test.ps1` 退出码均为 0，确认绑定在 verify 的插件不拖慢也不改变 compile/test 阶段
+- [x] 7.1 README 新增「工程质量门禁」小节：`mvn spotless:apply`、`mvn verify`、`mvn verify -Psecurity`、安装 hook、豁免流程与查阅位置，验证：文档中的每条命令在本仓库逐条执行通过
+  - 实测执行（2026-11-15）：`mvn spotless:apply` ✓、`mvn verify` ✓、`powershell -File scripts/install-hooks.ps1` ✓；`mvn verify -Psecurity` 因本机无 `NVD_API_KEY` 被 429 限流，该前置条件已在 README 写明，与 4.2 同一后置项。
+- [x] 7.2 验证 harness 判定口径未变：`powershell -File harness\checks\01-compile.ps1` 与 `02-test.ps1` 退出码均为 0，确认绑定在 verify 的插件不拖慢也不改变 compile/test 阶段
+  - 实测（JDK 21）：01-compile EXIT=0（5.3 s，输出「编译通过」）；02-test EXIT=0（45 s，14 个报告文件共 79 个测试）；两个阶段日志中无 verify 绑定插件介入。
 - [ ] 7.3 集成验收：`mvn clean verify` 退出码 0；`mvn verify -Psecurity` 退出码 0；记录两者耗时写入提交说明
+  - 实测（2026-11-15）：`mvn -B clean verify`（JDK 21）BUILD SUCCESS，2:45 min；12 个模块 `spotbugsXml` 全 0，测试全绿。
+  - ⏸ `mvn verify -Psecurity` 本地无法完成：无 `NVD_API_KEY`，NVD 全量 425,751 条按限速需数小时；部分数据（约 80 MB）下仍先增量更新再扫描（30,000 条后持续 429 重试 4 分钟，主动终止），未观察到静默通过。该半项与 4.2 同一后置项，由首次 CI security job 完成并回填。
 - [ ] 7.4 提交本组改动
 
 ## Workflow follow-up
