@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>映射完全由配置决定，运行期无法增删；不使用 {@code ObjectProvider}、 {@code getBeansOfType} 或任何类型扫描（{@code AGENTS.md}
  * 4.2）。
  *
- * <p>找不到指定名字时抛出 {@link LytgosException.UnknownProvider} 并列出已注册的名字—— 报错必须自带答案：用户看到「unknown provider:
- * dpseek」时，最想知道的就是「那有哪些」。
+ * <p>找不到指定名字时抛出 {@link LytgosException.UnknownProviderException} 并列出已注册的名字—— 报错必须自带答案：用户看到「unknown
+ * provider: dpseek」时，最想知道的就是「那有哪些」。
  */
 public final class ProviderRegistry {
 
@@ -31,7 +31,7 @@ public final class ProviderRegistry {
     Map<String, ProviderConfig> byName = new LinkedHashMap<>();
     for (ProviderConfig config : configs) {
       if (byName.putIfAbsent(config.name(), config) != null) {
-        throw new LytgosException.InvalidConfiguration("provider 重名: " + config.name());
+        throw new LytgosException.InvalidConfigurationException("provider 重名: " + config.name());
       }
     }
     this.configs = Collections.unmodifiableMap(byName);
@@ -45,12 +45,12 @@ public final class ProviderRegistry {
   public ChatModel require(String name) {
     if (configs.isEmpty()) {
       // 空列表时最该告诉用户的是「你还没配 provider」，而不是「未知 provider: xxx」
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "配置文件里没有任何 provider，无法提供 " + name + "；先在 providers 段添加一个");
     }
     ProviderConfig config = configs.get(name);
     if (config == null) {
-      throw new LytgosException.UnknownProvider(name, configs.keySet());
+      throw new LytgosException.UnknownProviderException(name, configs.keySet());
     }
     ChatModel model = created.get(name);
     if (model != null) {
@@ -58,7 +58,7 @@ public final class ProviderRegistry {
     }
     String missing = ProviderConfig.unresolvedVariable(config.apiKey());
     if (missing != null) {
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "环境变量未设置: " + missing + "（provider " + name + " 需要）");
     }
     return created.computeIfAbsent(name, key -> ChatModelFactory.create(config));

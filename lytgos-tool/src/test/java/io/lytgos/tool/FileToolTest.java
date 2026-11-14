@@ -35,9 +35,9 @@ class FileToolTest {
   @Test
   @DisplayName(".. 穿越被拒")
   void rejectsParentTraversal() {
-    LytgosException.SandboxViolation violation =
+    LytgosException.SandboxViolationException violation =
         assertThrows(
-            LytgosException.SandboxViolation.class,
+            LytgosException.SandboxViolationException.class,
             () -> tool().execute(Map.of("path", "../outside.txt")));
     assertTrue(violation.getMessage().contains("sandbox"));
   }
@@ -47,7 +47,7 @@ class FileToolTest {
   void rejectsAbsolutePathOutside() {
     Path outside = root.getParent().resolve("outside.txt");
     assertThrows(
-        LytgosException.SandboxViolation.class,
+        LytgosException.SandboxViolationException.class,
         () -> tool().execute(Map.of("path", outside.toString())));
   }
 

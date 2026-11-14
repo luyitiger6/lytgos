@@ -40,7 +40,7 @@ public final class ToolExecutor {
    * 执行一次工具调用。
    *
    * @return 回填给模型的结果文本，成功与「可恢复的失败」都走返回值
-   * @throws LytgosException.SandboxViolation 沙箱拒绝时抛出，不返回
+   * @throws LytgosException.SandboxViolationException 沙箱拒绝时抛出，不返回
    */
   public String execute(ToolCall call) {
     Tool tool =
@@ -48,7 +48,7 @@ public final class ToolExecutor {
             .find(call.name())
             .orElseThrow(
                 () ->
-                    new LytgosException.InvalidConfiguration(
+                    new LytgosException.InvalidConfigurationException(
                         "模型请求了未注册的工具: " + call.name() + "；已注册: " + registry.names()));
 
     Map<String, Object> arguments;
@@ -62,7 +62,7 @@ public final class ToolExecutor {
 
     try {
       return tool.execute(arguments);
-    } catch (LytgosException.SandboxViolation e) {
+    } catch (LytgosException.SandboxViolationException e) {
       throw e;
     } catch (RuntimeException e) {
       LOG.warn("工具 {} 执行失败，回填给模型: {}", call.name(), e.getMessage());

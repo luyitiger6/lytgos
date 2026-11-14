@@ -62,9 +62,9 @@ class McpServerManagerTest {
   void rejectsCommandOutsideWhitelist() {
     Set<Long> before = childPids();
 
-    LytgosException.SandboxViolation violation =
+    LytgosException.SandboxViolationException violation =
         assertThrows(
-            LytgosException.SandboxViolation.class,
+            LytgosException.SandboxViolationException.class,
             () -> start(List.of(fakeServer("fake", List.of())), Set.of("node")));
 
     assertTrue(
@@ -79,9 +79,9 @@ class McpServerManagerTest {
     Profile.McpServer missing =
         new Profile.McpServer("ghost", null, "lytgos-no-such-command-xyz", List.of(), Map.of());
 
-    LytgosException.InvalidConfiguration failure =
+    LytgosException.InvalidConfigurationException failure =
         assertThrows(
-            LytgosException.InvalidConfiguration.class,
+            LytgosException.InvalidConfigurationException.class,
             () -> start(List.of(missing), Set.of("lytgos-no-such-command-xyz")));
 
     assertTrue(
@@ -97,9 +97,9 @@ class McpServerManagerTest {
     Profile.McpServer nameless =
         new Profile.McpServer(null, null, javaExecutable(), List.of(), Map.of());
 
-    LytgosException.InvalidConfiguration failure =
+    LytgosException.InvalidConfigurationException failure =
         assertThrows(
-            LytgosException.InvalidConfiguration.class,
+            LytgosException.InvalidConfigurationException.class,
             () -> start(List.of(nameless), Set.of("java")));
 
     assertTrue(failure.getMessage().contains("name"));
@@ -126,8 +126,9 @@ class McpServerManagerTest {
       all.add(builtin);
       all.addAll(manager.tools());
 
-      LytgosException.InvalidConfiguration failure =
-          assertThrows(LytgosException.InvalidConfiguration.class, () -> new ToolRegistry(all));
+      LytgosException.InvalidConfigurationException failure =
+          assertThrows(
+              LytgosException.InvalidConfigurationException.class, () -> new ToolRegistry(all));
 
       assertTrue(
           failure.getMessage().contains("get_current_weather"),
@@ -160,9 +161,9 @@ class McpServerManagerTest {
     Profile.McpServer remote =
         new Profile.McpServer("amap", "https://mcp.amap.com/mcp?key=k", null, List.of(), Map.of());
 
-    LytgosException.InvalidConfiguration failure =
+    LytgosException.InvalidConfigurationException failure =
         assertThrows(
-            LytgosException.InvalidConfiguration.class,
+            LytgosException.InvalidConfigurationException.class,
             () -> start(List.of(remote), Set.of("java")));
 
     assertTrue(failure.getMessage().contains("sandbox"), "域名被拒必须能被验收脚本识别: " + failure.getMessage());
@@ -177,9 +178,9 @@ class McpServerManagerTest {
         new Profile.McpServer(
             "dead", "http://127.0.0.1:1/mcp?key=secret-value", null, List.of(), Map.of());
 
-    LytgosException.InvalidConfiguration failure =
+    LytgosException.InvalidConfigurationException failure =
         assertThrows(
-            LytgosException.InvalidConfiguration.class,
+            LytgosException.InvalidConfigurationException.class,
             () -> start(List.of(remote), Set.of("java"), Set.of("127.0.0.1")));
 
     assertTrue(

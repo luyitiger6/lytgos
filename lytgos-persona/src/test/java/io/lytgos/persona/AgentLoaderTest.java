@@ -86,9 +86,10 @@ class AgentLoaderTest {
                 指令
                 """);
 
-    LytgosException.InvalidAgentDefinition thrown =
+    LytgosException.InvalidAgentDefinitionException thrown =
         assertThrows(
-            LytgosException.InvalidAgentDefinition.class, () -> new AgentLoader().load(file));
+            LytgosException.InvalidAgentDefinitionException.class,
+            () -> new AgentLoader().load(file));
 
     assertTrue(thrown.getMessage().contains("provider.model"), "实际消息: " + thrown.getMessage());
     assertTrue(thrown.getMessage().contains("broken"), "消息应带文件路径，方便定位是哪个 Agent");
@@ -108,9 +109,10 @@ class AgentLoaderTest {
                 ---
                 """);
 
-    LytgosException.InvalidAgentDefinition thrown =
+    LytgosException.InvalidAgentDefinitionException thrown =
         assertThrows(
-            LytgosException.InvalidAgentDefinition.class, () -> new AgentLoader().load(file));
+            LytgosException.InvalidAgentDefinitionException.class,
+            () -> new AgentLoader().load(file));
 
     assertTrue(thrown.getMessage().contains("provider.name"), "实际消息: " + thrown.getMessage());
   }
@@ -120,9 +122,10 @@ class AgentLoaderTest {
   void rejectsFileWithoutFrontmatter() throws IOException {
     Path file = write("plain", "# 只是一段普通 Markdown\n");
 
-    LytgosException.InvalidAgentDefinition thrown =
+    LytgosException.InvalidAgentDefinitionException thrown =
         assertThrows(
-            LytgosException.InvalidAgentDefinition.class, () -> new AgentLoader().load(file));
+            LytgosException.InvalidAgentDefinitionException.class,
+            () -> new AgentLoader().load(file));
 
     assertTrue(thrown.getMessage().contains("frontmatter"));
   }
@@ -141,14 +144,15 @@ class AgentLoaderTest {
                   model: m
                 """);
 
-    assertThrows(LytgosException.InvalidAgentDefinition.class, () -> new AgentLoader().load(file));
+    assertThrows(
+        LytgosException.InvalidAgentDefinitionException.class, () -> new AgentLoader().load(file));
   }
 
   @Test
   @DisplayName("按名称加载时拒绝路径穿越")
   void rejectsTraversalInAgentName() {
     assertThrows(
-        LytgosException.InvalidAgentDefinition.class,
+        LytgosException.InvalidAgentDefinitionException.class,
         () -> new AgentLoader().load(agentsRoot, "../etc"));
   }
 }

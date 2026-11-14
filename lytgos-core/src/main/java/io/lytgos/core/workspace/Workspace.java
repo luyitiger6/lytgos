@@ -67,7 +67,7 @@ public final class Workspace {
       }
       current = current.getParent();
     }
-    throw new LytgosException.InvalidConfiguration("当前目录不在 lytgos 工作区内，请先执行 lytgos init");
+    throw new LytgosException.InvalidConfigurationException("当前目录不在 lytgos 工作区内，请先执行 lytgos init");
   }
 
   public Path root() {

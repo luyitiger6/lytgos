@@ -24,6 +24,13 @@ import com.tngtech.archunit.lang.CompositeArchRule;
 @AnalyzeClasses(packages = "io.lytgos", importOptions = ImportOption.DoNotIncludeTests.class)
 public class ArchitectureTest {
 
+  /** Spring Boot 条件装配注解的全限定名。 */
+  private static final String CONDITIONAL_ON_BEAN =
+      "org.springframework.boot.autoconfigure.condition.ConditionalOnBean";
+
+  private static final String CONDITIONAL_ON_MISSING_BEAN =
+      "org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean";
+
   /**
    * Spring Boot 条件装配注解。按类名匹配而不是引用类型：{@code spring-boot-autoconfigure} 不在本模块的测试 classpath
    * 上，引用会编译不过；按名匹配连「依赖没引进来」也能防住。
@@ -33,9 +40,7 @@ public class ArchitectureTest {
           "Spring Boot 条件装配注解",
           annotation -> {
             String name = annotation.getRawType().getName();
-            return name.equals("org.springframework.boot.autoconfigure.condition.ConditionalOnBean")
-                || name.equals(
-                    "org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean");
+            return CONDITIONAL_ON_BEAN.equals(name) || CONDITIONAL_ON_MISSING_BEAN.equals(name);
           });
 
   /** 按类型向容器要对象的调用：一个按接口类型取全量 Bean，一个用来取 {@code ObjectProvider}。 */
@@ -44,7 +49,7 @@ public class ArchitectureTest {
           "按类型扫描容器（getBeansOfType / getBeanProvider）",
           call -> {
             String name = call.getTarget().getName();
-            return name.equals("getBeansOfType") || name.equals("getBeanProvider");
+            return "getBeansOfType".equals(name) || "getBeanProvider".equals(name);
           });
 
   /**
@@ -54,7 +59,7 @@ public class ArchitectureTest {
    * {@code ChatModel.call(prompt)}， 它返回模型原样响应，不执行工具。
    */
   @ArchTest
-  static final ArchRule noChatClient =
+  static final ArchRule NO_CHAT_CLIENT =
       noClasses()
           .should()
           .dependOnClassesThat()
@@ -63,7 +68,7 @@ public class ArchitectureTest {
 
   /** 禁 {@code ToolCallingManager}：Spring AI 的自动工具执行器本体。 */
   @ArchTest
-  static final ArchRule noToolCallingManager =
+  static final ArchRule NO_TOOL_CALLING_MANAGER =
       noClasses()
           .should()
           .dependOnClassesThat()
@@ -79,7 +84,7 @@ public class ArchitectureTest {
    * {@code @Bean} 方法上，类级规则看不到方法注解—— 只查类会让最该防的那类违规直接漏检。
    */
   @ArchTest
-  static final ArchRule noConditionalAssembly =
+  static final ArchRule NO_CONDITIONAL_ASSEMBLY =
       noCodeUnits()
           .should()
           .beAnnotatedWith(CONDITIONAL_ASSEMBLY_ANNOTATIONS)
@@ -93,7 +98,7 @@ public class ArchitectureTest {
    * ProviderRegistry.require(name)}。
    */
   @ArchTest
-  static final ArchRule noTypeScanning =
+  static final ArchRule NO_TYPE_SCANNING =
       CompositeArchRule.of(noClasses().should().callMethodWhere(TYPE_SCANNING_CALLS))
           .and(
               noClasses()

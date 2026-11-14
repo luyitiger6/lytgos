@@ -103,7 +103,8 @@ public final class PromptBuilder {
         || fileName.contains("/")
         || fileName.contains("\\")
         || fileName.contains("..")) {
-      throw new LytgosException.InvalidAgentDefinition("bootstrap 只允许工作区根目录下的文件名，当前为: " + fileName);
+      throw new LytgosException.InvalidAgentDefinitionException(
+          "bootstrap 只允许工作区根目录下的文件名，当前为: " + fileName);
     }
   }
 }

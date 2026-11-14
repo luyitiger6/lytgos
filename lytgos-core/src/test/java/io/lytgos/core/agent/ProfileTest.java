@@ -42,9 +42,9 @@ class ProfileTest {
   @Test
   @DisplayName("两者都缺时拒绝，消息写清二选一规则")
   void rejectsBothMissing() {
-    LytgosException.InvalidAgentDefinition failure =
+    LytgosException.InvalidAgentDefinitionException failure =
         assertThrows(
-            LytgosException.InvalidAgentDefinition.class,
+            LytgosException.InvalidAgentDefinitionException.class,
             () -> new Profile.McpServer("x", null, "   ", List.of(), Map.of()));
 
     assertTrue(failure.getMessage().contains("url"), failure.getMessage());
@@ -55,9 +55,9 @@ class ProfileTest {
   @Test
   @DisplayName("两者都有时拒绝——同时配置会让启动阶段的形态判断变成猜")
   void rejectsBothPresent() {
-    LytgosException.InvalidAgentDefinition failure =
+    LytgosException.InvalidAgentDefinitionException failure =
         assertThrows(
-            LytgosException.InvalidAgentDefinition.class,
+            LytgosException.InvalidAgentDefinitionException.class,
             () ->
                 new Profile.McpServer(
                     "x", "https://a.example.com/mcp", "java", List.of(), Map.of()));

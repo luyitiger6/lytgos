@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="lytgos-p3c"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.net/ruleset_2_0_0.xsd">
+
+    <description>
+        阿里 P3C 规则集（lytgos 定制版）。
+
+        与官方 10 组规则集的唯一差异是排除以下三条，理由写在此处而不是逐处行内注解，
+        保证「为什么放宽」有唯一可审计的出处（2026-11-14 用户拍板）：
+
+        1. ClassMustHaveAuthorRule —— 要求每个类带 @author。作者信息由 git 提交记录
+           唯一承载，写进注释会随人员变动失真；Google Java Style 同样不作此要求。
+        2. AbstractMethodOrInterfaceMethodMustUseJavadocRule —— 要求接口方法逐个写
+           Javadoc。项目 Javadoc 策略是「关键处写、不强制全覆盖」，Checkstyle 侧已
+           抑制同源的 SummaryJavadoc/MissingJavadocMethod。
+        3. UndefineMagicConstantRule —— 对字符串字面量与测试断言值误报明显（如
+           "\"" 、".exe"、"http"、HTTP 400），强行提取常量反而降低可读性；
+           P3C 该规则本意针对魔法数字。
+
+        其余 P3C 规则全部生效。新增豁免必须在此写明规则名与理由，并同步更新
+        design.md 的决策记录。
+    </description>
+
+    <rule ref="rulesets/java/ali-comment.xml">
+        <exclude name="ClassMustHaveAuthorRule"/>
+        <exclude name="AbstractMethodOrInterfaceMethodMustUseJavadocRule"/>
+    </rule>
+    <rule ref="rulesets/java/ali-constant.xml">
+        <exclude name="UndefineMagicConstantRule"/>
+    </rule>
+    <rule ref="rulesets/java/ali-concurrent.xml"/>
+    <rule ref="rulesets/java/ali-exception.xml"/>
+    <rule ref="rulesets/java/ali-flowcontrol.xml"/>
+    <rule ref="rulesets/java/ali-naming.xml"/>
+    <rule ref="rulesets/java/ali-oop.xml"/>
+    <rule ref="rulesets/java/ali-orm.xml"/>
+    <rule ref="rulesets/java/ali-other.xml"/>
+    <rule ref="rulesets/java/ali-set.xml"/>
+</ruleset>

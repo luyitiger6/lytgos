@@ -49,7 +49,9 @@
 ### D4 P3C 版本组合锁死 PMD 6
 
 - `maven-pmd-plugin` 显式声明 `com.alibaba.p3c:p3c-pmd:2.1.1` 与 `net.sourceforge.pmd:pmd-java:6.55.0` 依赖，覆盖插件默认的 PMD 7。
-- ruleset 引用 `rulesets/java/ali-pmd.xml`、`ali-concurrent.xml`、`ali-exception.xml`（来自 p3c-pmd jar 内资源）。
+- p3c-pmd 2.1.1 的 jar 内没有 `ali-pmd.xml` 聚合规则集，实际是 10 个分组文件；仓库内 `config/pmd/p3c-ruleset.xml` 负责聚合，并集中排除 3 条与项目基线冲突的规则（见 D8）。
+- **ASM 覆盖是硬要求**：PMD 6.55 自带的 ASM 9.4 只能读 Java 20 字节码，扫描 JDK 21 编译产物时每个文件都抛 `Unsupported class file major version 65`，报告里只有 `<error>` 没有 `<violation>`，`failOnViolation` 管不到——门禁表面绿色、实际一个字都没扫（AGENTS 原则 4 的典型伪造绿灯）。因此插件依赖显式覆盖 `org.ow2.asm:asm:9.7.1`，并在验收时核对 `target/pmd.xml` 无 `<error>` 节点。
+- `targetJdk` 只能设 20（PMD 6.55 上限），不影响读取 21 字节码；PMD 6 尚未支持 21 语法，后续若用到高版本语法需加 `-Dpmd.skip` 的落盘例外。
 - 备选：升级到 PMD 7 原生规则替代 P3C。放弃原因：P3C 是 SKILL 指定规约，且 PMD 7 无对等的阿里规则集。
 - 已知代价：PMD 6 已停止主线维护，属于为满足规约要求接受的版本债，记录在此。
 
@@ -62,9 +64,11 @@
 
 ### D6 豁免必须留痕
 
+- `config/checkstyle/suppressions.xml`：Checkstyle 规则级抑制，当前仅 `SummaryJavadoc` 与 `MissingJavadocMethod` 两条，理由写在文件头（中文注释句号与英文句点规则冲突、Javadoc 不强制全覆盖）。
+- `config/pmd/p3c-ruleset.xml`：P3C 规则级排除，当前仅 3 条，理由写在文件头（见 D8）。新增豁免必须写清规则名与理由，不允许按文件批量放水。
 - `spotbugs-exclude.xml`：按类 + 缺陷模式粒度豁免，每条带 XML 注释说明理由。
 - `dependency-check-suppressions.xml`：按 CVE + 依赖坐标豁免，同样要求理由。
-- Checkstyle / PMD 不提供文件级豁免配置，确需豁免时使用行内注解（`@SuppressWarnings`）并在提交说明中写明原因，以保证豁免可被 grep 审计。
+- 单点误报（只影响一两处）仍用行内 `@SuppressWarnings` 并在提交说明写明原因，避免为个案放宽整条规则；当前实例是 `McpServerManager.installShutdownHook` 的 `AvoidManuallyCreateThreadRule`（shutdown hook 必须是独立 Thread，线程池不适用）。
 
 ### D7 CI 结构：一个 verify job + 一个 security job
 
@@ -74,9 +78,17 @@
 - 两 job 并行，互不阻塞；只有全部通过才得到绿色检查状态。
 - 依赖版本兼容底线：spotbugs-maven-plugin ≥ 4.8（JDK 21 支持）、google-java-format ≥ 1.17（JDK 21 支持）、dependency-check-maven 12.x。具体版本号以实施时官方最新稳定版为准，锁定后回填本节。
 
+### D8 P3C 与项目基线的三处冲突按规则级排除，异常类按规约改名
+
+2026-11-14 用户拍板。首次全量运行报出 74 条违规，处置如下：
+
+- 规则级排除 3 条（58 条违规）：`ClassMustHaveAuthorRule`（@author 与 git 提交记录重复，Google 风格不作要求）、`AbstractMethodOrInterfaceMethodMustUseJavadocRule`（与已拍板的 Javadoc 策略冲突，Checkstyle 侧已抑制同源规则）、`UndefineMagicConstantRule`（字符串字面量与测试断言误报）。排除集中写在 `config/pmd/p3c-ruleset.xml`，不逐处行内注解。
+- 改名 5 个嵌套异常类（`SandboxViolation` → `SandboxViolationException` 等），同步更新 26 个引用文件，符合 P3C `ExceptionClassShouldEndWithExceptionRule`。异常消息字面量（如 `sandbox 拒绝：`）保持不变——验收脚本依赖它。
+- 修 11 条真问题：`EqualsAvoidNullRule` 4 处、`ConstantFieldShouldBeUpperCaseRule` 4 处、`EnumConstantsMustHaveCommentRule` 1 处、`AvoidComplexConditionRule` 1 处；`AvoidManuallyCreateThreadRule` 1 处属误报，行内豁免。
+
 ## Risks / Trade-offs
 
-- [P3C 首次运行报出大量存量违规] → 修代码优先；单条确属误报的用行内注解 + 提交说明豁免。若同一规则在多个文件里普遍误报，暂停并在实施时向用户报告，不允许静默改规则集。
+- [P3C 首次运行报出大量存量违规] → 实测 74 条：58 条为规则与项目基线冲突（规则级排除并留痕），16 条为真问题（11 条修代码、5 条异常类改名，另 1 处 shutdown hook 行内豁免）；不允许静默改规则集。
 - [全量格式化让 `git blame` 失效] → 格式化单独提交 + `.git-blame-ignore-revs`；审阅该提交时只看 `--stat`。
 - [SpotBugs threshold Low 在 Spring 代理/反射代码上误报（如 EI_EXPOSE_REP）] → 进 `spotbugs-exclude.xml` 并写明理由；不放宽 threshold。
 - [dep-check 首次 NVD 下载失败或超时] → 只影响 security job，不阻塞 verify；CI 缓存 + 重试一次。
@@ -88,7 +100,7 @@
 按可独立回滚的提交顺序推进：
 
 1. 格式化（配置 + 全量重排 + `.git-blame-ignore-revs`）→ 回滚即 `git revert` 单提交。
-2. Checkstyle + PMD/P3C（含存量违规修复）。
+2. Checkstyle + PMD/P3C（含 ASM 覆盖、定制 ruleset、存量违规修复、异常类改名）。
 3. SpotBugs + FindSecBugs（含豁免骨架）。
 4. dep-check profile + suppressions 骨架。
 5. CI workflow。
@@ -101,7 +113,7 @@
 
 | # | 级别 | 问题 | 影响任务 | 默认倾向 |
 |---|---|---|---|---|
-| Q1 | 一般 | P3C 存量违规若超过 50 条，本 change 内全修还是按文件豁免、后续 change 偿债 | 2.3 | 全修；单文件误报超 10 条时改为豁免并登记偿债 |
+| Q1 | ~~一般~~ 已定 | P3C 存量违规若超过 50 条，本 change 内全修还是按文件豁免、后续 change 偿债 | 2.3 | 已定（2026-11-14）：74 条中规则级排除 3 条规则（58 条），其余 16 条全部修完；不登记偿债 |
 | Q2 | 一般 | `lytgos-test` 模块只有测试代码，是否同样参与 SpotBugs/PMD | 3.1 | 参与，规则与主代码一致 |
 | Q3 | 一般 | pre-commit 除格式外是否也跑 `mvn -q compile` | 6.1 | 只跑格式，编译留给 CI，保证提交在 10 秒内完成 |
 | Q4 | 一般 | CI 是否对任意分支 push 触发 | 5.1 | 仅 `pull_request` 与 `push main`，节省分钟数 |

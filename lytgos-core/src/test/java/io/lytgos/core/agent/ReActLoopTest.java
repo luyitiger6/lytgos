@@ -133,7 +133,7 @@ class ReActLoopTest {
 
           @Override
           public String execute(Map<String, Object> arguments) {
-            throw new LytgosException.SandboxViolation("域名 example.com 不在白名单内");
+            throw new LytgosException.SandboxViolationException("域名 example.com 不在白名单内");
           }
         };
     ToolRegistry registry = new ToolRegistry(List.of(blocked));
@@ -142,9 +142,9 @@ class ReActLoopTest {
             List.of(new ChatResult("", List.of(new ToolCall("c1", "http_get", "{}")))));
 
     Session session = new Session("cli:local:tester");
-    LytgosException.SandboxViolation thrown =
+    LytgosException.SandboxViolationException thrown =
         assertThrows(
-            LytgosException.SandboxViolation.class,
+            LytgosException.SandboxViolationException.class,
             () -> loop(model, registry, 10).run(session, "访问 example.com"));
 
     assertTrue(thrown.getMessage().contains("sandbox"));

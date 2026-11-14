@@ -47,9 +47,9 @@ class HttpToolTest {
   @Test
   @DisplayName("非白名单域名在建立连接前就被拒绝")
   void rejectsNonWhitelistedBeforeNetwork() {
-    LytgosException.SandboxViolation violation =
+    LytgosException.SandboxViolationException violation =
         assertThrows(
-            LytgosException.SandboxViolation.class,
+            LytgosException.SandboxViolationException.class,
             () -> tool().execute(Map.of("url", "https://example.com")));
     assertTrue(violation.getMessage().contains("sandbox"));
   }
@@ -57,7 +57,8 @@ class HttpToolTest {
   @Test
   @DisplayName("缺少 url 参数报参数错误，不提网也不中断")
   void rejectsMissingUrlAsArgumentError() {
-    assertThrows(LytgosException.InvalidToolArgument.class, () -> tool().execute(Map.of()));
+    assertThrows(
+        LytgosException.InvalidToolArgumentException.class, () -> tool().execute(Map.of()));
   }
 
   @Test
@@ -65,7 +66,7 @@ class HttpToolTest {
   void emptyWhitelistBlocksEverything() {
     HttpTool blocked = new HttpTool(new SandboxChecker(workspace, Set.of(), Set.of()));
     assertThrows(
-        LytgosException.SandboxViolation.class,
+        LytgosException.SandboxViolationException.class,
         () -> blocked.execute(Map.of("url", "https://restapi.amap.com/v3/weather/weatherInfo")));
   }
 }

@@ -28,10 +28,10 @@ public record Profile(
 
   public Profile {
     if (name == null || name.isBlank()) {
-      throw new LytgosException.InvalidAgentDefinition("AGENT.md 缺少 name");
+      throw new LytgosException.InvalidAgentDefinitionException("AGENT.md 缺少 name");
     }
     if (provider == null) {
-      throw new LytgosException.InvalidAgentDefinition("AGENT.md 缺少 provider");
+      throw new LytgosException.InvalidAgentDefinitionException("AGENT.md 缺少 provider");
     }
     tools = tools == null ? List.of() : List.copyOf(tools);
     mcpServers = mcpServers == null ? List.of() : List.copyOf(mcpServers);
@@ -54,17 +54,18 @@ public record Profile(
     if (value instanceof Number number && number.intValue() > 0) {
       return number.intValue();
     }
-    throw new LytgosException.InvalidAgentDefinition("settings.maxIterations 必须是正整数，当前为: " + value);
+    throw new LytgosException.InvalidAgentDefinitionException(
+        "settings.maxIterations 必须是正整数，当前为: " + value);
   }
 
   /** 指向某个已注册 provider 的引用。 */
   public record ProviderRef(String name, String model) {
     public ProviderRef {
       if (name == null || name.isBlank()) {
-        throw new LytgosException.InvalidAgentDefinition("AGENT.md 缺少 provider.name");
+        throw new LytgosException.InvalidAgentDefinitionException("AGENT.md 缺少 provider.name");
       }
       if (model == null || model.isBlank()) {
-        throw new LytgosException.InvalidAgentDefinition("AGENT.md 缺少 provider.model");
+        throw new LytgosException.InvalidAgentDefinitionException("AGENT.md 缺少 provider.model");
       }
     }
   }
@@ -86,7 +87,7 @@ public record Profile(
       boolean hasUrl = url != null && !url.isBlank();
       boolean hasCommand = command != null && !command.isBlank();
       if (hasUrl == hasCommand) {
-        throw new LytgosException.InvalidAgentDefinition(
+        throw new LytgosException.InvalidAgentDefinitionException(
             "MCP server "
                 + (name == null || name.isBlank() ? "(未命名)" : name)
                 + " 必须且只能配置 url（远程）或 command（本地）其中之一");

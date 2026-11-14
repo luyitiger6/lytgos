@@ -22,9 +22,9 @@ class ProviderRegistryTest {
 
   @Test
   void rejectsDuplicateNames() {
-    LytgosException.InvalidConfiguration error =
+    LytgosException.InvalidConfigurationException error =
         assertThrows(
-            LytgosException.InvalidConfiguration.class,
+            LytgosException.InvalidConfigurationException.class,
             () -> new ProviderRegistry(List.of(config("deepseek"), config("deepseek"))));
 
     assertTrue(error.getMessage().contains("重名"), error.getMessage());
@@ -35,8 +35,9 @@ class ProviderRegistryTest {
   void unknownProviderListsRegisteredNames() {
     ProviderRegistry registry = new ProviderRegistry(List.of(config("deepseek"), config("qwen")));
 
-    LytgosException.UnknownProvider error =
-        assertThrows(LytgosException.UnknownProvider.class, () -> registry.require("dpseek"));
+    LytgosException.UnknownProviderException error =
+        assertThrows(
+            LytgosException.UnknownProviderException.class, () -> registry.require("dpseek"));
 
     assertTrue(error.getMessage().contains("dpseek"), error.getMessage());
     assertTrue(error.getMessage().contains("deepseek"), error.getMessage());
@@ -47,9 +48,10 @@ class ProviderRegistryTest {
   void emptyConfigExplainsThatNothingIsConfigured() {
     ProviderRegistry registry = new ProviderRegistry(List.of());
 
-    LytgosException.InvalidConfiguration error =
+    LytgosException.InvalidConfigurationException error =
         assertThrows(
-            LytgosException.InvalidConfiguration.class, () -> registry.require("deepseek"));
+            LytgosException.InvalidConfigurationException.class,
+            () -> registry.require("deepseek"));
 
     // 空列表时最该说清的是「你还没配」，而不是让人以为自己把名字拼错了
     assertTrue(error.getMessage().contains("没有任何 provider"), error.getMessage());
@@ -71,9 +73,10 @@ class ProviderRegistryTest {
     assertEquals(1, registry.size());
 
     // 同一条配置在真正取用时才报缺失变量名
-    LytgosException.InvalidConfiguration error =
+    LytgosException.InvalidConfigurationException error =
         assertThrows(
-            LytgosException.InvalidConfiguration.class, () -> registry.require("deepseek"));
+            LytgosException.InvalidConfigurationException.class,
+            () -> registry.require("deepseek"));
     assertTrue(
         error.getMessage().contains("LYTGOS_TEST_REGISTRY_MISSING_5C1A"), error.getMessage());
   }

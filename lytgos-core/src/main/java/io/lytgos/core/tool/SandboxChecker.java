@@ -43,7 +43,7 @@ public final class SandboxChecker {
   public Path checkPath(Path candidate) {
     Path real = canonicalize(candidate);
     if (!real.startsWith(workspaceRoot)) {
-      throw new LytgosException.SandboxViolation(
+      throw new LytgosException.SandboxViolationException(
           "路径越界: " + candidate + " 不在工作区 " + workspaceRoot + " 内");
     }
     return real;
@@ -52,14 +52,15 @@ public final class SandboxChecker {
   /** 校验命令的可执行文件名在白名单内，返回该文件名。 */
   public String checkCommand(String command) {
     if (command == null || command.isBlank()) {
-      throw new LytgosException.SandboxViolation("命令为空");
+      throw new LytgosException.SandboxViolationException("命令为空");
     }
     String name = normalizeName(executableOf(command.trim()));
     if (allowedCommands.isEmpty()) {
-      throw new LytgosException.SandboxViolation("命令白名单为空，全部拒绝: " + name);
+      throw new LytgosException.SandboxViolationException("命令白名单为空，全部拒绝: " + name);
     }
     if (!allowedCommands.contains(name)) {
-      throw new LytgosException.SandboxViolation("命令 " + name + " 不在白名单 " + allowedCommands + " 内");
+      throw new LytgosException.SandboxViolationException(
+          "命令 " + name + " 不在白名单 " + allowedCommands + " 内");
     }
     return name;
   }
@@ -103,7 +104,7 @@ public final class SandboxChecker {
   /** 校验 URL 的协议与域名，返回解析后的 URI。 */
   public URI checkDomain(String url) {
     if (url == null || url.isBlank()) {
-      throw new LytgosException.InvalidToolArgument("URL 为空");
+      throw new LytgosException.InvalidToolArgumentException("URL 为空");
     }
     URI uri;
     try {
@@ -112,29 +113,30 @@ public final class SandboxChecker {
       // 模型自己拼 URL 时常把未转义的 % 或空格写进 query（如 wttr.in 的 ?format=%l:+%c）。
       // 这是输入格式错误，不是白名单拦截。混成同一个异常会让 ToolExecutor 把它当
       // 安全事件中断整轮对话，模型失去改正的机会——而它明明只需要把 % 写成 %25。
-      throw new LytgosException.InvalidToolArgument(
+      throw new LytgosException.InvalidToolArgumentException(
           "URL 格式非法（query 里的 % 要写成 %25，空格写成 %20）: " + url);
     }
     String scheme = uri.getScheme();
-    if (scheme == null || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+    boolean allowedScheme = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    if (!allowedScheme) {
       // 协议限制是策略约束，不是格式错：file:///etc/passwd 是拿别的协议读本地文件，
       // 归到“只允许 http/https”这条安全边界里。
-      throw new LytgosException.SandboxViolation("只允许 http/https 协议: " + url);
+      throw new LytgosException.SandboxViolationException("只允许 http/https 协议: " + url);
     }
     if (uri.getUserInfo() != null) {
       // http://restapi.amap.com@evil.com/ 这类把白名单域名塞进 userinfo 的写法必须挡住
-      throw new LytgosException.SandboxViolation("URL 不允许携带 userinfo: " + url);
+      throw new LytgosException.SandboxViolationException("URL 不允许携带 userinfo: " + url);
     }
     String host = uri.getHost();
     if (host == null || host.isBlank()) {
-      throw new LytgosException.InvalidToolArgument("URL 缺少 host: " + url);
+      throw new LytgosException.InvalidToolArgumentException("URL 缺少 host: " + url);
     }
     String normalized = host.toLowerCase(Locale.ROOT);
     if (allowedDomains.isEmpty()) {
-      throw new LytgosException.SandboxViolation("域名白名单为空，全部拒绝: " + normalized);
+      throw new LytgosException.SandboxViolationException("域名白名单为空，全部拒绝: " + normalized);
     }
     if (!allowedDomains.contains(normalized)) {
-      throw new LytgosException.SandboxViolation(
+      throw new LytgosException.SandboxViolationException(
           "域名 " + normalized + " 不在白名单 " + allowedDomains + " 内");
     }
     return uri;

@@ -41,7 +41,7 @@ final class WorkspaceConfigProvider {
   /** 供测试注入自定义 {@code Environment}，替身系统属性与环境变量。 */
   static WorkspaceConfig load(Path configFile, ConfigurableEnvironment environment) {
     if (!Files.isRegularFile(configFile)) {
-      throw new LytgosException.InvalidConfiguration("配置文件不存在: " + configFile);
+      throw new LytgosException.InvalidConfigurationException("配置文件不存在: " + configFile);
     }
     addYamlSource(configFile, environment);
 
@@ -76,11 +76,11 @@ final class WorkspaceConfigProvider {
     } catch (IOException | YAMLException e) {
       // Spring Boot 4 的 YamlPropertySourceLoader 对语法错误的处理是让 SnakeYAML 的
       // RuntimeException 直接冒出，不包成 IOException；这里统一收敛成配置错误。
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "配置文件不是合法 YAML: " + configFile + " → " + e.getMessage());
     }
     if (sources.isEmpty()) {
-      throw new LytgosException.InvalidConfiguration("配置文件为空: " + configFile);
+      throw new LytgosException.InvalidConfigurationException("配置文件为空: " + configFile);
     }
     for (PropertySource<?> source : sources) {
       environment.getPropertySources().addLast(source);

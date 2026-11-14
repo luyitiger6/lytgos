@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!--
+  Checkstyle 豁免清单。
+
+  当前仅两条规则被全局抑制，原因（2026-11-14 用户拍板）：
+  1. SummaryJavadoc：要求 Javadoc 第一句以英文句点结尾，而本项目中文注释
+     按中文习惯用「。」结尾，属工具与语言习惯的硬冲突。
+  2. MissingJavadocMethod：要求每个 public 方法都有 Javadoc，而项目策略是
+     「关键处写、不强制全覆盖」。
+
+  其余 google_checks 规则全部生效。新增豁免必须在此写明规则名、范围与理由，
+  不允许按文件批量放水。
+-->
+<suppressions>
+    <suppress checks="SummaryJavadoc|MissingJavadocMethod" files=".*"/>
+</suppressions>

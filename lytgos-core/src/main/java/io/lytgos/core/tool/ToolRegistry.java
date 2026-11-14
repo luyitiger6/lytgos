@@ -26,10 +26,11 @@ public final class ToolRegistry {
     for (Tool tool : tools) {
       ToolSpec spec = tool.spec();
       if (spec == null || spec.name() == null || spec.name().isBlank()) {
-        throw new LytgosException.InvalidConfiguration("工具缺少 name: " + tool.getClass().getName());
+        throw new LytgosException.InvalidConfigurationException(
+            "工具缺少 name: " + tool.getClass().getName());
       }
       if (ordered.putIfAbsent(spec.name(), tool) != null) {
-        throw new LytgosException.InvalidConfiguration(
+        throw new LytgosException.InvalidConfigurationException(
             "工具重名: "
                 + spec.name()
                 + "（已注册来源 "

@@ -126,7 +126,7 @@ public final class AgentRuntimeFactory {
     Set<String> registered = new LinkedHashSet<>(full.names());
     List<String> unknown = allowed.stream().filter(name -> !registered.contains(name)).toList();
     if (!unknown.isEmpty()) {
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "Agent " + profile.name() + " 的 tools 里列了未注册的工具: " + unknown + "；当前可用: " + registered);
     }
 

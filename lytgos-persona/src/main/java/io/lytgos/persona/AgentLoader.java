@@ -21,7 +21,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * <p>文件由两段组成：{@code ---} 包围的 YAML frontmatter 与之后的正文。 前者决定「用哪个模型、有哪些工具」，后者是「任务指令」，两者都要交给 {@link
  * io.lytgos.core.agent.PromptBuilder}，所以一并返回。
  *
- * <p>解析失败一律抛 {@link LytgosException.InvalidAgentDefinition} 并带上文件路径与 具体字段：Agent
+ * <p>解析失败一律抛 {@link LytgosException.InvalidAgentDefinitionException} 并带上文件路径与 具体字段：Agent
  * 定义是用户手写的，报错信息若只说「格式错误」，用户除了猜没有别的办法。
  */
 public final class AgentLoader {
@@ -50,18 +50,18 @@ public final class AgentLoader {
     try {
       raw = Files.readString(agentFile, StandardCharsets.UTF_8);
     } catch (IOException e) {
-      throw new LytgosException.InvalidAgentDefinition("无法读取 Agent 定义: " + agentFile);
+      throw new LytgosException.InvalidAgentDefinitionException("无法读取 Agent 定义: " + agentFile);
     }
 
     String content = raw.stripLeading();
     if (!content.startsWith(DELIMITER)) {
-      throw new LytgosException.InvalidAgentDefinition(
+      throw new LytgosException.InvalidAgentDefinitionException(
           "AGENT.md 必须以 " + DELIMITER + " 开头（缺少 frontmatter）: " + agentFile);
     }
     int frontStart = content.indexOf(DELIMITER) + DELIMITER.length();
     int frontEnd = content.indexOf(DELIMITER, frontStart);
     if (frontEnd < 0) {
-      throw new LytgosException.InvalidAgentDefinition(
+      throw new LytgosException.InvalidAgentDefinitionException(
           "AGENT.md 缺少结束的 " + DELIMITER + ": " + agentFile);
     }
 
@@ -79,7 +79,7 @@ public final class AgentLoader {
         || agentName.contains("/")
         || agentName.contains("\\")
         || agentName.contains("..")) {
-      throw new LytgosException.InvalidAgentDefinition("Agent 名称不合法: " + agentName);
+      throw new LytgosException.InvalidAgentDefinitionException("Agent 名称不合法: " + agentName);
     }
     return load(agentsRoot.resolve(agentName).resolve("AGENT.md"));
   }
@@ -89,11 +89,12 @@ public final class AgentLoader {
     try {
       parsed = yaml.load(frontYaml);
     } catch (RuntimeException e) {
-      throw new LytgosException.InvalidAgentDefinition(
+      throw new LytgosException.InvalidAgentDefinitionException(
           "frontmatter 不是合法 YAML: " + agentFile + " → " + e.getMessage());
     }
     if (!(parsed instanceof Map<?, ?> map)) {
-      throw new LytgosException.InvalidAgentDefinition("frontmatter 为空或不是键值映射: " + agentFile);
+      throw new LytgosException.InvalidAgentDefinitionException(
+          "frontmatter 为空或不是键值映射: " + agentFile);
     }
     Map<String, Object> result = new LinkedHashMap<>();
     map.forEach((key, value) -> result.put(String.valueOf(key), value));
@@ -116,9 +117,10 @@ public final class AgentLoader {
           asStrings(front.get("channels")),
           asStrings(front.get("bootstrap")),
           asMap(front.get("settings")));
-    } catch (LytgosException.InvalidAgentDefinition e) {
+    } catch (LytgosException.InvalidAgentDefinitionException e) {
       // 补上文件路径：同一份工作区里可能有多个 Agent，只报字段名用户不知道该改哪个
-      throw new LytgosException.InvalidAgentDefinition(e.getMessage() + "（" + agentFile + "）");
+      throw new LytgosException.InvalidAgentDefinitionException(
+          e.getMessage() + "（" + agentFile + "）");
     }
   }
 

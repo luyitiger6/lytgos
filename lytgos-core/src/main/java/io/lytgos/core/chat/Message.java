@@ -18,9 +18,13 @@ public record Message(
 
   /** 消息角色。 */
   public enum Role {
+    /** 系统提示词。 */
     SYSTEM,
+    /** 用户输入。 */
     USER,
+    /** 模型回复，可能携带工具调用。 */
     ASSISTANT,
+    /** 工具执行结果。 */
     TOOL
   }
 

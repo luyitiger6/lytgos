@@ -74,9 +74,9 @@ class WorkspaceConfigProviderTest {
     Path config = tempDir.resolve("config.yaml");
     Files.writeString(config, "providers: [unclosed", StandardCharsets.UTF_8);
 
-    LytgosException.InvalidConfiguration error =
+    LytgosException.InvalidConfigurationException error =
         assertThrows(
-            LytgosException.InvalidConfiguration.class,
+            LytgosException.InvalidConfigurationException.class,
             () -> WorkspaceConfigProvider.load(config, new StandardEnvironment()));
 
     assertTrue(error.getMessage().contains(config.toString()), error.getMessage());
@@ -105,9 +105,9 @@ class WorkspaceConfigProviderTest {
                 """,
         StandardCharsets.UTF_8);
 
-    LytgosException.InvalidConfiguration error =
+    LytgosException.InvalidConfigurationException error =
         assertThrows(
-            LytgosException.InvalidConfiguration.class,
+            LytgosException.InvalidConfigurationException.class,
             () -> WorkspaceConfigProvider.load(config, new StandardEnvironment()));
 
     assertTrue(error.getMessage().contains(config.toString()), error.getMessage());

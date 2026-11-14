@@ -100,9 +100,9 @@ class PromptBuilderTest {
   @Test
   @DisplayName("bootstrap 文件名带路径分隔符时拒绝加载")
   void rejectsBootstrapFilePath() {
-    LytgosException.InvalidAgentDefinition thrown =
+    LytgosException.InvalidAgentDefinitionException thrown =
         assertThrows(
-            LytgosException.InvalidAgentDefinition.class,
+            LytgosException.InvalidAgentDefinitionException.class,
             () -> PromptBuilder.from(profile(List.of("../secret.md")), workspace, "指令"));
     assertTrue(thrown.getMessage().contains("../secret.md"));
   }

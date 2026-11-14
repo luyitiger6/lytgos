@@ -15,16 +15,17 @@ public record ProviderConfig(String name, String model, String apiKey, String ba
 
   public ProviderConfig {
     if (name == null || name.isBlank()) {
-      throw new LytgosException.InvalidConfiguration("provider 缺少 name");
+      throw new LytgosException.InvalidConfigurationException("provider 缺少 name");
     }
     if (model == null || model.isBlank()) {
-      throw new LytgosException.InvalidConfiguration("provider " + name + " 缺少 model");
+      throw new LytgosException.InvalidConfigurationException("provider " + name + " 缺少 model");
     }
     if (apiKey == null || apiKey.isBlank()) {
-      throw new LytgosException.InvalidConfiguration("provider " + name + " 缺少 api-key（应通过环境变量注入）");
+      throw new LytgosException.InvalidConfigurationException(
+          "provider " + name + " 缺少 api-key（应通过环境变量注入）");
     }
     if (baseUrl == null || baseUrl.isBlank()) {
-      throw new LytgosException.InvalidConfiguration("provider " + name + " 缺少 base-url");
+      throw new LytgosException.InvalidConfigurationException("provider " + name + " 缺少 base-url");
     }
   }
 

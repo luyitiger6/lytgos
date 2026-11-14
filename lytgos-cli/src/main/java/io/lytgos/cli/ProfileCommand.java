@@ -57,7 +57,7 @@ public final class ProfileCommand implements Runnable {
         || name.contains("/")
         || name.contains("\\")
         || name.contains("..")) {
-      throw new LytgosException.InvalidAgentDefinition("Agent 名称不合法: " + name);
+      throw new LytgosException.InvalidAgentDefinitionException("Agent 名称不合法: " + name);
     }
   }
 
@@ -84,7 +84,8 @@ public final class ProfileCommand implements Runnable {
       Path file = directory.resolve("AGENT.md");
 
       if (Files.exists(file) && !force) {
-        throw new LytgosException.InvalidAgentDefinition("Agent 已存在: " + file + "（加 --force 覆盖）");
+        throw new LytgosException.InvalidAgentDefinitionException(
+            "Agent 已存在: " + file + "（加 --force 覆盖）");
       }
 
       try {
@@ -183,7 +184,7 @@ public final class ProfileCommand implements Runnable {
       requireValidName(name);
       Path file = workspace(context).agents().resolve(name).resolve("AGENT.md");
       if (!Files.isRegularFile(file)) {
-        throw new LytgosException.InvalidAgentDefinition("Agent 不存在: " + name);
+        throw new LytgosException.InvalidAgentDefinitionException("Agent 不存在: " + name);
       }
       try {
         System.out.print(Files.readString(file, StandardCharsets.UTF_8));
@@ -216,7 +217,7 @@ public final class ProfileCommand implements Runnable {
       requireValidName(name);
       Path directory = workspace(context).agents().resolve(name);
       if (!Files.isDirectory(directory)) {
-        throw new LytgosException.InvalidAgentDefinition("Agent 不存在: " + name);
+        throw new LytgosException.InvalidAgentDefinitionException("Agent 不存在: " + name);
       }
 
       if (!yes && !confirm(directory)) {

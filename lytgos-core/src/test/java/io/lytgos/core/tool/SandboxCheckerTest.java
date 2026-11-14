@@ -38,9 +38,9 @@ class SandboxCheckerTest {
   @DisplayName("../ 穿越被拒")
   void rejectsParentTraversal() throws IOException {
     SandboxChecker sandbox = checker();
-    LytgosException.SandboxViolation violation =
+    LytgosException.SandboxViolationException violation =
         assertThrows(
-            LytgosException.SandboxViolation.class,
+            LytgosException.SandboxViolationException.class,
             () -> sandbox.checkPath(workspace.resolve("../outside.txt")));
     assertTrue(violation.getMessage().contains("sandbox"), "消息必须带 sandbox 字面量供验收脚本判定");
   }
@@ -50,7 +50,7 @@ class SandboxCheckerTest {
   void rejectsAbsolutePathOutside() throws IOException {
     SandboxChecker sandbox = checker();
     assertThrows(
-        LytgosException.SandboxViolation.class,
+        LytgosException.SandboxViolationException.class,
         () -> sandbox.checkPath(tempDir.resolve("outside.txt")));
   }
 
@@ -69,9 +69,9 @@ class SandboxCheckerTest {
   @DisplayName("非白名单域名被拒，消息含 sandbox")
   void rejectsNonWhitelistedDomain() throws IOException {
     SandboxChecker sandbox = checker();
-    LytgosException.SandboxViolation violation =
+    LytgosException.SandboxViolationException violation =
         assertThrows(
-            LytgosException.SandboxViolation.class,
+            LytgosException.SandboxViolationException.class,
             () -> sandbox.checkDomain("https://example.com"));
     assertTrue(violation.getMessage().contains("sandbox"));
     assertTrue(violation.getMessage().contains("example.com"));
@@ -82,9 +82,9 @@ class SandboxCheckerTest {
   void emptyDomainWhitelistRejectsEverything() throws IOException {
     Files.createDirectories(tempDir.resolve("empty"));
     SandboxChecker sandbox = new SandboxChecker(tempDir.resolve("empty"), Set.of(), Set.of());
-    LytgosException.SandboxViolation violation =
+    LytgosException.SandboxViolationException violation =
         assertThrows(
-            LytgosException.SandboxViolation.class,
+            LytgosException.SandboxViolationException.class,
             () -> sandbox.checkDomain("https://restapi.amap.com/v3/weather/weatherInfo"));
     assertTrue(violation.getMessage().contains("白名单为空"));
   }
@@ -94,7 +94,7 @@ class SandboxCheckerTest {
   void rejectsUserInfoTrick() throws IOException {
     SandboxChecker sandbox = checker();
     assertThrows(
-        LytgosException.SandboxViolation.class,
+        LytgosException.SandboxViolationException.class,
         () -> sandbox.checkDomain("https://restapi.amap.com@evil.example.com/"));
   }
 
@@ -103,7 +103,8 @@ class SandboxCheckerTest {
   void rejectsNonHttpScheme() throws IOException {
     SandboxChecker sandbox = checker();
     assertThrows(
-        LytgosException.SandboxViolation.class, () -> sandbox.checkDomain("file:///etc/passwd"));
+        LytgosException.SandboxViolationException.class,
+        () -> sandbox.checkDomain("file:///etc/passwd"));
   }
 
   @Test
@@ -113,9 +114,9 @@ class SandboxCheckerTest {
     // 模型自己拼 URL 时常这么写：%l %c %t 都不是合法的百分号转义（% 后必须跟两位十六进制）。
     // 归为 InvalidToolArgument 而不是 SandboxViolation：前者会被 ToolExecutor 回填给
     // 模型自己改正，后者会中断整轮对话——而这不是攻击，只是拼错了。
-    LytgosException.InvalidToolArgument violation =
+    LytgosException.InvalidToolArgumentException violation =
         assertThrows(
-            LytgosException.InvalidToolArgument.class,
+            LytgosException.InvalidToolArgumentException.class,
             () -> sandbox.checkDomain("https://wttr.in/Beijing?format=%l:+%c+%t"));
     String message = violation.getMessage();
     assertTrue(message.contains("格式非法"), "消息应指明是格式问题: " + message);
@@ -143,11 +144,13 @@ class SandboxCheckerTest {
     assertEquals("echo", sandbox.checkCommand("echo hello"));
     assertEquals("echo", sandbox.checkCommand("C:\\Windows\\System32\\echo.exe hello"));
 
-    assertThrows(LytgosException.SandboxViolation.class, () -> sandbox.checkCommand("rm -rf /"));
+    assertThrows(
+        LytgosException.SandboxViolationException.class, () -> sandbox.checkCommand("rm -rf /"));
 
     SandboxChecker empty = new SandboxChecker(tempDir.resolve("workspace"), Set.of(), Set.of());
-    LytgosException.SandboxViolation violation =
-        assertThrows(LytgosException.SandboxViolation.class, () -> empty.checkCommand("echo hi"));
+    LytgosException.SandboxViolationException violation =
+        assertThrows(
+            LytgosException.SandboxViolationException.class, () -> empty.checkCommand("echo hi"));
     assertTrue(violation.getMessage().contains("白名单为空"));
   }
 

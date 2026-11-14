@@ -28,6 +28,15 @@
         <!-- 格式门禁：google-java-format 1.27.0 起支持 JDK 21 -->
         <spotless.version>2.44.5</spotless.version>
         <google-java-format.version>1.27.0</google-java-format.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <!-- p3c-pmd 2.1.1 编译于 PMD 6 API，故插件与 PMD 都锁 6.x 线 -->
+        <maven-pmd-plugin.version>3.21.2</maven-pmd-plugin.version>
+        <p3c-pmd.version>2.1.1</p3c-pmd.version>
+        <pmd.version>6.55.0</pmd.version>
+        <!-- PMD 6.55 自带的 ASM 只认到 Java 20 字节码（major 64），读 JDK21 编译产物会整体解析失败，覆盖到 9.7.1 -->
+        <asm.version>9.7.1</asm.version>
+        <!-- 默认阻断；本地排查存量违规时可用 -Dpmd.failOnViolation=false 先收集全量清单 -->
+        <pmd.failOnViolation>true</pmd.failOnViolation>
     </properties>
 
     <modules>
@@ -88,6 +97,80 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                规约兜底（SKILL 第 7 步）：google_checks.xml 与 google-java-format 同源，
+                格式由 gjf 先产出，Checkstyle 只补它没覆盖的检查（Javadoc、命名、圈复杂度）。
+                violationSeverity=warning：warning 级违规同样阻构建。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <configuration>
+                    <configLocation>google_checks.xml</configLocation>
+                    <suppressionsLocation>${maven.multiModuleProjectDirectory}/config/checkstyle/suppressions.xml</suppressionsLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failOnViolation>true</failOnViolation>
+                    <violationSeverity>warning</violationSeverity>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>checkstyle-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                编码规约（SKILL 第 7 步）：阿里 P3C 挂在 PMD 上。
+                p3c-pmd 2.1.1 只能跑在 PMD 6 API 上，所以 maven-pmd-plugin 选 3.21.2
+                （最后一个默认 PMD 6 的版本），并显式锁定 pmd-java 6.55.0。
+                ruleset 用仓库内定制版：包含全部 10 组 ali 规则，仅排除 3 条与项目基线
+                冲突的规则，理由集中写在 config/pmd/p3c-ruleset.xml 顶部。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <configuration>
+                    <targetJdk>20</targetJdk>
+                    <rulesets>
+                        <ruleset>${maven.multiModuleProjectDirectory}/config/pmd/p3c-ruleset.xml</ruleset>
+                    </rulesets>
+                    <includeTests>true</includeTests>
+                    <printFailingErrors>true</printFailingErrors>
+                    <failOnViolation>${pmd.failOnViolation}</failOnViolation>
+                    <linkXRef>false</linkXRef>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.alibaba.p3c</groupId>
+                        <artifactId>p3c-pmd</artifactId>
+                        <version>${p3c-pmd.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-java</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                    <!-- PMD 6.55 依赖的 ASM 9.4 无法读取 Java 21 字节码（major 65），不覆盖则全部文件解析失败、门禁形同虚设 -->
+                    <dependency>
+                        <groupId>org.ow2.asm</groupId>
+                        <artifactId>asm</artifactId>
+                        <version>${asm.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>pmd-check</id>
                         <goals>
                             <goal>check</goal>
                         </goals>

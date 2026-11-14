@@ -45,7 +45,7 @@ public final class ReActLoop {
   /**
    * 跑完一次完整对话轮次，返回给用户的最终文本。
    *
-   * @throws io.lytgos.core.LytgosException.SandboxViolation 工具被沙箱拒绝时向外抛，
+   * @throws io.lytgos.core.LytgosException.SandboxViolationException 工具被沙箱拒绝时向外抛，
    *     但历史里已补上对应的失败结果，下一轮对话不会因历史残缺而失败
    */
   public String run(Session session, String userInput) {

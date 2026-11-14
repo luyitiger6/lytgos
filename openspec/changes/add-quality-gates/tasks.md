@@ -2,18 +2,18 @@
 
 ## 1. 格式门禁与全量重排
 
-- [ ] 1.1 根目录新增 `.editorconfig`（Java 2 空格缩进、UTF-8、LF、文件末尾换行），验证：`mvn spotless:check` 对缩进不一致的文件报错且与 .editorconfig 口径一致
-- [ ] 1.2 父 pom 配置 `spotless-maven-plugin`（google-java-format GOOGLE、removeUnusedImports、importOrder、lineEndings=GIT_ATTRIBUTES），锁定 google-java-format 版本（≥1.17），验证：对现有未格式化代码执行 `mvn -q spotless:check` 失败并列出文件（预期红）
-- [ ] 1.3 执行 `mvn spotless:apply` 全量重排，验证：`mvn -q spotless:check` 通过
-- [ ] 1.4 行为未变验证：`mvn -B test` 退出码 0，surefire 用例总数与格式化前一致（16 个测试类）
-- [ ] 1.5 以单独的「纯格式」提交落库，并新建 `.git-blame-ignore-revs` 记录该提交哈希，验证：`git show --stat` 该提交只含空白/换行改动，`git config blame.ignoreRevsFile` 生效后 blame 跳过该提交
+- [x] 1.1 根目录新增 `.editorconfig`（Java 2 空格缩进、UTF-8、LF、文件末尾换行），验证：`mvn spotless:check` 对缩进不一致的文件报错且与 .editorconfig 口径一致
+- [x] 1.2 父 pom 配置 `spotless-maven-plugin`（google-java-format GOOGLE、removeUnusedImports、importOrder、lineEndings=GIT_ATTRIBUTES），锁定 google-java-format 版本（≥1.17），验证：对现有未格式化代码执行 `mvn -q spotless:check` 失败并列出文件（预期红）
+- [x] 1.3 执行 `mvn spotless:apply` 全量重排，验证：`mvn -q spotless:check` 通过
+- [x] 1.4 行为未变验证：`mvn -B test` 退出码 0，surefire 用例总数与格式化前一致（16 个测试类）
+- [x] 1.5 以单独的「纯格式」提交落库，并新建 `.git-blame-ignore-revs` 记录该提交哈希，验证：`git show --stat` 该提交只含空白/换行改动，`git config blame.ignoreRevsFile` 生效后 blame 跳过该提交
 
 ## 2. 编码规约门禁（Checkstyle + P3C）
 
-- [ ] 2.1 父 pom 配置 `maven-checkstyle-plugin`（内置 `google_checks.xml`、`failOnViolation=true`、控制台输出违规明细），验证：`mvn -B verify` 在 checkstyle 阶段执行；临时新增一行超长行号即失败，删除后恢复绿
-- [ ] 2.2 父 pom 配置 `maven-pmd-plugin`，显式依赖 `p3c-pmd:2.1.1` 与 `pmd-java:6.55.0`，引用 `ali-pmd` / `ali-concurrent` / `ali-exception` 三个 ruleset，验证：`mvn -B verify` 在 PMD 阶段执行并输出 P3C 规则报告
-- [ ] 2.3 按 Q1 默认倾向处理首次运行的全部存量违规（修代码优先；误报用行内注解豁免并在提交说明写明理由），验证：`mvn -B verify` 退出码 0，违规清单与处理方式写入提交说明
-- [ ] 2.4 提交本组改动，验证：提交后 `mvn -B test` 仍全绿（确认规约修复未改变行为）
+- [x] 2.1 父 pom 配置 `maven-checkstyle-plugin`（内置 `google_checks.xml`、`failOnViolation=true`、控制台输出违规明细），验证：`mvn -B verify` 在 checkstyle 阶段执行；临时新增一行超长行号即失败，删除后恢复绿
+- [x] 2.2 父 pom 配置 `maven-pmd-plugin`，显式依赖 `p3c-pmd:2.1.1` 与 `pmd-java:6.55.0`，引用 `ali-pmd` / `ali-concurrent` / `ali-exception` 三个 ruleset，验证：`mvn -B verify` 在 PMD 阶段执行并输出 P3C 规则报告（实现偏差：jar 内无 `ali-pmd.xml`，实际由 `config/pmd/p3c-ruleset.xml` 聚合 10 组规则；另需覆盖 `asm:9.7.1`，否则 JDK21 字节码全部解析失败，见 design D4）
+- [x] 2.3 按 Q1 默认倾向处理首次运行的全部存量违规（修代码优先；误报用行内注解豁免并在提交说明写明理由），验证：`mvn -B verify` 退出码 0，违规清单与处理方式写入提交说明（实际：74 条 → 58 条规则级排除、11 条修代码、5 个异常类改名、1 条行内豁免，见 design D8）
+- [x] 2.4 提交本组改动，验证：提交后 `mvn -B test` 仍全绿（确认规约修复未改变行为）
 
 ## 3. 静态缺陷与安全扫描
 

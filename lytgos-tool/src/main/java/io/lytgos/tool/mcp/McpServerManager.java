@@ -104,7 +104,7 @@ public final class McpServerManager implements AutoCloseable {
       Profile.McpServer declaration, SandboxChecker sandbox, ObjectMapper mapper) {
     String name = declaration.name();
     if (name == null || name.isBlank()) {
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "Agent 定义的 mcp_servers 里有一项缺少 name，无法区分是哪个 server");
     }
 
@@ -118,7 +118,7 @@ public final class McpServerManager implements AutoCloseable {
       remoteTools = listAllTools(client);
     } catch (RuntimeException e) {
       closeQuietly(client, name);
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "MCP server " + name + " 获取工具清单失败: " + e.getMessage());
     }
 
@@ -166,7 +166,7 @@ public final class McpServerManager implements AutoCloseable {
     try {
       sandbox.checkDomain(url);
     } catch (LytgosException e) {
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "MCP server " + name + " 的连接地址未通过沙箱校验（sandbox）: " + e.getMessage());
     }
 
@@ -187,7 +187,7 @@ public final class McpServerManager implements AutoCloseable {
       return client;
     } catch (RuntimeException e) {
       closeQuietly(client, name);
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "MCP server " + name + " 远程连接失败（url=" + redact(url) + "）: " + describe(e, url));
     }
   }
@@ -268,7 +268,7 @@ public final class McpServerManager implements AutoCloseable {
       return client;
     } catch (RuntimeException e) {
       closeQuietly(client, name);
-      throw new LytgosException.InvalidConfiguration(
+      throw new LytgosException.InvalidConfigurationException(
           "MCP server " + name + " 启动失败（command=" + command + "）: " + e.getMessage());
     }
   }
@@ -314,6 +314,13 @@ public final class McpServerManager implements AutoCloseable {
     }
   }
 
+  /**
+   * 注册 JVM shutdown hook，保证进程退出时回收 MCP 子进程。
+   *
+   * <p>shutdown hook 必须是注册给 JVM 的独立 Thread，线程池不适用于此场景， P3C 的 AvoidManuallyCreateThreadRule
+   * 在此属误报，故行内豁免。
+   */
+  @SuppressWarnings("PMD.AvoidManuallyCreateThreadRule")
   private void installShutdownHook() {
     Thread hook = new Thread(this::close, "lytgos-mcp-shutdown");
     try {

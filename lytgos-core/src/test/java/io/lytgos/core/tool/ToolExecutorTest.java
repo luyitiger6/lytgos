@@ -51,7 +51,8 @@ class ToolExecutorTest {
         executorWith(
             probe(
                 a -> {
-                  throw new LytgosException.InvalidToolArgument("URL 格式非法（query 里的 % 要写成 %25）");
+                  throw new LytgosException.InvalidToolArgumentException(
+                      "URL 格式非法（query 里的 % 要写成 %25）");
                 }));
 
     String output = assertDoesNotThrow(() -> executor.execute(call("{\"url\":\"x\"}")));
@@ -66,11 +67,12 @@ class ToolExecutorTest {
         executorWith(
             probe(
                 a -> {
-                  throw new LytgosException.SandboxViolation("域名 evil.example.com 不在白名单内");
+                  throw new LytgosException.SandboxViolationException("域名 evil.example.com 不在白名单内");
                 }));
 
-    LytgosException.SandboxViolation violation =
-        assertThrows(LytgosException.SandboxViolation.class, () -> executor.execute(call("{}")));
+    LytgosException.SandboxViolationException violation =
+        assertThrows(
+            LytgosException.SandboxViolationException.class, () -> executor.execute(call("{}")));
     assertTrue(
         violation.getMessage().contains("sandbox"),
         "验收脚本靠 sandbox 字面量判定拦截生效: " + violation.getMessage());
@@ -113,7 +115,7 @@ class ToolExecutorTest {
     ToolExecutor executor = executorWith(probe(a -> "ok"));
 
     assertThrows(
-        LytgosException.InvalidConfiguration.class,
+        LytgosException.InvalidConfigurationException.class,
         () -> executor.execute(new ToolCall("call_2", "no_such_tool", "{}")));
   }
 }
