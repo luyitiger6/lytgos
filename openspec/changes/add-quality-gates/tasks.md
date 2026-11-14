@@ -39,9 +39,11 @@
 
 ## 6. 本地提交前校验
 
-- [ ] 6.1 新增 `scripts/hooks/pre-commit`（sh 薄脚本，只执行 `mvn -q spotless:check`，失败时提示 `mvn spotless:apply`）与 `scripts/install-hooks.ps1`（复制到 `.git/hooks/` 并说明如何卸载），按 Q3 默认倾向不跑编译，验证：安装后提交未格式化文件被拒绝，且工作区文件字节未变
-- [ ] 6.2 验证放行路径：格式化后同一提交正常完成；记录 hook 单次耗时（目标 10 秒内）
-- [ ] 6.3 提交本组改动
+- [x] 6.1 新增 `scripts/hooks/pre-commit`（sh 薄脚本，只执行 `mvn -q spotless:check`，失败时提示 `mvn spotless:apply`）与 `scripts/install-hooks.ps1`（复制到 `.git/hooks/` 并说明如何卸载），按 Q3 默认倾向不跑编译，验证：安装后提交未格式化文件被拒绝，且工作区文件字节未变
+  - 实测（2026-11-15）：故意不合格式的 `FormatProbe.java` 提交被 hook 拒绝（EXIT=1）；提交前后文件 SHA256 一致（spotless:check 只读）；提示改为中英双语，避免 PowerShell 控制台 GBK 乱码时不可读。
+- [x] 6.2 验证放行路径：格式化后同一提交正常完成；记录 hook 单次耗时（目标 10 秒内）
+  - 实测：`mvn -q -pl lytgos-core spotless:apply` 后同一文件提交成功（EXIT=0），hook 单次耗时 6.1 s（目标 10 s 内）；验证后已用 `git reset --soft` 撤销探针提交并删除临时文件。
+- [x] 6.3 提交本组改动
 
 ## 7. 集成验收与文档
 
