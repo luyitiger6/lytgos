@@ -40,23 +40,14 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Require NVD API key
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: |
-          if [ -z "$NVD_API_KEY" ]; then
-            echo "::error::缺少 NVD_API_KEY secret。无 key 时 NVD 限速会导致扫描超时或被 429 拒绝，"
-            echo "::error::请在仓库 Settings → Secrets and variables → Actions 配置后重跑。"
-            exit 1
-          fi
+      # NVD 数据走 NIST 官方 JSON feeds 2.0（生产端在 pom 的 nvdDatafeedUrl），无需 API key；
+      # 只缓存 dataDirectory，年度包不变时按 meta 做增量更新。
       - name: Restore NVD data
         uses: actions/cache@v4
         with:
           path: ~/.m2/dependency-check-data
-          key: nvd-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+          key: nvd-feeds-${{ runner.os }}-${{ hashFiles('pom.xml') }}
           restore-keys: |
-            nvd-${{ runner.os }}-
+            nvd-feeds-${{ runner.os }}-
       - name: mvn verify -Psecurity
         run: mvn -B verify -Psecurity
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}

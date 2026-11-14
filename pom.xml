@@ -24,6 +24,12 @@
         <spring-ai.version>2.0.2</spring-ai.version>
         <!-- 与 spring-ai-mcp:2.0.2 内部依赖的版本保持一致，便于将来一起升级 -->
         <mcp-sdk.version>2.1.0</mcp-sdk.version>
+        <!--
+            Kotlin 运行时传递依赖（openai-java / okhttp-okio 带入）：2.3.21 命中 CVE-2026-53914
+            （CVSS 9.8，build cache 元数据不安全反序列化，修复于 2.4.20），覆盖 Spring Boot 父 pom 管理的版本。
+            kotlin-stdlib-common 自 Kotlin 2.0 起停发、没有 2.4.20，由 lytgos-provider 在 spring-ai-openai 上排除。
+        -->
+        <kotlin.version>2.4.20</kotlin.version>
         <archunit.version>1.4.1</archunit.version>
         <!-- 格式门禁：google-java-format 1.27.0 起支持 JDK 21 -->
         <spotless.version>2.44.5</spotless.version>
@@ -47,6 +53,11 @@
         <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
         <!-- NVD 数据目录属性化：CI 缓存它，避免每次重新下载 -->
         <dependency-check.dataDirectory>${user.home}/.m2/dependency-check-data</dependency-check.dataDirectory>
+        <!--
+            NVD 数据源走 NIST 官方 JSON feeds 2.0（1.1 feeds 已退役返回 403）：不需要 API key。
+            REST API 2.0 在本项目实测带有效 key 仍持续 503，分页到 10,000/425,753 条后无法继续。
+        -->
+        <dependency-check.nvdDatafeedUrl>https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz</dependency-check.nvdDatafeedUrl>
     </properties>
 
     <modules>
@@ -239,8 +250,8 @@
                         <version>${dependency-check-maven.version}</version>
                         <configuration>
                             <failBuildOnCVSS>7</failBuildOnCVSS>
-                            <!-- 从环境变量取 key（插件推荐用法），避免命令行 / 日志暴露 -->
-                            <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                            <!-- 官方 JSON feeds 2.0：无需 API key，首次下载年度包，之后按 meta 做增量更新 -->
+                            <nvdDatafeedUrl>${dependency-check.nvdDatafeedUrl}</nvdDatafeedUrl>
                             <dataDirectory>${dependency-check.dataDirectory}</dataDirectory>
                             <suppressionFiles>
                                 <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>

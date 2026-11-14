@@ -50,6 +50,14 @@
   - 12.2.2 无 key 时走 NVD API 2.0：官方全量 **425,749 条**，按 2000 条/页分页。默认 6 秒间隔在数分钟内即被 **HTTP 429** 限流打断；调到 15 秒间隔后实测约 2000 条/分钟，全量约 **3.5 小时**。
   - 结论：首次全量 NVD 下载**后置到 CI security job**（`NVD_API_KEY` secret + dataDirectory 缓存），不在本地跑完。无数据时插件以 `NoDataException` 直接 BUILD FAILURE，不会假绿。
   - **部分数据不假绿（2026-11-15 复测）**：缓存库已积累约 80 MB（30,000/425,751 条）时重跑 `-Psecurity`，插件仍先做 NVD 增量更新再扫描，未静默跳过：无 key 下持续出现 429 重试，4 分钟内推进 30,000 条，跑到终点需数小时，故主动终止。插件未关闭 `autoUpdate`、`failOnError` 保持默认 true，更新失败即 BUILD FAILURE；最终判定以带 key 的 CI security job 为准。
+- **NVD REST API 2.0 不可用，改走官方 JSON feeds（2026-11-15 决策）**：
+- `NVD_API_KEY` 配好（用户级环境变量 + 仓库 secret，均不入库）后重跑，本地与 CI（run 43630090728，含 `gh run rerun`）仍在同步到 10,000/425,753 条后持续 `503`，`nvdMaxRetryCount=50` 也越不过。单次带 key 请求返回 200、伪造 key 返回 404，可排除 key 问题；dependency-check issue #6758 记录同类 503 长期存在。
+- 改用 NIST 官方 feeds 2.0：`nvdDatafeedUrl=https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz`（1.1 feeds 已 403 退役）。`lytgos-core` 单模块实测 4:14 完成「下载年度包 + 解析 + 扫描」且 BUILD SUCCESS，全程无 503。
+- 结论：security profile 以 feeds 为准，移除 `nvdApiKeyEnvironmentVariable`；CI 不再要求 `NVD_API_KEY`，缓存路径 `~/.m2/dependency-check-data` 不变，缓存键改为 `nvd-feeds-*` 避免命中旧的 API 数据库缓存。
+- **首次真实扫描的处置（2026-11-15）**：全量扫描在 `lytgos-provider` 拦截 `kotlin-stdlib:2.3.21` 与 `kotlin-stdlib-common:1.9.10` 的 `CVE-2026-53914`（CVSS 9.8，build cache 元数据不安全反序列化，修复于 2.4.20），另有 `CVE-2020-29582` 挂在 stdlib-common 上。
+- 处置一：父 pom 用 `<kotlin.version>2.4.20</kotlin.version>` 覆盖 Spring Boot 管理的 Kotlin 版本（stdlib / jdk7 / jdk8 / reflect 同步 2.4.20；Kotlin stdlib 对 2.x 保持向后兼容）。
+- 处置二：`kotlin-stdlib-common` 自 Kotlin 2.0 起停发、不存在 2.4.20，且 1.9.10 的 jar 只含 `.kotlin_metadata`、零个 `.class`（JVM 运行期无代码），由 `lytgos-provider` 在 `spring-ai-openai` 上排除；运行所需实现类全部来自 kotlin-stdlib。
+- 不走豁免：两条都属「能升级就升级」，`dependency-check-suppressions.xml` 保持为空。
 
 ### D4 P3C 版本组合锁死 PMD 6
 
@@ -79,7 +87,7 @@
 
 - `verify.yml` 触发条件：`pull_request` 与 `push` 到 `main`。
 - job 1：JDK 21（temurin）+ Maven 缓存 + `mvn -B verify`。
-- job 2：同上环境 + `mvn -B verify -Psecurity` + NVD 缓存目录。
+- job 2：同上环境 + `mvn -B verify -Psecurity` + NVD 缓存目录（数据走官方 JSON feeds，不需要 secret，见 D3）。
 - 两 job 并行，互不阻塞；只有全部通过才得到绿色检查状态。
 - 依赖版本兼容底线：spotbugs-maven-plugin ≥ 4.8（JDK 21 支持）、google-java-format ≥ 1.17（JDK 21 支持）、dependency-check-maven 12.x。具体版本号以实施时官方最新稳定版为准，锁定后回填本节。
 - **已锁定（2026-11-15 回填）**：spotless 2.44.5 + google-java-format 1.27.0、maven-checkstyle-plugin 3.6.0、maven-pmd-plugin 3.21.2 + p3c-pmd 2.1.1 + pmd-java 6.55.0 + asm 9.7.1、spotbugs-maven-plugin 4.10.5.0 + findsecbugs 1.14.0、**dependency-check-maven 12.2.2**（13.0.0 无 NVD key 无法初始化，见 D3）。
@@ -109,7 +117,7 @@
 - [全量格式化让 `git blame` 失效] → 格式化单独提交 + `.git-blame-ignore-revs`；审阅该提交时只看 `--stat`。
 - [SpotBugs threshold Low 在 Spring 代理/反射代码上误报（如 EI_EXPOSE_REP）] →  实测存量 43 条已按 D9 处置完毕（修 29 条 + 豁免 14 条，含补扫出的 2 条匿名类），误报进 `spotbugs-exclude.xml` 并写明理由；不放宽 threshold。
 - [McpServerManager 的类级 CRLF 豁免会一并放行未来新增的未清洗日志] → 豁免注释已写明 review 要求；新增日志必须走 `LogSafe.sanitize`。
-- [dep-check 首次 NVD 下载依赖 NVD_API_KEY] → 实测：13.0.0 无 key 直接失败；12.2.2 默认 6 秒间隔被 429 限流，15 秒间隔全量约 3.5 小时。故首次下载放 CI（NVD_API_KEY secret + actions/cache 缓存 dataDirectory），本地不跑；无数据时插件 `NoDataException` BUILD FAILURE，不假绿；部分数据（80 MB）下同样先增量更新再扫描，未观察到静默跳过（见 D3 复测）。
+- [dep-check 依赖 NVD 同步的可用性] → 实测 REST API 2.0 带有效 key 仍在 10,000/425,753 条后持续 503（本地与 CI 一致，重试、复跑均无效）；改用 NIST 官方 JSON feeds 2.0（`nvdDatafeedUrl`，无需 key），单模块 4:14 完成，CI 缓存 dataDirectory 只做增量；更新失败 / 无数据仍 BUILD FAILURE，不假绿（见 D3 复测与决策）。
 - [Windows 与 Linux 换行/编码差异导致 spotless 不一致] → `.editorconfig` 统一 UTF-8 / LF；Spotless 设 `lineEndings=GIT_ATTRIBUTES`，与现有 `.gitattributes` 对齐。
 - [Checkstyle google_checks 与 google-java-format 规则重叠] → 由 gjf 先产出，Checkstyle 只做兜底，不另设冲突规则；若出现冲突以 gjf 为准并调整 Checkstyle 配置。
 

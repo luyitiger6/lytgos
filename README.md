@@ -170,11 +170,12 @@ mvn verify                # 格式 + 规约 + 静态缺陷 + 测试
 mvn verify -Psecurity     # 追加依赖漏洞扫描，需 NVD 数据（见下）
 ```
 
-**依赖漏洞扫描的前置条件：`NVD_API_KEY`**（NVD 官方免费申请）。
-NVD 全量数据约 42.6 万条记录：有 key 时几分钟拉完；无 key 走限速通道，实测约 2000 条/分钟，
-且默认间隔会被 429 限流，全量需要数小时。CI 通过仓库 secret 提供 key，
-并用 `actions/cache` 缓存 `~/.m2/dependency-check-data` 做增量更新。
-仓库未配置 key 时 security job 会直接报错退出，不会伪装成通过。
+**依赖漏洞扫描的数据源：NIST 官方 JSON feeds 2.0（不需要 API key）**。
+扫描按 `nvdDatafeedUrl` 拉取 `nvdcve-2.0-*.json.gz`：首次下载全部年度包约 4~5 分钟，
+之后靠 `~/.m2/dependency-check-data` 按 meta 做增量更新，CI 用 `actions/cache` 缓存该目录。
+不走 NVD REST API 2.0 的原因：2026-11-15 实测带有效 key 单次请求 200，
+但分页同步到 10,000/425,753 条后持续 503，重试与复跑都无法完成；官方 feeds 无此问题。
+仓库里的 `NVD_API_KEY` secret 已不再被任何步骤读取，仅作回退保留。
 
 **加豁免的规矩：**每条豁免必须写明「为什么修不了 / 补偿措施 / 复查日期」，
 按最小粒度落在对应文件里，不允许整类放行而不留原因：

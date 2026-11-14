@@ -25,8 +25,11 @@
 
 - [x] 4.1 父 pom 配置 `security` profile：`dependency-check-maven`、`failBuildOnCVSS=7`、`dependency-check-suppressions.xml` 骨架、data directory 属性化，验证：`mvn -B verify -Psecurity` 能启动扫描并记录首次 NVD 下载耗时
   - 实测（2026-11-15）：13.0.0 无 NVD key 直接报 Invalid API Key 失败，锁 12.2.2；12.2.2 默认 6 秒间隔数分钟内被 HTTP 429 限流，15 秒间隔约 2000 条/分钟、全量 425,749 条约 3.5 小时。扫描已能启动并进入 NVD 更新阶段（详见 design.md D3）。
-- [ ] 4.2 处理扫描结果（高危依赖升级；无法升级的 CVE 进 suppressions 并写明理由与复查日期），验证：`mvn -B verify -Psecurity` 退出码 0
-  - ⏸ **后置（2026-11-15）**：本机无 `NVD_API_KEY`，首次全量下载约 3.5 小时且默认间隔触发 429，无法在本地完成；处置位置改为首次 CI security job（`NVD_API_KEY` secret + dataDirectory 缓存），该 job 变绿后回填本项与 CVE 结论。门禁本身无数据时 `NoDataException` BUILD FAILURE，不会假绿。
+- [x] 4.2 处理扫描结果（高危依赖升级；无法升级的 CVE 进 suppressions 并写明理由与复查日期），验证：`mvn -B verify -Psecurity` 退出码 0
+  - 首次全量扫描拦截（2026-11-15）：`lytgos-provider` 报 `kotlin-stdlib:2.3.21` / `kotlin-stdlib-common:1.9.10` 的 `CVE-2026-53914`（CVSS 9.8，build cache 元数据不安全反序列化，修复于 2.4.20）与 `CVE-2020-29582`。
+  - 处置（不走豁免）：父 pom 覆盖 `kotlin.version=2.4.20`（stdlib / jdk7 / jdk8 / reflect 同步升级）；`kotlin-stdlib-common` 自 Kotlin 2.0 停发、1.9.10 的 jar 只有 `.kotlin_metadata` 零个 `.class`，由 `lytgos-provider` 在 `spring-ai-openai` 上排除。
+  - 复测：`mvn -B verify -Psecurity`（feeds 数据源 + 缓存 dataDirectory）13 模块 BUILD SUCCESS，4:10；provider 报告 `kotlin-stdlib-2.4.20.jar` 为 notvulnerable，报告内无上述两个 CVE。
+  - 数据源变更：NVD REST API 2.0 带有效 key 仍持续 503，security profile 改走 NIST 官方 JSON feeds 2.0（`nvdDatafeedUrl`），`NVD_API_KEY` 不再被读取（详见 design D3）。
 - [x] 4.3 验证默认构建不受影响：`mvn -B verify`（不带 profile）不执行 dependency-check，耗时与 3.3 提交时相当
   - 实测（2026-11-15）：BUILD SUCCESS，2:29 min；日志中 dependency-check 出现次数 0；12 个模块 `spotbugsXml` 全部 0 条（另修复了补扫出的 2 条匿名类，见 design D9 补扫修正）。
 - [x] 4.4 提交本组改动
@@ -53,12 +56,12 @@
 ## 7. 集成验收与文档
 
 - [x] 7.1 README 新增「工程质量门禁」小节：`mvn spotless:apply`、`mvn verify`、`mvn verify -Psecurity`、安装 hook、豁免流程与查阅位置，验证：文档中的每条命令在本仓库逐条执行通过
-  - 实测执行（2026-11-15）：`mvn spotless:apply` ✓、`mvn verify` ✓、`powershell -File scripts/install-hooks.ps1` ✓；`mvn verify -Psecurity` 因本机无 `NVD_API_KEY` 被 429 限流，该前置条件已在 README 写明，与 4.2 同一后置项。
+  - 实测执行（2026-11-15）：`mvn spotless:apply` ✓、`mvn verify` ✓、`powershell -File scripts/install-hooks.ps1` ✓；`mvn verify -Psecurity` 已随 4.2 处置复测通过（datafeed 数据源，无需 key），README 的前置条件段落同步改写。
 - [x] 7.2 验证 harness 判定口径未变：`powershell -File harness\checks\01-compile.ps1` 与 `02-test.ps1` 退出码均为 0，确认绑定在 verify 的插件不拖慢也不改变 compile/test 阶段
   - 实测（JDK 21）：01-compile EXIT=0（5.3 s，输出「编译通过」）；02-test EXIT=0（45 s，14 个报告文件共 79 个测试）；两个阶段日志中无 verify 绑定插件介入。
-- [ ] 7.3 集成验收：`mvn clean verify` 退出码 0；`mvn verify -Psecurity` 退出码 0；记录两者耗时写入提交说明
+- [x] 7.3 集成验收：`mvn clean verify` 退出码 0；`mvn verify -Psecurity` 退出码 0；记录两者耗时写入提交说明
   - 实测（2026-11-15）：`mvn -B clean verify`（JDK 21）BUILD SUCCESS，2:45 min；12 个模块 `spotbugsXml` 全 0，测试全绿。
-  - ⏸ `mvn verify -Psecurity` 本地无法完成：无 `NVD_API_KEY`，NVD 全量 425,751 条按限速需数小时；部分数据（约 80 MB）下仍先增量更新再扫描（30,000 条后持续 429 重试 4 分钟，主动终止），未观察到静默通过。该半项与 4.2 同一后置项，由首次 CI security job 完成并回填。
+  - 安全扫描半项已回填：`mvn -B verify -Psecurity` 13 模块 BUILD SUCCESS，4:10（此前 ⏸ 的 NVD 限速 / 503 阻塞已由 feeds 数据源 + Kotlin CVE 处置解除，见 4.2）。
   - 首轮 `harness\run-all.ps1` BLOCKED：07-week1-acceptance 的 init 失败，根因是 9a3c1a8 把 `Files.createDirectories(defaultAgent.getParent())` 误改成 `agents()`，少建 `agents/default/` 导致 `NoSuchFileException`；已修复并补回归测试 `WorkspaceTest`（先红后绿），`mvn -B verify` 2:35 BUILD SUCCESS。
   - 复跑 `harness\run-all.ps1`：00/01/02/03/04/06/09 PASS，05/07/08 NOT_READY（缺审计写入实现、`DEEPSEEK_API_KEY` / `AMAP_MCP_KEY`），RESULT NOT READY；完整验收需在具备两个 key 的环境复跑。
 - [x] 7.4 提交本组改动
