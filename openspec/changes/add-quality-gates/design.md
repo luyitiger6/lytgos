@@ -86,11 +86,21 @@
 - 改名 5 个嵌套异常类（`SandboxViolation` → `SandboxViolationException` 等），同步更新 26 个引用文件，符合 P3C `ExceptionClassShouldEndWithExceptionRule`。异常消息字面量（如 `sandbox 拒绝：`）保持不变——验收脚本依赖它。
 - 修 11 条真问题：`EqualsAvoidNullRule` 4 处、`ConstantFieldShouldBeUpperCaseRule` 4 处、`EnumConstantsMustHaveCommentRule` 1 处、`AvoidComplexConditionRule` 1 处；`AvoidManuallyCreateThreadRule` 1 处属误报，行内豁免。
 
+### D9 SpotBugs 存量报告按「修代码优先、框架误报进 exclude」处置
+
+2026-11-14 首次全量扫描（effort Max / threshold Low / includeTests=true）报 41 条：
+
+- 修代码 27 条：日志注入 12 条统一引入 `io.lytgos.core.util.LogSafe.sanitize`（模型输出、远端 MCP 工具名、会话文件异常都会进日志，审计日志不能被伪造行污染）；Unicode 大小写 3 条改用 `regionMatches(true, ...)` / `Locale.ROOT`；可能空指针 7 条（提取局部变量或换成非空来源）；返回内部集合 1 条改 `Set.copyOf`；未读字段、基础异常声明、匿名类可静态化、`getResource` 继承风险各 1 条。
+- 类 + 模式豁免 14 条（`spotbugs-exclude.xml` 逐条写理由与重审条件）：EI_EXPOSE_REP2 6 条（保存 Spring 容器共享单例）、THROWS_METHOD_THROWS_RUNTIMEEXCEPTION 5 条（catch 清理后原样 rethrow）、VA_FORMAT_STRING_USES_NEWLINE 2 条（text block 是文件内容模板，`%n` 会跟着平台变 CRLF）、NP_NULL 1 条（`Binder.bind` 契约非 null）。
+- 派生豁免 1 条类级：McpServerManager 的 7 个日志点已全部清洗，但 FindSecBugs 的 taint 分析不识别自定义 sanitizer，对该类加 `CRLF_INJECTION_LOGS` 豁免；代价是新日志若引入未清洗参数会被同一条豁免放行，review 必须人工确认（已写入 exclude 注释）。
+- 门禁有效性验证：临时植入一处未关闭 `FileInputStream`（`LeakProbe`）后 `spotbugs:check` 报 `OS_OPEN_STREAM` 等 3 条并 BUILD FAILURE；删除探针后 `BugInstance size is 0`、BUILD SUCCESS。
+
 ## Risks / Trade-offs
 
 - [P3C 首次运行报出大量存量违规] → 实测 74 条：58 条为规则与项目基线冲突（规则级排除并留痕），16 条为真问题（11 条修代码、5 条异常类改名，另 1 处 shutdown hook 行内豁免）；不允许静默改规则集。
 - [全量格式化让 `git blame` 失效] → 格式化单独提交 + `.git-blame-ignore-revs`；审阅该提交时只看 `--stat`。
-- [SpotBugs threshold Low 在 Spring 代理/反射代码上误报（如 EI_EXPOSE_REP）] → 进 `spotbugs-exclude.xml` 并写明理由；不放宽 threshold。
+- [SpotBugs threshold Low 在 Spring 代理/反射代码上误报（如 EI_EXPOSE_REP）] → 实测 41 条已按 D9 处置完毕（27 条修代码 + 14 条类级豁免），误报进 `spotbugs-exclude.xml` 并写明理由；不放宽 threshold。
+- [McpServerManager 的类级 CRLF 豁免会一并放行未来新增的未清洗日志] → 豁免注释已写明 review 要求；新增日志必须走 `LogSafe.sanitize`。
 - [dep-check 首次 NVD 下载失败或超时] → 只影响 security job，不阻塞 verify；CI 缓存 + 重试一次。
 - [Windows 与 Linux 换行/编码差异导致 spotless 不一致] → `.editorconfig` 统一 UTF-8 / LF；Spotless 设 `lineEndings=GIT_ATTRIBUTES`，与现有 `.gitattributes` 对齐。
 - [Checkstyle google_checks 与 google-java-format 规则重叠] → 由 gjf 先产出，Checkstyle 只做兜底，不另设冲突规则；若出现冲突以 gjf 为准并调整 Checkstyle 配置。

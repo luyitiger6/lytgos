@@ -131,7 +131,7 @@ public final class Workspace {
 
       Path defaultAgent = agents().resolve(DEFAULT_AGENT_FILE);
       if (!Files.exists(defaultAgent)) {
-        Files.createDirectories(defaultAgent.getParent());
+        Files.createDirectories(agents());
         Files.writeString(defaultAgent, DEFAULT_AGENT, StandardCharsets.UTF_8);
         created++;
       }

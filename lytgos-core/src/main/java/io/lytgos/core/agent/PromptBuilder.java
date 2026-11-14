@@ -3,6 +3,7 @@ package io.lytgos.core.agent;
 import io.lytgos.core.LytgosException;
 import io.lytgos.core.chat.Message;
 import io.lytgos.core.session.Session;
+import io.lytgos.core.util.LogSafe;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -58,7 +59,7 @@ public final class PromptBuilder {
           prompt.append("## ").append(fileName).append("\n\n").append(content).append("\n\n");
         }
       } catch (IOException e) {
-        LOG.warn("Bootstrap 文件读取失败，跳过: {}", file);
+        LOG.warn("Bootstrap 文件读取失败，跳过: {}", LogSafe.sanitize(file));
       }
     }
 

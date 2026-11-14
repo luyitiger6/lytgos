@@ -3,6 +3,7 @@ package io.lytgos.tool.mcp;
 import java.io.BufferedReader;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -42,7 +43,7 @@ public final class FakeMcpServer {
   /**
    * @param args 传 {@code --fail-on-call} 时，任何 tools/call 都返回错误结果
    */
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) throws IOException {
     boolean failOnCall = false;
     for (String arg : args) {
       if ("--fail-on-call".equals(arg)) {

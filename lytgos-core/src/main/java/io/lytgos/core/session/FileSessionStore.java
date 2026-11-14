@@ -3,6 +3,7 @@ package io.lytgos.core.session;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lytgos.core.LytgosException;
 import io.lytgos.core.chat.Message;
+import io.lytgos.core.util.LogSafe;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -85,7 +86,10 @@ public final class FileSessionStore implements SessionStore {
       } catch (IOException ignored) {
         // 改不了名就保留原文件，异常信息里已带路径，人工可查
       }
-      LOG.warn("会话文件损坏，已备份为 {}: {}", broken.getFileName(), e.getMessage());
+      LOG.warn(
+          "会话文件损坏，已备份为 {}: {}",
+          LogSafe.sanitize(broken.getFileName()),
+          LogSafe.sanitize(e.getMessage()));
     }
     return session;
   }

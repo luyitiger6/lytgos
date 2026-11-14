@@ -37,6 +37,11 @@
         <asm.version>9.7.1</asm.version>
         <!-- 默认阻断；本地排查存量违规时可用 -Dpmd.failOnViolation=false 先收集全量清单 -->
         <pmd.failOnViolation>true</pmd.failOnViolation>
+        <!-- 静态缺陷与安全扫描：SpotBugs + FindSecBugs -->
+        <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
+        <findsecbugs.version>1.14.0</findsecbugs.version>
+        <!-- 默认阻断；本地排查存量问题时可用 -Dspotbugs.failOnError=false 先收集全量报告 -->
+        <spotbugs.failOnError>true</spotbugs.failOnError>
     </properties>
 
     <modules>
@@ -171,6 +176,38 @@
                 <executions>
                     <execution>
                         <id>pmd-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                静态缺陷与安全扫描（SKILL 第 8 步）：SpotBugs 找缺陷模式，FindSecBugs 补安全规则。
+                effort=Max + threshold=Low 是「先全看见再决定豁免」的口径：漏报比误报贵得多，
+                误报进 spotbugs-exclude.xml 并写明理由，不放宽阈值。
+            -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>${spotbugs-maven-plugin.version}</version>
+                <configuration>
+                    <effort>Max</effort>
+                    <threshold>Low</threshold>
+                    <includeTests>true</includeTests>
+                    <plugins>
+                        <plugin>
+                            <groupId>com.h3xstream.findsecbugs</groupId>
+                            <artifactId>findsecbugs-plugin</artifactId>
+                            <version>${findsecbugs.version}</version>
+                        </plugin>
+                    </plugins>
+                    <excludeFilterFile>${maven.multiModuleProjectDirectory}/spotbugs-exclude.xml</excludeFilterFile>
+                    <failOnError>${spotbugs.failOnError}</failOnError>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotbugs-check</id>
                         <goals>
                             <goal>check</goal>
                         </goals>

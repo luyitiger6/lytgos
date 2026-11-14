@@ -5,6 +5,7 @@ import io.lytgos.core.LytgosException;
 import io.lytgos.core.agent.Profile;
 import io.lytgos.core.tool.SandboxChecker;
 import io.lytgos.core.tool.Tool;
+import io.lytgos.core.util.LogSafe;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -93,9 +94,12 @@ public final class McpServerManager implements AutoCloseable {
     for (Running server : servers) {
       try {
         server.client().close();
-        LOG.info("MCP server 已关闭: {}", server.name());
+        LOG.info("MCP server 已关闭: {}", LogSafe.sanitize(server.name()));
       } catch (RuntimeException e) {
-        LOG.warn("关闭 MCP server {} 时出错，继续关闭其余: {}", server.name(), e.getMessage());
+        LOG.warn(
+            "关闭 MCP server {} 时出错，继续关闭其余: {}",
+            LogSafe.sanitize(server.name()),
+            LogSafe.sanitize(e.getMessage()));
       }
     }
   }
@@ -131,24 +135,25 @@ public final class McpServerManager implements AutoCloseable {
       // url 里通常带 key，日志只能打脱敏后的地址
       LOG.info(
           "MCP server 已就绪: {} url={} 工具 {} 个: {}",
-          name,
-          redact(declaration.url()),
+          LogSafe.sanitize(name),
+          LogSafe.sanitize(redact(declaration.url())),
           wrapped.size(),
-          remoteTools.stream().map(McpSchema.Tool::name).toList());
+          LogSafe.sanitize(remoteTools.stream().map(McpSchema.Tool::name).toList()));
       // 治理边界说明，不是普通调试日志：远程形态由 lytgos 自己发 HTTP，域名白名单对它生效
-      LOG.info("MCP server {} 通过远程 URL 连接，地址已通过域名白名单校验；" + "它访问下游服务的行为由对端负责", name);
+      LOG.info(
+          "MCP server {} 通过远程 URL 连接，地址已通过域名白名单校验；" + "它访问下游服务的行为由对端负责", LogSafe.sanitize(name));
     } else {
       LOG.info(
           "MCP server 已就绪: {} command={} 工具 {} 个: {}",
-          name,
-          declaration.command(),
+          LogSafe.sanitize(name),
+          LogSafe.sanitize(declaration.command()),
           wrapped.size(),
-          remoteTools.stream().map(McpSchema.Tool::name).toList());
+          LogSafe.sanitize(remoteTools.stream().map(McpSchema.Tool::name).toList()));
       // 用户必须知道这个子进程的网络访问不在域名白名单的管辖范围内
       LOG.info(
           "MCP server {} 的网络访问发生在独立子进程内，域名白名单不覆盖该 server；" + "沙箱对它的约束只有启动命令 {}",
-          name,
-          declaration.command());
+          LogSafe.sanitize(name),
+          LogSafe.sanitize(declaration.command()));
     }
 
     return new Running(name, client, List.copyOf(wrapped));
@@ -310,7 +315,10 @@ public final class McpServerManager implements AutoCloseable {
     try {
       client.close();
     } catch (RuntimeException e) {
-      LOG.warn("回收 MCP server {} 的半启动进程时出错: {}", serverName, e.getMessage());
+      LOG.warn(
+          "回收 MCP server {} 的半启动进程时出错: {}",
+          LogSafe.sanitize(serverName),
+          LogSafe.sanitize(e.getMessage()));
     }
   }
 

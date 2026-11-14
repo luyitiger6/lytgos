@@ -36,11 +36,7 @@ import picocli.CommandLine.Parameters;
     })
 public final class ProfileCommand implements Runnable {
 
-  private final LazyContext context;
-
-  public ProfileCommand(LazyContext context) {
-    this.context = context;
-  }
+  public ProfileCommand(LazyContext ignored) {}
 
   @Override
   public void run() {
@@ -198,6 +194,9 @@ public final class ProfileCommand implements Runnable {
   @Command(name = "delete", description = "删除一个 Agent（需二次确认）")
   static final class Delete implements Runnable {
 
+    /** 确认词，大小写不敏感匹配。 */
+    private static final String YES = "yes";
+
     private final LazyContext context;
 
     Delete(LazyContext context) {
@@ -249,7 +248,12 @@ public final class ProfileCommand implements Runnable {
         BufferedReader reader =
             new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         String line = reader.readLine();
-        return line != null && "yes".equalsIgnoreCase(line.strip());
+        if (line == null) {
+          return false;
+        }
+        String answer = line.strip();
+        return answer.length() == YES.length()
+            && YES.regionMatches(true, 0, answer, 0, YES.length());
       } catch (IOException e) {
         throw new ParameterException(new CommandLine(this), "读取确认失败: " + e.getMessage());
       }

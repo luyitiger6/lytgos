@@ -45,7 +45,7 @@ class FileToolTest {
   @Test
   @DisplayName("工作区外的绝对路径被拒")
   void rejectsAbsolutePathOutside() {
-    Path outside = root.getParent().resolve("outside.txt");
+    Path outside = root.resolveSibling("outside.txt");
     assertThrows(
         LytgosException.SandboxViolationException.class,
         () -> tool().execute(Map.of("path", outside.toString())));

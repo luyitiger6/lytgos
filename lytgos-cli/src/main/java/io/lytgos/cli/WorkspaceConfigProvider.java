@@ -72,7 +72,7 @@ final class WorkspaceConfigProvider {
     try {
       sources =
           new YamlPropertySourceLoader()
-              .load(configFile.getFileName().toString(), new FileSystemResource(configFile));
+              .load(configFile.toString(), new FileSystemResource(configFile));
     } catch (IOException | YAMLException e) {
       // Spring Boot 4 的 YamlPropertySourceLoader 对语法错误的处理是让 SnakeYAML 的
       // RuntimeException 直接冒出，不包成 IOException；这里统一收敛成配置错误。

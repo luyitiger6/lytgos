@@ -17,9 +17,9 @@
 
 ## 3. 静态缺陷与安全扫描
 
-- [ ] 3.1 父 pom 配置 `spotbugs-maven-plugin`（effort Max、threshold Low、`findsecbugs-plugin`）+ 根目录 `spotbugs-exclude.xml` 骨架（含豁免书写规范的注释），验证：`mvn -B verify` 在 spotbugs 阶段执行；临时引入一处未关闭资源即失败，恢复后变绿
-- [ ] 3.2 按 Q2 默认倾向处理存量报告（含 `lytgos-test` 模块；修代码优先，误报进 exclude 并带理由），验证：`mvn -B verify` 退出码 0 且报告无未豁免缺陷
-- [ ] 3.3 提交本组改动，验证：提交后 `mvn -B test` 仍全绿
+- [x] 3.1 父 pom 配置 `spotbugs-maven-plugin`（effort Max、threshold Low、`findsecbugs-plugin`）+ 根目录 `spotbugs-exclude.xml` 骨架（含豁免书写规范的注释），验证：`mvn -B verify` 在 spotbugs 阶段执行；临时引入一处未关闭资源即失败，恢复后变绿（实测：插件 4.10.5.0 + findsecbugs 1.14.0；临时 `LeakProbe` 报 `OS_OPEN_STREAM` 等 3 条且 BUILD FAILURE，删除后 `BugInstance size is 0`）
+- [x] 3.2 按 Q2 默认倾向处理存量报告（含 `lytgos-test` 模块；修代码优先，误报进 exclude 并带理由），验证：`mvn -B verify` 退出码 0 且报告无未豁免缺陷（实际：41 条 → 修 27、类+模式豁免 14，见 design D9；13 模块 spotbugsXml 均为 0）
+- [x] 3.3 提交本组改动，验证：提交后 `mvn -B test` 仍全绿
 
 ## 4. 依赖漏洞门禁
 

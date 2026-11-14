@@ -31,7 +31,7 @@ public class VersionProvider implements IVersionProvider {
 
   private String readVersion() {
     Properties properties = new Properties();
-    try (InputStream in = getClass().getResourceAsStream(POM_PROPERTIES)) {
+    try (InputStream in = VersionProvider.class.getResourceAsStream(POM_PROPERTIES)) {
       if (in == null) {
         return UNKNOWN;
       }

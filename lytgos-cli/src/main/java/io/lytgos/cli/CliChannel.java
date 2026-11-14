@@ -16,6 +16,9 @@ import java.nio.charset.StandardCharsets;
  */
 public final class CliChannel {
 
+  /** 退出命令词，大小写不敏感匹配。 */
+  private static final String EXIT = "exit";
+
   private final ReActLoop loop;
   private final SessionStore sessions;
   private final Session session;
@@ -50,7 +53,7 @@ public final class CliChannel {
       if (input.isEmpty()) {
         continue;
       }
-      if ("exit".equalsIgnoreCase(input)) {
+      if (isExit(input)) {
         break;
       }
 
@@ -64,5 +67,9 @@ public final class CliChannel {
         sessions.save(session);
       }
     }
+  }
+
+  private static boolean isExit(String input) {
+    return input.length() == EXIT.length() && EXIT.regionMatches(true, 0, input, 0, EXIT.length());
   }
 }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lytgos.core.LytgosException;
 import io.lytgos.core.chat.ToolCall;
+import io.lytgos.core.util.LogSafe;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,17 +56,18 @@ public final class ToolExecutor {
     try {
       arguments = parseArguments(call);
     } catch (JsonProcessingException e) {
-      LOG.warn("工具参数不是合法 JSON，回填给模型: {}", call.arguments());
+      LOG.warn("工具参数不是合法 JSON，回填给模型: {}", LogSafe.sanitize(call.arguments()));
       return "工具参数不是合法 JSON，请修正后重试。收到的原文: " + call.arguments();
     }
-    LOG.info("tool_call: {} args={}", call.name(), arguments);
+    LOG.info("tool_call: {} args={}", LogSafe.sanitize(call.name()), LogSafe.sanitize(arguments));
 
     try {
       return tool.execute(arguments);
     } catch (LytgosException.SandboxViolationException e) {
       throw e;
     } catch (RuntimeException e) {
-      LOG.warn("工具 {} 执行失败，回填给模型: {}", call.name(), e.getMessage());
+      LOG.warn(
+          "工具 {} 执行失败，回填给模型: {}", LogSafe.sanitize(call.name()), LogSafe.sanitize(e.getMessage()));
       return "工具执行失败: " + e.getMessage();
     }
   }

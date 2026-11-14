@@ -82,7 +82,7 @@ class FileSessionStoreTest {
     store.save(session);
 
     try (var files = Files.list(dir)) {
-      List<String> names = files.map(p -> p.getFileName().toString()).toList();
+      List<String> names = files.map(p -> p.toFile().getName()).toList();
       assertEquals(1, names.size(), "实际落盘文件: " + names);
       assertTrue(names.get(0).endsWith(".json"));
       assertTrue(names.get(0).indexOf(':') < 0, "文件名里不能出现冒号: " + names.get(0));

@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
  */
 public final class SandboxChecker {
 
+  /** 允许访问的 URL 协议。 */
+  private static final Set<String> ALLOWED_SCHEMES = Set.of("http", "https");
+
   private final Path workspaceRoot;
   private final Set<String> allowedCommands;
   private final Set<String> allowedDomains;
@@ -98,7 +101,7 @@ public final class SandboxChecker {
    * 告诉模型规则不等于放宽规则，真正的拦截仍然在 {@link #checkDomain(String)} 里。
    */
   public Set<String> allowedDomains() {
-    return allowedDomains;
+    return Set.copyOf(allowedDomains);
   }
 
   /** 校验 URL 的协议与域名，返回解析后的 URI。 */
@@ -117,7 +120,8 @@ public final class SandboxChecker {
           "URL 格式非法（query 里的 % 要写成 %25，空格写成 %20）: " + url);
     }
     String scheme = uri.getScheme();
-    boolean allowedScheme = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    boolean allowedScheme =
+        scheme != null && ALLOWED_SCHEMES.contains(scheme.toLowerCase(Locale.ROOT));
     if (!allowedScheme) {
       // 协议限制是策略约束，不是格式错：file:///etc/passwd 是拿别的协议读本地文件，
       // 归到“只允许 http/https”这条安全边界里。
@@ -152,7 +156,10 @@ public final class SandboxChecker {
     Path existing = absolute;
     Deque<Path> missingTail = new ArrayDeque<>();
     while (existing != null && !Files.exists(existing)) {
-      missingTail.addFirst(existing.getFileName());
+      Path name = existing.getFileName();
+      if (name != null) {
+        missingTail.addFirst(name);
+      }
       existing = existing.getParent();
     }
     if (existing == null) {

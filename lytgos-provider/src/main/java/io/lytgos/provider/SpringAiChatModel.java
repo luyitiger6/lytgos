@@ -44,13 +44,15 @@ public final class SpringAiChatModel implements ChatModel {
     Prompt prompt = new Prompt(toSpringMessages(request.messages()), options(request.tools()));
     ChatResponse response = delegate.call(prompt);
 
-    if (response == null
-        || response.getResult() == null
-        || response.getResult().getOutput() == null) {
+    if (response == null) {
+      throw new LytgosException("模型返回了空响应");
+    }
+    var result = response.getResult();
+    if (result == null || result.getOutput() == null) {
       throw new LytgosException("模型返回了空响应");
     }
 
-    AssistantMessage output = response.getResult().getOutput();
+    AssistantMessage output = result.getOutput();
     String content = output.getText();
     List<ToolCall> toolCalls =
         output.getToolCalls() == null

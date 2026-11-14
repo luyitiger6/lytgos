@@ -109,18 +109,7 @@ class McpServerManagerTest {
   @DisplayName("MCP 工具与内置工具重名时拒绝装配，消息含两侧来源")
   void rejectsDuplicateNameWithBuiltin() {
     try (McpServerManager manager = start(List.of(fakeServer("fake", List.of())), Set.of("java"))) {
-      Tool builtin =
-          new Tool() {
-            @Override
-            public ToolSpec spec() {
-              return new ToolSpec("get_current_weather", "内置的同名工具", "{\"type\":\"object\"}");
-            }
-
-            @Override
-            public String execute(Map<String, Object> arguments) {
-              return "内置";
-            }
-          };
+      Tool builtin = new SameNameBuiltinTool();
 
       List<Tool> all = new java.util.ArrayList<>();
       all.add(builtin);
@@ -278,5 +267,19 @@ class McpServerManagerTest {
       }
     }
     return false;
+  }
+
+  /** 与假 server 工具同名的内置替身，用来触发重名检测。 */
+  private static final class SameNameBuiltinTool implements Tool {
+
+    @Override
+    public ToolSpec spec() {
+      return new ToolSpec("get_current_weather", "内置的同名工具", "{\"type\":\"object\"}");
+    }
+
+    @Override
+    public String execute(Map<String, Object> arguments) {
+      return "内置";
+    }
   }
 }
