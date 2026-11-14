@@ -1,0 +1,6 @@
+# git blame 时跳过的提交清单（GitHub 也会自动识别本文件）。
+# 启用：git config blame.ignoreRevsFile .git-blame-ignore-revs
+# 下列提交只改了空白与 import 顺序，不含业务逻辑改动。
+
+# 接入 Google 格式门禁并全量重排 Java 源码
+791103b512694f9a922a3a2b1bc88e87b96ac6ef
