@@ -24,7 +24,7 @@ Agent 运行时内核：工作区初始化、Agent 定义加载、Provider 显�
 
 系统 SHALL 从 `.lytgos/agents/<name>/AGENT.md` 加载 Agent 定义。文件由 `---` 分隔的 YAML frontmatter 与正文组成，frontmatter 解析为 `Profile`，正文作为任务指令注入系统提示词。
 
-`provider.name` 与 `provider.model` 为必填项。缺失时系统 MUST 拒绝启动并指出缺失的字段。
+`provider.name` 与 `provider.model` 为必填项；`provider.temperature` 可选，取值 MUST 在 0.0 到 2.0 之间，缺省时不向上游传温度；`skills` 可选，每项 MUST 是技能目录名。字段缺失或取值非法时系统 MUST 拒绝启动并指出具体字段。
 
 #### Scenario: 加载合法定义
 
@@ -35,6 +35,16 @@ Agent 运行时内核：工作区初始化、Agent 定义加载、Provider 显�
 
 - **WHEN** `AGENT.md` 缺少 `provider.model`
 - **THEN** 抛出异常，消息包含字面量 `provider.model`，进程退出码非 0
+
+#### Scenario: 加载可选字段
+
+- **WHEN** frontmatter 声明 `provider.temperature: 0.3` 与 `skills: [weather]`
+- **THEN** `Profile` 携带温度 0.3 与技能列表 `[weather]`
+
+#### Scenario: 拒绝越界温度
+
+- **WHEN** frontmatter 声明 `provider.temperature: 2.5`
+- **THEN** 抛出异常，消息包含字面量 `temperature`，进程退出码非 0
 
 ### Requirement: Provider 显式映射
 
@@ -136,7 +146,7 @@ LLM 调用 MUST 只经由 `ChatModel.call()`，禁止使用 `ChatClient` 或 `To
 
 系统 SHALL 按 `channel + user + agent` 三元组维护会话上下文，同一三元组内的多轮对话 MUST 共享历史。
 
-会话 MUST 落盘到 `.lytgos/sessions/<key>.json`，进程重启后仍可恢复。`--message` 单条模式与交互模式 MUST 共用同一 Session。第 4 周换成 SQLite 时 `SessionStore` 接口不变。
+会话 MUST 持久化到工作区 SQLite 数据库的 `sessions` 表，进程重启后仍可恢复；`--message` 单条模式与交互模式 MUST 共用同一 Session。`SessionStore` 接口 MUST NOT 因存储实现变化而改变。
 
 #### Scenario: 同键共享历史
 
@@ -173,3 +183,31 @@ LLM 调用 MUST 只经由 `ChatModel.call()`，禁止使用 `ChatClient` 或 `To
 
 - **WHEN** 交互模式输入 `exit`
 - **THEN** 进程正常退出，退出码 0
+
+### Requirement: 系统提示词组装
+
+系统 MUST 在每次模型调用前重新组装系统提示词，顺序固定为：身份（`identity`）→ 任务指令（`AGENT.md` 正文）→ 技能 → Bootstrap 文件 → 长期记忆 → 当前日期。
+
+技能 MUST 逐个读取 `.lytgos/agents/<name>/skills/<skill>/SKILL.md`，取其 frontmatter 的 `name` 与 `description` 注入，并给出文件路径提示按需读取全文；声明了但文件缺失 MUST 报错。Bootstrap 文件缺失 MUST 记 WARN 后跳过，不阻断对话。当前日期 MUST 以 `yyyy-MM-dd` 注入到系统提示词末尾。
+
+所有输入文件 MUST 在每次组装时重新读取，MUST NOT 缓存启动时的快照——用户改了文件，下一条消息就要生效。
+
+#### Scenario: 修改 bootstrap 无需重启
+
+- **WHEN** 对话进程中修改 `.lytgos/AGENTS.md`，随后发送下一条消息
+- **THEN** 新消息的系统提示词包含修改后的内容
+
+#### Scenario: 注入技能摘要
+
+- **WHEN** `AGENT.md` 声明 `skills: [weather]` 且对应 `SKILL.md` 存在
+- **THEN** 系统提示词包含该技能的 `name` 与 `description`，并给出其文件路径
+
+#### Scenario: 技能文件缺失报错
+
+- **WHEN** `skills` 声明了 `weather` 但对应 `SKILL.md` 不存在
+- **THEN** 本轮组装抛出异常，消息包含技能名与期望路径
+
+#### Scenario: 注入当前日期
+
+- **WHEN** 任一消息被组装
+- **THEN** 系统提示词末尾包含当天的 `yyyy-MM-dd` 日期
