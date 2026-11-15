@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-16
+# 纯闸门内部语义修正：不改变任何对外行为，也不修改既有 spec 的需求
+skip_specs: true
