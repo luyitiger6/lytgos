@@ -26,6 +26,10 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+    # 根 pom 把 swagger-ui webjar 覆盖到 5.35.0（DOMPurify CVE 修复版），但 springdoc 3.2.0
+    # 的资源处理器硬编码指向 webjars/swagger-ui/5.34.0 目录（不按 classpath 探测），不声明
+    # 版本会让 /swagger-ui/** 全部 404。两处版本必须同步：升级 swagger-ui 时同时改根 pom 与这里。
+    version: 5.35.0
 
 logging:
   # Spring Boot 4 不会从依赖 jar 自动发现 logback-spring.xml，必须显式指路；
