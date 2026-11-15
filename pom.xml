@@ -58,9 +58,27 @@
         <findsecbugs.version>1.14.0</findsecbugs.version>
         <!-- 默认阻断；本地排查存量问题时可用 -Dspotbugs.failOnError=false 先收集全量报告 -->
         <spotbugs.failOnError>true</spotbugs.failOnError>
-        <!-- 依赖漏洞门禁：只在 security profile 里生效，默认构建不加载 -->
-        <!-- 实测 13.0.0 在无 NVD API key 的环境直接报 Invalid API Key 无法初始化，故锁 12.x -->
+        <!--
+            依赖漏洞门禁：默认跳过，由 security profile 启用（spec 要求独立 profile、默认构建不执行）。
+            NVD 数据首次下载以分钟计，日常逐模块 verify 不跑；CI 必跑 security profile。
+            实测 13.0.0 在无 NVD API key 的环境直接报 Invalid API Key 无法初始化，故锁 12.x。
+        -->
         <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
+        <dependency-check.skip>true</dependency-check.skip>
+        <!--
+            SQLite JDBC 驱动。只取驱动：审计与会话是固定 SQL，连接池由装配层（Spring）提供。
+        -->
+        <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
+        <!--
+            持久化选型是 MyBatis：storage 只引核心包（Mapper 接口 + XML），
+            SqlSessionFactory 与数据源由 Spring 容器创建，见 lytgos-cli 的 CoreBeans。
+        -->
+        <mybatis.version>3.5.19</mybatis.version>
+        <!--
+            mybatis-spring 4.1.0 面向 Spring Framework 7.0.x（与 Boot 4.1 同代），
+            低版本（3.x）编译于 Spring 6 API，不保证能在 Spring 7 下工作。
+        -->
+        <mybatis-spring.version>4.1.0</mybatis-spring.version>
         <!-- NVD 数据目录属性化：CI 缓存它，避免每次重新下载 -->
         <dependency-check.dataDirectory>${user.home}/.m2/dependency-check-data</dependency-check.dataDirectory>
         <!--
@@ -107,6 +125,18 @@
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
             </dependency>
+            <!-- MyBatis 核心包：storage 直接引，版本在根 pom 锁定 -->
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis</artifactId>
+                <version>${mybatis.version}</version>
+            </dependency>
+            <!-- MyBatis-Spring：SqlSessionFactoryBean / @MapperScan，存储交给 Spring 容器管理 -->
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis-spring</artifactId>
+                <version>${mybatis-spring.version}</version>
+            </dependency>
             <!-- prod profile 的 JSON 日志编码器（Boot 4 BOM 不管它，见 properties 注释） -->
             <dependency>
                 <groupId>net.logstash.logback</groupId>
@@ -116,180 +146,195 @@
         </dependencies>
     </dependencyManagement>
 
+    <!--
+        门禁插件只在这里定义一次（版本 + 配置 + execution 绑定），
+        每个模块的 pom 显式声明这五个插件，因此任一模块都能在自己的目录里
+        `mvn verify` 独立验收，而不是只有从根 reactor 跑才生效。
+        共享配置一律用 ${project.basedir}/..：在子模块里求值指向仓库根，
+        从根 reactor 构建时同样指向仓库根。
+    -->
     <build>
-        <plugins>
-            <!--
-                格式门禁（SKILL 第 7 步）：google-java-format 管「长什么样」。
-                check 默认绑定 verify，mvn package / test 不受影响（harness 01/02 依赖这一点）。
-                行尾统一交给 .gitattributes（* text=auto eol=lf），与仓库现有约定一致。
-            -->
-            <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-                <version>${spotless.version}</version>
-                <configuration>
-                    <lineEndings>GIT_ATTRIBUTES</lineEndings>
-                    <java>
-                        <googleJavaFormat>
-                            <version>${google-java-format.version}</version>
-                            <style>GOOGLE</style>
-                        </googleJavaFormat>
-                        <removeUnusedImports/>
-                        <importOrder/>
-                    </java>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--
-                规约兜底（SKILL 第 7 步）：google_checks.xml 与 google-java-format 同源，
-                格式由 gjf 先产出，Checkstyle 只补它没覆盖的检查（Javadoc、命名、圈复杂度）。
-                violationSeverity=warning：warning 级违规同样阻构建。
-            -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>${maven-checkstyle-plugin.version}</version>
-                <configuration>
-                    <configLocation>google_checks.xml</configLocation>
-                    <suppressionsLocation>${maven.multiModuleProjectDirectory}/config/checkstyle/suppressions.xml</suppressionsLocation>
-                    <consoleOutput>true</consoleOutput>
-                    <failOnViolation>true</failOnViolation>
-                    <violationSeverity>warning</violationSeverity>
-                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>checkstyle-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--
-                编码规约（SKILL 第 7 步）：阿里 P3C 挂在 PMD 上。
-                p3c-pmd 2.1.1 只能跑在 PMD 6 API 上，所以 maven-pmd-plugin 选 3.21.2
-                （最后一个默认 PMD 6 的版本），并显式锁定 pmd-java 6.55.0。
-                ruleset 用仓库内定制版：包含全部 10 组 ali 规则，仅排除 3 条与项目基线
-                冲突的规则，理由集中写在 config/pmd/p3c-ruleset.xml 顶部。
-            -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-pmd-plugin</artifactId>
-                <version>${maven-pmd-plugin.version}</version>
-                <configuration>
-                    <targetJdk>20</targetJdk>
-                    <rulesets>
-                        <ruleset>${maven.multiModuleProjectDirectory}/config/pmd/p3c-ruleset.xml</ruleset>
-                    </rulesets>
-                    <includeTests>true</includeTests>
-                    <printFailingErrors>true</printFailingErrors>
-                    <failOnViolation>${pmd.failOnViolation}</failOnViolation>
-                    <linkXRef>false</linkXRef>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>com.alibaba.p3c</groupId>
-                        <artifactId>p3c-pmd</artifactId>
-                        <version>${p3c-pmd.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>net.sourceforge.pmd</groupId>
-                        <artifactId>pmd-java</artifactId>
-                        <version>${pmd.version}</version>
-                    </dependency>
-                    <!-- PMD 6.55 依赖的 ASM 9.4 无法读取 Java 21 字节码（major 65），不覆盖则全部文件解析失败、门禁形同虚设 -->
-                    <dependency>
-                        <groupId>org.ow2.asm</groupId>
-                        <artifactId>asm</artifactId>
-                        <version>${asm.version}</version>
-                    </dependency>
-                </dependencies>
-                <executions>
-                    <execution>
-                        <id>pmd-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--
-                静态缺陷与安全扫描（SKILL 第 8 步）：SpotBugs 找缺陷模式，FindSecBugs 补安全规则。
-                effort=Max + threshold=Low 是「先全看见再决定豁免」的口径：漏报比误报贵得多，
-                误报进 spotbugs-exclude.xml 并写明理由，不放宽阈值。
-            -->
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>${spotbugs-maven-plugin.version}</version>
-                <configuration>
-                    <effort>Max</effort>
-                    <threshold>Low</threshold>
-                    <includeTests>true</includeTests>
-                    <plugins>
-                        <plugin>
-                            <groupId>com.h3xstream.findsecbugs</groupId>
-                            <artifactId>findsecbugs-plugin</artifactId>
-                            <version>${findsecbugs.version}</version>
-                        </plugin>
-                    </plugins>
-                    <excludeFilterFile>${maven.multiModuleProjectDirectory}/spotbugs-exclude.xml</excludeFilterFile>
-                    <failOnError>${spotbugs.failOnError}</failOnError>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>spotbugs-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
+        <pluginManagement>
+            <plugins>
+                <!--
+                    格式门禁（SKILL 第 7 步）：google-java-format 管「长什么样」。
+                    check 默认绑定 verify，mvn package / test 不受影响（harness 01/02 依赖这一点）。
+                    行尾统一交给 .gitattributes（* text=auto eol=lf），与仓库现有约定一致。
+                -->
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>${spotless.version}</version>
+                    <configuration>
+                        <lineEndings>GIT_ATTRIBUTES</lineEndings>
+                        <java>
+                            <googleJavaFormat>
+                                <version>${google-java-format.version}</version>
+                                <style>GOOGLE</style>
+                            </googleJavaFormat>
+                            <removeUnusedImports/>
+                            <importOrder/>
+                        </java>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!--
+                    规约兜底（SKILL 第 7 步）：google_checks.xml 与 google-java-format 同源，
+                    格式由 gjf 先产出，Checkstyle 只补它没覆盖的检查（Javadoc、命名、圈复杂度）。
+                    violationSeverity=warning：warning 级违规同样阻构建。
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${maven-checkstyle-plugin.version}</version>
+                    <configuration>
+                        <configLocation>google_checks.xml</configLocation>
+                        <suppressionsLocation>${project.basedir}/../config/checkstyle/suppressions.xml</suppressionsLocation>
+                        <consoleOutput>true</consoleOutput>
+                        <failOnViolation>true</failOnViolation>
+                        <violationSeverity>warning</violationSeverity>
+                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>checkstyle-check</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!--
+                    编码规约（SKILL 第 7 步）：阿里 P3C 挂在 PMD 上。
+                    p3c-pmd 2.1.1 只能跑在 PMD 6 API 上，所以 maven-pmd-plugin 选 3.21.2
+                    （最后一个默认 PMD 6 的版本），并显式锁定 pmd-java 6.55.0。
+                    ruleset 用仓库内定制版：包含全部 10 组 ali 规则，仅排除 3 条与项目基线
+                    冲突的规则，理由集中写在 config/pmd/p3c-ruleset.xml 顶部。
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-pmd-plugin</artifactId>
+                    <version>${maven-pmd-plugin.version}</version>
+                    <configuration>
+                        <targetJdk>20</targetJdk>
+                        <rulesets>
+                            <ruleset>${project.basedir}/../config/pmd/p3c-ruleset.xml</ruleset>
+                        </rulesets>
+                        <includeTests>true</includeTests>
+                        <printFailingErrors>true</printFailingErrors>
+                        <failOnViolation>${pmd.failOnViolation}</failOnViolation>
+                        <linkXRef>false</linkXRef>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.alibaba.p3c</groupId>
+                            <artifactId>p3c-pmd</artifactId>
+                            <version>${p3c-pmd.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>net.sourceforge.pmd</groupId>
+                            <artifactId>pmd-java</artifactId>
+                            <version>${pmd.version}</version>
+                        </dependency>
+                        <!-- PMD 6.55 依赖的 ASM 9.4 无法读取 Java 21 字节码（major 65），不覆盖则全部文件解析失败、门禁形同虚设 -->
+                        <dependency>
+                            <groupId>org.ow2.asm</groupId>
+                            <artifactId>asm</artifactId>
+                            <version>${asm.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <executions>
+                        <execution>
+                            <id>pmd-check</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!--
+                    静态缺陷与安全扫描（SKILL 第 8 步）：SpotBugs 找缺陷模式，FindSecBugs 补安全规则。
+                    effort=Max + threshold=Low 是「先全看见再决定豁免」的口径：漏报比误报贵得多，
+                    误报进 spotbugs-exclude.xml 并写明理由，不放宽阈值。
+                -->
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>${spotbugs-maven-plugin.version}</version>
+                    <configuration>
+                        <effort>Max</effort>
+                        <threshold>Low</threshold>
+                        <includeTests>true</includeTests>
+                        <plugins>
+                            <plugin>
+                                <groupId>com.h3xstream.findsecbugs</groupId>
+                                <artifactId>findsecbugs-plugin</artifactId>
+                                <version>${findsecbugs.version}</version>
+                            </plugin>
+                        </plugins>
+                        <excludeFilterFile>${project.basedir}/../spotbugs-exclude.xml</excludeFilterFile>
+                        <failOnError>${spotbugs.failOnError}</failOnError>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>spotbugs-check</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!--
+                    依赖漏洞门禁（SKILL 第 8 步）：OWASP Dependency-Check。
+                    默认 skip（NVD 数据下载耗时）；完整验收与 CI 用
+                    -Ddependency-check.skip=false 启用，failBuildOnCVSS=7 阻断。
+                    豁免按「CVE + 依赖坐标」写在 dependency-check-suppressions.xml，必须带理由与复查日期。
+                -->
+                <plugin>
+                    <groupId>org.owasp</groupId>
+                    <artifactId>dependency-check-maven</artifactId>
+                    <version>${dependency-check-maven.version}</version>
+                    <configuration>
+                        <skip>${dependency-check.skip}</skip>
+                        <failBuildOnCVSS>7</failBuildOnCVSS>
+                        <!-- 官方 JSON feeds 2.0：无需 API key，首次下载年度包，之后按 meta 做增量更新 -->
+                        <nvdDatafeedUrl>${dependency-check.nvdDatafeedUrl}</nvdDatafeedUrl>
+                        <dataDirectory>${dependency-check.dataDirectory}</dataDirectory>
+                        <suppressionFiles>
+                            <suppressionFile>${project.basedir}/../dependency-check-suppressions.xml</suppressionFile>
+                        </suppressionFiles>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>dependency-check</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
 
     <profiles>
         <profile>
-            <id>security</id>
             <!--
-                依赖漏洞门禁（SKILL 第 9 步）：OWASP Dependency-Check，默认不激活。
-                本地排查：mvn verify -Psecurity；CI 必跑。
-                NVD 数据缓存在 dataDirectory，首次下载耗时以分钟计，之后走增量更新。
-                豁免按「CVE + 依赖坐标」写在 dependency-check-suppressions.xml，必须带理由与复查日期。
+                依赖漏洞门禁（SKILL 第 8 步）的启用开关：本 profile 只翻转 dependency-check.skip，
+                插件本体在 pluginManagement 中定义、每个模块各自声明——不重复配置任何扫描参数。
+                engineering-baseline spec 要求：默认构建不执行，CI 每次合并请求必须执行本 profile；
+                CVSS 达到或超过 7 的依赖阻断构建，误报豁免写入 dependency-check-suppressions.xml。
             -->
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.owasp</groupId>
-                        <artifactId>dependency-check-maven</artifactId>
-                        <version>${dependency-check-maven.version}</version>
-                        <configuration>
-                            <failBuildOnCVSS>7</failBuildOnCVSS>
-                            <!-- 官方 JSON feeds 2.0：无需 API key，首次下载年度包，之后按 meta 做增量更新 -->
-                            <nvdDatafeedUrl>${dependency-check.nvdDatafeedUrl}</nvdDatafeedUrl>
-                            <dataDirectory>${dependency-check.dataDirectory}</dataDirectory>
-                            <suppressionFiles>
-                                <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
-                            </suppressionFiles>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>dependency-check</id>
-                                <goals>
-                                    <goal>check</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
+            <id>security</id>
+            <properties>
+                <dependency-check.skip>false</dependency-check.skip>
+            </properties>
         </profile>
     </profiles>
 </project>

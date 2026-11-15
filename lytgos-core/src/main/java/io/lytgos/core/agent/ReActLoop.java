@@ -8,6 +8,7 @@ import io.lytgos.core.chat.ToolCall;
 import io.lytgos.core.session.Session;
 import io.lytgos.core.tool.ToolExecutor;
 import io.lytgos.core.tool.ToolRegistry;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,18 +29,21 @@ public final class ReActLoop {
   private final ToolRegistry toolRegistry;
   private final ToolExecutor toolExecutor;
   private final int maxIterations;
+  private final Double temperature;
 
   public ReActLoop(
       ChatModel model,
       PromptBuilder promptBuilder,
       ToolRegistry toolRegistry,
       ToolExecutor toolExecutor,
-      int maxIterations) {
+      int maxIterations,
+      Double temperature) {
     this.model = model;
     this.promptBuilder = promptBuilder;
     this.toolRegistry = toolRegistry;
     this.toolExecutor = toolExecutor;
     this.maxIterations = maxIterations;
+    this.temperature = temperature;
   }
 
   /**
@@ -51,10 +55,20 @@ public final class ReActLoop {
   public String run(Session session, String userInput) {
     session.append(Message.user(userInput));
 
+    // 一轮 = 一次用户输入触发的完整 ReAct 循环（可能含多次模型调用与工具执行）。
+    // 审计表靠这个 turnId 把它们聚到一起；换一轮就换一个，不复用。
+    String turnId = UUID.randomUUID().toString();
+
     String lastText = "";
     for (int iteration = 1; iteration <= maxIterations; iteration++) {
       ChatResult result =
-          model.call(new ChatRequest(promptBuilder.build(session), toolRegistry.specs()));
+          model.call(
+              new ChatRequest(
+                  promptBuilder.build(session),
+                  toolRegistry.specs(),
+                  session.key(),
+                  turnId,
+                  temperature));
 
       if (!result.hasToolCalls()) {
         String text = result.content() == null ? "" : result.content();
@@ -69,7 +83,7 @@ public final class ReActLoop {
       }
       LOG.debug("第 {} 轮：模型请求 {} 个工具调用", iteration, result.toolCalls().size());
 
-      executeAll(session, result.toolCalls());
+      executeAll(session, turnId, result.toolCalls());
     }
 
     LOG.warn("达到最大迭代次数 {}，返回已有文本", maxIterations);
@@ -78,10 +92,10 @@ public final class ReActLoop {
     return fallback;
   }
 
-  private void executeAll(Session session, Iterable<ToolCall> calls) {
+  private void executeAll(Session session, String turnId, Iterable<ToolCall> calls) {
     for (ToolCall call : calls) {
       try {
-        String output = toolExecutor.execute(call);
+        String output = toolExecutor.execute(session.key(), turnId, call);
         session.append(Message.tool(call.id(), call.name(), output));
       } catch (RuntimeException e) {
         // 失败也必须回填：否则历史里留下「有调用、无结果」的残局，

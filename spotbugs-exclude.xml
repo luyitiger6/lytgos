@@ -24,6 +24,9 @@
       构造器只是转交引用。MemoryStore 是 final 字段、无 mutator 的不可变门面，
       append 只写文件、不改对象状态。逐个防御性拷贝既不现实也没有意义：调用方本来就是容器本身。
 
+      ReActLoop 保存的 PromptBuilder 同理：全字段 final、私有构造器 + 静态工厂，
+      没有 mutator，在 AgentRuntimeFactory 内构造后只读，SpotBugs 无法识别这类不可变门面。
+
       重审条件：类改为自行 new 这些依赖，或允许业务代码传入可变配置对象。
     -->
     <Match>
@@ -56,6 +59,22 @@
     </Match>
     <Match>
         <Class name="io.lytgos.memory.RecallMemoryTool"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.core.agent.ReActLoop"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!--
+      Mapper 是 @MapperScan 生成的代理，由 Spring 容器单例持有；Store 只转交引用、从不替换。
+      重审条件：Store 允许外部换 Mapper 或开始持有可变的查询状态。
+    -->
+    <Match>
+        <Class name="io.lytgos.storage.SqliteAuditStore"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.storage.SqliteSessionStore"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 
@@ -92,6 +111,10 @@
     </Match>
     <Match>
         <Class name="io.lytgos.core.agent.ReActLoop"/>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.provider.AuditedChatModel"/>
         <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
     </Match>
     <Match>

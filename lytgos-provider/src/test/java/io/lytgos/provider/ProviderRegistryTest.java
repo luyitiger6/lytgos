@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.lytgos.core.LytgosException;
+import io.lytgos.core.audit.LlmCallAuditor;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -16,8 +17,15 @@ import org.junit.jupiter.api.Test;
  */
 class ProviderRegistryTest {
 
+  /** 登记与查找的用例都不触发模型构造，审计口给个空实现即可。 */
+  private static final LlmCallAuditor NO_AUDIT = record -> {};
+
   private static ProviderConfig config(String name) {
     return new ProviderConfig(name, "test-model", "sk-test", "https://example.invalid");
+  }
+
+  private static ProviderRegistry registry(ProviderConfig... configs) {
+    return new ProviderRegistry(List.of(configs), NO_AUDIT);
   }
 
   @Test
@@ -25,7 +33,7 @@ class ProviderRegistryTest {
     LytgosException.InvalidConfigurationException error =
         assertThrows(
             LytgosException.InvalidConfigurationException.class,
-            () -> new ProviderRegistry(List.of(config("deepseek"), config("deepseek"))));
+            () -> registry(config("deepseek"), config("deepseek")));
 
     assertTrue(error.getMessage().contains("重名"), error.getMessage());
     assertTrue(error.getMessage().contains("deepseek"), error.getMessage());
@@ -33,7 +41,7 @@ class ProviderRegistryTest {
 
   @Test
   void unknownProviderListsRegisteredNames() {
-    ProviderRegistry registry = new ProviderRegistry(List.of(config("deepseek"), config("qwen")));
+    ProviderRegistry registry = registry(config("deepseek"), config("qwen"));
 
     LytgosException.UnknownProviderException error =
         assertThrows(
@@ -46,7 +54,7 @@ class ProviderRegistryTest {
 
   @Test
   void emptyConfigExplainsThatNothingIsConfigured() {
-    ProviderRegistry registry = new ProviderRegistry(List.of());
+    ProviderRegistry registry = registry();
 
     LytgosException.InvalidConfigurationException error =
         assertThrows(
@@ -67,7 +75,7 @@ class ProviderRegistryTest {
             "test-model",
             "${LYTGOS_TEST_REGISTRY_MISSING_5C1A}",
             "https://example.invalid");
-    ProviderRegistry registry = new ProviderRegistry(List.of(unresolved));
+    ProviderRegistry registry = registry(unresolved);
 
     assertEquals(Set.of("deepseek"), registry.names());
     assertEquals(1, registry.size());

@@ -82,6 +82,12 @@
 - `spotbugs-exclude.xml`：按类 + 缺陷模式粒度豁免，每条带 XML 注释说明理由。
 - `dependency-check-suppressions.xml`：按 CVE + 依赖坐标豁免，同样要求理由。
 - 单点误报（只影响一两处）仍用行内 `@SuppressWarnings` 并在提交说明写明原因，避免为个案放宽整条规则；当前实例是 `McpServerManager.installShutdownHook` 的 `AvoidManuallyCreateThreadRule`（shutdown hook 必须是独立 Thread，线程池不适用）。
+- **补录（2026-11-15，门禁落到每个模块时）**：新增 4 条「类 + 缺陷模式」豁免，均已同步写入 `spotbugs-exclude.xml` 并带重审条件：
+  - `io.lytgos.core.agent.ReActLoop` / `EI_EXPOSE_REP2`：保存的 `PromptBuilder` 全字段 final、私有构造器 + 静态工厂、无 mutator，属不可变门面，SpotBugs 识别不出。
+  - `io.lytgos.storage.SqliteAuditStore` / `EI_EXPOSE_REP2`：Mapper 是 `@MapperScan` 生成的代理，由容器单例持有，Store 只转交引用。
+  - `io.lytgos.storage.SqliteSessionStore` / `EI_EXPOSE_REP2`：同上，另有已在注释中点名的 `ObjectMapper`。
+  - `io.lytgos.provider.AuditedChatModel` / `THROWS_METHOD_THROWS_RUNTIMEEXCEPTION`：先落审计、再把捕获的原异常原样 rethrow，与既有 5 条同口径。
+- **修正（2026-11-15）**：模块目录下跑 `mvn verify` 前必须 `clean`。恢复文件带历史时间戳会让 Maven 增量编译跳过重编，`target/classes` 里留下旧字节码，SpotBugs 会在旧字节码上报出 11 条「私有方法从未调用」这类假问题（lytgos-persona 实例）；`clean install` 后为 0 条。
 
 ### D7 CI 结构：一个 verify job + 一个 security job
 

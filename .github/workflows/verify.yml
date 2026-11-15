@@ -25,6 +25,8 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      # 门禁五件套已在每个模块 pom 显式声明，mvn verify 会逐模块执行；
+      # dependency-check 默认 skip，完整依赖漏洞扫描由下面的 security job 承担。
       - name: mvn verify
         run: mvn -B verify
 
@@ -49,5 +51,7 @@ jobs:
           key: nvd-feeds-${{ runner.os }}-${{ hashFiles('pom.xml') }}
           restore-keys: |
             nvd-feeds-${{ runner.os }}-
+      # dependency-check 由 security profile 启用（默认构建不执行）；
+      # engineering-baseline spec 要求 CI 每次合并请求都执行该 profile。
       - name: mvn verify -Psecurity
         run: mvn -B verify -Psecurity

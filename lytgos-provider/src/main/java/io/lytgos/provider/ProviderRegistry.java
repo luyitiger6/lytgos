@@ -1,11 +1,13 @@
 package io.lytgos.provider;
 
 import io.lytgos.core.LytgosException;
+import io.lytgos.core.audit.LlmCallAuditor;
 import io.lytgos.core.chat.ChatModel;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,14 +22,19 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>找不到指定名字时抛出 {@link LytgosException.UnknownProviderException} 并列出已注册的名字—— 报错必须自带答案：用户看到「unknown
  * provider: dpseek」时，最想知道的就是「那有哪些」。
+ *
+ * <p>每个模型实例都包一层 {@link AuditedChatModel}：审计入口在 provider 边界上，
+ * 不在任何业务调用点——只要模型被调用，就一定有一行审计，不依赖调用方记得埋点。
  */
 public final class ProviderRegistry {
 
   private final Map<String, ProviderConfig> configs;
 
+  private final LlmCallAuditor auditor;
+
   private final Map<String, ChatModel> created = new ConcurrentHashMap<>();
 
-  public ProviderRegistry(List<ProviderConfig> configs) {
+  public ProviderRegistry(List<ProviderConfig> configs, LlmCallAuditor auditor) {
     Map<String, ProviderConfig> byName = new LinkedHashMap<>();
     for (ProviderConfig config : configs) {
       if (byName.putIfAbsent(config.name(), config) != null) {
@@ -35,6 +42,7 @@ public final class ProviderRegistry {
       }
     }
     this.configs = Collections.unmodifiableMap(byName);
+    this.auditor = Objects.requireNonNull(auditor, "auditor");
   }
 
   /**
@@ -61,7 +69,9 @@ public final class ProviderRegistry {
       throw new LytgosException.InvalidConfigurationException(
           "环境变量未设置: " + missing + "（provider " + name + " 需要）");
     }
-    return created.computeIfAbsent(name, key -> ChatModelFactory.create(config));
+    return created.computeIfAbsent(
+        name,
+        key -> new AuditedChatModel(ChatModelFactory.create(config), key, config.model(), auditor));
   }
 
   /** 已配置的 provider 名；不触发任何模型构造。 */

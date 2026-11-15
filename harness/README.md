@@ -18,10 +18,10 @@
 |---|---|---|
 | `00-layout-check` | 骨架文件齐全 + `AGENTS.md` 的 `harness-checks` 标记与实际文件一致 | 生效 |
 | `01-compile` | `mvn -DskipTests compile` | 生效 |
-| `02-test` | JDK 前置校验（`mvn -v` 主版本 < 根 pom `<java.version>` 即 FAIL）+ `mvn test` + 核对 surefire 报告里实际执行的用例数（0 即 FAIL） | 生效 |
+| `02-test` | JDK 前置校验（`mvn -v` 主版本 < 根 pom `<java.version>` 即 FAIL）+ `mvn verify`（含 spotless / checkstyle / pmd / spotbugs 四个静态门禁）+ 核对 surefire 报告里实际执行的用例数（0 即 FAIL） | 生效 |
 | `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled`、任意 pom 的 `skipTests` | 生效 |
 | `04-dependency-direction` | ArchUnit 四条规则：禁 `ChatClient`、禁 `ToolCallingManager`、禁条件装配注解、禁类型扫描（`lytgos-test` 模块承载） | 生效 |
-| `05-audit-invariant` | 审计不变量 I1 / I2 / I3 | 未接入（storage 未落地） |
+| `05-audit-invariant` | 审计不变量 I1 / I2 / I3，执行 `AuditInvariantTest` 并核对实际用例数 | 生效（3 条全过） |
 | `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
 | `07-week1-acceptance` | 第 1 周端到端：init → 幂等 → 对话+工具往返 → 反例 → 多轮上下文 | 生效（需 jar + `DEEPSEEK_API_KEY`；六条已全 PASS） |
 | `08-mcp-acceptance` | MCP 两种形态走同一条治理路径：三条路径（内置 / 远程 URL / 本地 stdio）各留 `tool_call` 日志、来源标注、按形态的边界提示、命令白名单与域名白名单、无残留子进程 | 生效（需 jar + 测试夹具；第 1/2/3 条需 `DEEPSEEK_API_KEY`，第 2/4/5 条的远程部分需 `AMAP_MCP_KEY`） |
@@ -31,7 +31,7 @@
 
 `harness/lib/` 放闸门共享的非闸门脚本：`JdkGuard.ps1` 被 `02-test` 与 `run-all.ps1` dot-source，比对根 `pom.xml` 的 `<java.version>` 与 `mvn -v` 报出的 Java 主版本，不足即 `exit 1` 并打印当前 `JAVA_HOME` 与修复命令。它不占闸门编号，也不进入 `checks/` 与机器可读清单。
 
-`05` 是**空壳**，只有一句 `NOT_READY` 和一段计划说明。空壳比没有更诚实：它让每次跑 harness 都能看见「这道还没接」，而不是在 README 里被忘掉。
+`05` 执行 `lytgos-test` 的 `AuditInvariantTest`（`AuditedChatModel` + `ReActLoop` + `ToolExecutor` + SQLite 的真实链路），三条断言：I1 每次模型调用一行 `llm_calls`（成功 / 失败都记）；I2 每次工具执行一行 `tool_invocations`（成功 / 异常都记）；I3 同一 `turn_id` 在两张表关联到同一 session。脚本先删旧 surefire 报告，再执行 `mvn -B -pl lytgos-test -am test -Dtest=AuditInvariantTest -DfailIfNoTests=false -Dsurefire.failIfNoSpecifiedTests=false`，最后核对报告里的 `Tests run` ≥ 3——断言被删或测试类被改名时，mvn 仍会成功，只有用例数能揭穿假绿。
 
 `03` 对 `lytgos-cli` 与 `lytgos-channel` 豁免「禁 System.out」那一条：这两个模块的 stdout 就是产品输出通道（命令结果、模型回复），不是拿 println 顶替日志。豁免只覆盖这一条，`TODO` / `@Disabled` / `skipTests` 仍然全场生效。
 

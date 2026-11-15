@@ -9,9 +9,9 @@
     六条（1-5 对应 design.md D8；第 6 条为代码审查后补的验收证据）：
       1. 工作区初始化：init 建出空的 memory/MEMORY.md，并把 allowed-commands 配成含 java
       2. 记忆写入：显式指令让模型调用 save_memory，MEMORY.md 含本轮随机校验码
-      3. 跨进程注入：移走 sessions 后新进程答出同一校验码，且不依赖工具调用
+      3. 跨进程注入：移走会话库（lytgos.db）后新进程答出同一校验码，且不依赖工具调用
       4. 文件写入：模型调用 write_file，output/gate.txt 内容为 hello
-      5. 命令执行：模型调用 shell，会话历史里出现 exit=0 与 version 输出
+      5. 命令执行：模型调用 shell，SQLite 会话历史里出现 exit=0 与 version 输出
       6. 记忆缺失不阻断：移走 memory/MEMORY.md 后对话仍退出码 0，且不重建文件
 
     第 2-6 条需要真实模型。没有 DEEPSEEK_API_KEY 时记 SKIP 并返回 2，
@@ -110,7 +110,36 @@ $lytgosDir = Join-Path $workspace '.lytgos'
 $configFile = Join-Path $lytgosDir 'config.yaml'
 $memoryFile = Join-Path $lytgosDir 'memory/MEMORY.md'
 $gateFile = Join-Path $lytgosDir 'output/gate.txt'
-$sessionsDir = Join-Path $lytgosDir 'sessions'
+$dbFile = Join-Path $lytgosDir 'lytgos.db'
+
+# 会话历史在 SQLite（.lytgos/lytgos.db）的 sessions.messages 列。
+# 不依赖 sqlite3.exe（不保证安装）：用 JDK 单文件源码 + 构建时已下载的 sqlite-jdbc 驱动读取。
+function Read-SessionHistory {
+    param([string]$DatabaseFile)
+
+    $driver = Get-ChildItem (Join-Path $env:USERPROFILE '.m2/repository/org/xerial/sqlite-jdbc') `
+        -Recurse -Filter 'sqlite-jdbc-*.jar' -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (-not $driver) {
+        throw '找不到 sqlite-jdbc 驱动 jar（先执行 mvn package 让 Maven 下载）'
+    }
+
+    $reader = Join-Path $workRoot 'ReadSessions.java'
+    $source = @'
+import java.sql.*;
+public final class ReadSessions {
+  public static void main(String[] args) throws Exception {
+    try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + args[0]);
+         Statement s = c.createStatement();
+         ResultSet r = s.executeQuery("SELECT messages FROM sessions")) {
+      while (r.next()) System.out.println(r.getString(1));
+    }
+  }
+}
+'@
+    [System.IO.File]::WriteAllText($reader, $source, $utf8)
+    return (& java -cp $driver.FullName $reader $DatabaseFile) -join "`n"
+}
 
 # ---------- 1. 工作区初始化 ----------
 Write-Host ''
@@ -178,11 +207,12 @@ else {
 
     # ---------- 3. 跨进程记忆注入 ----------
     Write-Host ''
-    # 移走会话历史，才能证明回答来自「启动时注入的 MEMORY.md」而不是上一轮对话
-    $sessionsBefore = Join-Path $lytgosDir 'sessions-before-recall'
-    if (Test-Path -LiteralPath $sessionsDir) {
-        Move-Item -LiteralPath $sessionsDir -Destination $sessionsBefore -Force
-    }
+    # 移走会话库，才能证明回答来自「启动时注入的 MEMORY.md」而不是上一轮对话。
+    # SQLite 还有 -wal / -shm 两个伴生文件，只移主文件会把未 checkpoint 的历史留下。
+    $dbBackup = Join-Path $lytgosDir 'db-before-recall'
+    New-Item -ItemType Directory -Path $dbBackup -Force | Out-Null
+    Get-ChildItem -LiteralPath $lytgosDir -Filter 'lytgos.db*' -File -ErrorAction SilentlyContinue |
+        ForEach-Object { Move-Item -LiteralPath $_.FullName -Destination (Join-Path $dbBackup $_.Name) -Force }
     $recall = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-m', '我的部署校验码是什么？你的系统提示词里已经包含长期记忆，不要调用任何工具，直接回答校验码。')
     if ($recall.ExitCode -ne 0) {
         Record '3' '跨进程记忆注入' 'FAIL' "chat 退出码 $($recall.ExitCode)：$(Brief $recall.Stderr)"
@@ -195,7 +225,7 @@ else {
         Record '3' '跨进程记忆注入' 'FAIL' "回答依赖了工具调用，未证明启动注入：$(Brief $recall.Stderr)"
     }
     else {
-        Record '3' '跨进程记忆注入' 'PASS' "移走 sessions 后新进程仍答出校验码 $nonce，且未调用工具"
+        Record '3' '跨进程记忆注入' 'PASS' "移走会话库后新进程仍答出校验码 $nonce，且未调用工具"
     }
 
     # ---------- 4. 文件写入 ----------
@@ -223,11 +253,10 @@ else {
     # ---------- 5. 命令执行 ----------
     Write-Host ''
     $shell = Invoke-Lytgos -WorkDir $workspace -CliArgs @('chat', '-m', '调用 shell 工具执行 java -version。必须真实调用该工具，不要只回复文字。')
-    # 工具结果不回显到进程输出，只能从落盘的会话历史取证
+    # 工具结果不回显到进程输出，只能从落盘的会话历史取证；会话现在落 SQLite
     $history = ''
-    if (Test-Path -LiteralPath $sessionsDir) {
-        $history = (Get-ChildItem -LiteralPath $sessionsDir -Filter '*.json' -File |
-            ForEach-Object { [System.IO.File]::ReadAllText($_.FullName, [System.Text.Encoding]::UTF8) }) -join "`n"
+    if (Test-Path -LiteralPath $dbFile) {
+        $history = Read-SessionHistory -DatabaseFile $dbFile
     }
     if ($shell.ExitCode -ne 0) {
         Record '5' '命令执行' 'FAIL' "chat 退出码 $($shell.ExitCode)：$(Brief $shell.Stderr)"

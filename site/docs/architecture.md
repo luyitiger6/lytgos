@@ -116,7 +116,7 @@ A Vue 3 + Vite single-page app is served at `/admin/`, styled to match the proje
 | `lytgos-tool` | Tool system: built-in tools (`FileTools`, `ShellTools`, `HttpTools`, `NotifyTools`), `McpClientService`, `McpToolAdapter`, `ToolRegistry`, `SandboxChecker` |
 | `lytgos-channel-cli` | CLI channel: `CliChannel`, `lytgos chat` command implementation |
 | `lytgos-web` | REST API: ten `ApiController` classes, `GlobalExceptionHandler`, the unified response envelope, OpenAPI spec, and the Vue admin console served at `/admin/` |
-| `lytgos-storage` | Persistence: SQLite via Spring Data JPA — session, tool-invocation, LLM-call, scheduled-task, task-execution, memory-entry, notify-channel, and provider repositories |
+| `lytgos-storage` | Persistence: MyBatis mappers plus store implementations over SQLite — the datasource (HikariCP), `SqlSessionFactory` and mapper proxies all come from the Spring container |
 | `lytgos-cli` | CLI entry point: Picocli main, 12 subcommands, `ConfigLoader` for credentials and config validation |
 | `lytgos-boot` | Spring Boot bootstrap: main class, auto-configuration, dependency aggregation |
 
@@ -132,20 +132,20 @@ Modules communicate through interfaces. Adding a new Channel or Tool implementat
 | 4 | Provider resolution | Dynamic `provider name → ChatModel` map backed by a SQLite registry, cached by `(name\|apiKey\|baseUrl)` | Explicit mapping (never Bean-type scanning) but runtime-mutable, so providers can be added or edited without a restart |
 | 5 | HTTP service layer | Spring MVC + Java 21 virtual threads | Sync-style code, thousands of concurrent requests per node; `SseEmitter` available for streaming in extension phase |
 | 6 | Sandbox strategy | Path/pattern whitelists at the application layer, runtime-manageable | `SecurityManager` is deprecated since JDK 17 and unavailable on JDK 21; full container-level sandbox is extension-phase work |
-| 7 | Persistence | SQLite + Spring Data JPA for relational data; per-agent `MEMORY.md` for long-term memory | Single binary, no external database process required; audit tables written from day one so auditability is never retrofitted |
+| 7 | Persistence | SQLite + MyBatis (`SqlSessionFactory` built by `SqlSessionFactoryBean`, mappers from `@MapperScan`, HikariCP datasource) for relational data; per-agent `MEMORY.md` for long-term memory | Single binary, no external database process required; audit tables written from day one so auditability is never retrofitted |
 
 ## Tech Stack
 
 | Component | Choice |
 | --- | --- |
 | Language / runtime | Java 21 (required; virtual threads, no SecurityManager) |
-| Framework | Spring Boot 3.x |
+| Framework | Spring Boot 4.x |
 | LLM integration | Spring AI (OpenAI-compatible protocol translation and `@Tool` schema generation only) |
 | HTTP service | Spring MVC with Java 21 virtual threads |
 | Admin console | Vue 3 + Vite (served at `/admin/`) |
 | CLI | Picocli |
 | YAML parsing | SnakeYAML |
-| Persistence | SQLite + Spring Data JPA (`schema.sql` maintained by hand; `CREATE TABLE IF NOT EXISTS`, no fragile SQLite `ALTER`) |
+| Persistence | SQLite + MyBatis (`lytgos-schema.sql` maintained by hand and applied by `DataSourceInitializer` on startup; `CREATE TABLE IF NOT EXISTS`, no fragile SQLite `ALTER`) |
 | Long-term memory | per-agent `MEMORY.md` flat file with keyword search; semantic vector/keyword/recency retrieval when `embedding.*` is configured; broader shared backends are evolving |
 | MCP integration | MCP Java SDK (MCP Client for connecting to external MCP servers) |
 | Logging | Logback + SLF4J, structured JSON output |

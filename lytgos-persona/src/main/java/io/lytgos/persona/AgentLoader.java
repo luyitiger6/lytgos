@@ -105,7 +105,10 @@ public final class AgentLoader {
     Map<String, Object> providerMap = asMap(front.get("provider"));
     try {
       Profile.ProviderRef provider =
-          new Profile.ProviderRef(text(providerMap.get("name")), text(providerMap.get("model")));
+          new Profile.ProviderRef(
+              text(providerMap.get("name")),
+              text(providerMap.get("model")),
+              temperature(providerMap.get("temperature")));
 
       return new Profile(
           text(front.get("name")),
@@ -116,11 +119,33 @@ public final class AgentLoader {
           asMcpServers(front.get("mcp_servers")),
           asStrings(front.get("channels")),
           asStrings(front.get("bootstrap")),
-          asMap(front.get("settings")));
+          asMap(front.get("settings")),
+          asStrings(front.get("skills")));
     } catch (LytgosException.InvalidAgentDefinitionException e) {
       // 补上文件路径：同一份工作区里可能有多个 Agent，只报字段名用户不知道该改哪个
       throw new LytgosException.InvalidAgentDefinitionException(
           e.getMessage() + "（" + agentFile + "）");
+    }
+  }
+
+  /**
+   * 解析 {@code provider.temperature}。
+   *
+   * <p>字符串形式的数字也接受（YAML 引号写法很常见）；非数字必须当场报错—— 静默当没写会让用户以为温度生效了，实际一直用的是上游默认值。
+   */
+  private static Double temperature(Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Number number) {
+      return number.doubleValue();
+    }
+    String raw = String.valueOf(value).strip();
+    try {
+      return Double.parseDouble(raw);
+    } catch (NumberFormatException e) {
+      throw new LytgosException.InvalidAgentDefinitionException(
+          "provider.temperature 必须是数字，当前为: " + raw);
     }
   }
 

@@ -1,5 +1,6 @@
 package io.lytgos.cli;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
@@ -15,5 +16,6 @@ import org.springframework.context.annotation.Import;
  * <p>{@code proxyBeanMethods = false} 省掉 CGLIB 子类生成——这里没有互相调用的 {@code @Bean} 方法，不需要代理。
  */
 @Configuration(proxyBeanMethods = false)
+@MapperScan("io.lytgos.storage.mapper")
 @Import({CoreBeans.class, ProviderBeans.class, ToolBeans.class, CliBeans.class})
 public class CliConfiguration {}
