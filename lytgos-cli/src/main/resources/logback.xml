@@ -7,13 +7,16 @@
 
   级别定为 INFO：ToolExecutor 的 tool_call 日志在这一级；Spring AI 的请求体打印在 DEBUG，
   默认关掉——那是含完整 prompt 的内容，不该在终端里默认可见。
+
+  每行都带 [%X{traceId:-}]：有轮次上下文时是 traceId（每轮一个），启动期没有轮次则为空。
+  有了这一位，用户报障时贴一行日志就能在审计表里查到对应的 llm_calls / tool_invocations 行。
 -->
 <configuration>
 
     <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.err</target>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{24} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{24} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>

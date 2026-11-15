@@ -11,6 +11,13 @@
                 <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{36}) [%X{traceId:-}] - %msg%n</pattern>
             </encoder>
         </appender>
+        <!--
+          dev 的默认可见性：业务代码把关键事件留在 DEBUG 上（agent 加载、provider 构造、
+          会话落盘、记忆追加），本地开发默认就该看得到；mapper 的 SQL 明细压回 INFO，
+          否则一次对话会刷出几百行参数。这一组只在 dev 生效，prod 不继承。
+        -->
+        <logger name="io.lytgos" level="DEBUG"/>
+        <logger name="io.lytgos.storage.mapper" level="INFO"/>
     </springProfile>
 
     <!-- prod：单行 JSON；字段名对齐 observability spec 的 timestamp / level / logger / message，MDC 的 traceId 并入顶层 -->

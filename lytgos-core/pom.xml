@@ -25,6 +25,16 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
+        <!--
+            单测需要真实的 MDC：slf4j-api 在无实现时会装上 NOP，MDC.put / MDC.get 全是空操作，
+            TraceContext 与 ReActLoop 的 traceId 断言会全部落空。
+            test scope 不向使用方传递，不影响上面「不钉死日志后端」的约束。
+        -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>

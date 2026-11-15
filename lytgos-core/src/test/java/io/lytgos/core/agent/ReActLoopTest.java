@@ -3,6 +3,8 @@ package io.lytgos.core.agent;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,6 +20,7 @@ import io.lytgos.core.session.Session;
 import io.lytgos.core.tool.Tool;
 import io.lytgos.core.tool.ToolExecutor;
 import io.lytgos.core.tool.ToolRegistry;
+import io.lytgos.core.trace.TraceContext;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -28,6 +31,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.MDC;
 
 @DisplayName("ReActLoop：工具往返、迭代上限与失败回填")
 class ReActLoopTest {
@@ -182,6 +186,49 @@ class ReActLoopTest {
 
     assertEquals("你好", answer);
     assertFalse(Files.exists(memory), "对话流程不应创建记忆文件");
+  }
+
+  @Test
+  @DisplayName("每轮都在自己的 traceId 下执行：与 turnId 一致，结束后清理且两轮不同")
+  void runsUnderTurnTraceAndCleansUp() {
+    List<String> observed = new ArrayList<>();
+    ChatModel model =
+        request -> {
+          observed.add(request.turnId() + "|" + MDC.get(TraceContext.MDC_KEY));
+          return new ChatResult("好", List.of());
+        };
+
+    ReActLoop loop = loop(model, new ToolRegistry(List.of()), 10);
+    loop.run(new Session("cli:local:tester"), "第一轮");
+    assertNull(MDC.get(TraceContext.MDC_KEY), "run 返回后必须清理，下一轮不能继承");
+
+    loop.run(new Session("cli:local:tester"), "第二轮");
+    assertEquals(2, observed.size());
+
+    String[] first = observed.get(0).split("\\|", -1);
+    String[] second = observed.get(1).split("\\|", -1);
+    assertEquals(first[0], first[1], "执行期间 MDC 的 traceId 必须等于本轮 turnId");
+    assertEquals(second[0], second[1]);
+    assertNotEquals(first[0], second[0], "两轮必须使用不同的 traceId");
+  }
+
+  @Test
+  @DisplayName("外层已有 traceId 时沿用外层值，且不越权清理")
+  void keepsOuterTraceId() {
+    MDC.put(TraceContext.MDC_KEY, "req-abc");
+    List<String> observed = new ArrayList<>();
+    ChatModel model =
+        request -> {
+          observed.add(MDC.get(TraceContext.MDC_KEY));
+          return new ChatResult("好", List.of());
+        };
+    try {
+      loop(model, new ToolRegistry(List.of()), 10).run(new Session("cli:local:tester"), "你好");
+      assertEquals(List.of("req-abc"), observed, "Web 请求的 traceId 必须贯穿到轮次内");
+      assertEquals("req-abc", MDC.get(TraceContext.MDC_KEY), "外层写入的值由外层清理，轮次不越权");
+    } finally {
+      MDC.clear();
+    }
   }
 
   private ReActLoop loop(ChatModel model, ToolRegistry registry, int maxIterations) {

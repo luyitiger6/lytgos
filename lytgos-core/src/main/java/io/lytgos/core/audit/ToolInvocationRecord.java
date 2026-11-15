@@ -9,10 +9,13 @@ import java.time.Instant;
  *
  * <p>{@code arguments} 保留调用原文并截断到 4000 字符：它是复现问题的唯一输入证据。 脱敏留待后续 Tool Policy（见 change 的 Open
  * Questions）。
+ *
+ * <p>{@code traceId} 与同轮模型调用共享同一个值，允许为空（历史行与无请求上下文的执行）。
  */
 public record ToolInvocationRecord(
     String sessionId,
     String turnId,
+    String traceId,
     String toolName,
     String arguments,
     long durationMs,

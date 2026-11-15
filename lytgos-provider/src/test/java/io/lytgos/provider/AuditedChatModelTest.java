@@ -2,6 +2,7 @@ package io.lytgos.provider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,10 +12,12 @@ import io.lytgos.core.chat.ChatModel;
 import io.lytgos.core.chat.ChatRequest;
 import io.lytgos.core.chat.ChatResult;
 import io.lytgos.core.chat.Message;
+import io.lytgos.core.trace.TraceContext;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 @DisplayName("AuditedChatModel：成功与失败都落审计")
 class AuditedChatModelTest {
@@ -98,6 +101,38 @@ class AuditedChatModelTest {
         assertThrows(LytgosException.AuditWriteException.class, () -> model.call(request()));
 
     assertTrue(error.getMessage().contains("磁盘只读"), error.getMessage());
+  }
+
+  @Test
+  @DisplayName("MDC 里有 traceId 时，审计行携带同一个值")
+  void carriesTraceIdFromMdc() {
+    List<LlmCallRecord> records = new ArrayList<>();
+    AuditedChatModel model =
+        new AuditedChatModel(
+            request -> new ChatResult("ok", List.of()), "deepseek", "deepseek-flash", records::add);
+
+    MDC.put(TraceContext.MDC_KEY, "req-42");
+    try {
+      model.call(request());
+    } finally {
+      MDC.remove(TraceContext.MDC_KEY);
+    }
+
+    assertEquals("req-42", records.get(0).traceId(), "审计行必须能用 traceId 接回同一请求的日志");
+  }
+
+  @Test
+  @DisplayName("没有请求上下文时 traceId 写 null，审计照常落库")
+  void missingTraceIdDoesNotBlockAudit() {
+    List<LlmCallRecord> records = new ArrayList<>();
+    AuditedChatModel model =
+        new AuditedChatModel(
+            request -> new ChatResult("ok", List.of()), "deepseek", "deepseek-flash", records::add);
+
+    model.call(request());
+
+    assertEquals(1, records.size(), "取不到 trace 不能阻止审计写入");
+    assertNull(records.get(0).traceId(), "无请求上下文时 traceId 合法为空");
   }
 
   private static ChatRequest request() {

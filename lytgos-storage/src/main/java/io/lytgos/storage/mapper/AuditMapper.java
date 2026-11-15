@@ -14,6 +14,7 @@ public interface AuditMapper {
   int insertLlmCall(
       @Param("sessionId") String sessionId,
       @Param("turnId") String turnId,
+      @Param("traceId") String traceId,
       @Param("provider") String provider,
       @Param("model") String model,
       @Param("promptTokens") int promptTokens,
@@ -27,6 +28,7 @@ public interface AuditMapper {
   int insertToolInvocation(
       @Param("sessionId") String sessionId,
       @Param("turnId") String turnId,
+      @Param("traceId") String traceId,
       @Param("toolName") String toolName,
       @Param("arguments") String arguments,
       @Param("durationMs") long durationMs,

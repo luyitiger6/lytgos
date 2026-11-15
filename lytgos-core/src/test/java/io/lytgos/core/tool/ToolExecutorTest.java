@@ -13,11 +13,13 @@ import io.lytgos.core.audit.ToolInvocationAuditor;
 import io.lytgos.core.audit.ToolInvocationRecord;
 import io.lytgos.core.chat.ToolCall;
 import io.lytgos.core.chat.ToolSpec;
+import io.lytgos.core.trace.TraceContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 @DisplayName("ToolExecutor：失败按归属分两条路")
 class ToolExecutorTest {
@@ -170,6 +172,34 @@ class ToolExecutorTest {
     ToolInvocationRecord row = onlyRecord(auditor);
     assertFalse(row.success());
     assertTrue(row.errorMessage().contains("不是合法 JSON"), row.errorMessage());
+  }
+
+  @Test
+  @DisplayName("MDC 里有 traceId 时，工具审计行携带同一个值")
+  void carriesTraceIdFromMdc() {
+    RecordingAuditor auditor = new RecordingAuditor();
+    ToolExecutor executor = executorWith(probe(a -> "ok"), auditor);
+
+    MDC.put(TraceContext.MDC_KEY, "req-42");
+    try {
+      executor.execute(SESSION, TURN, call("{}"));
+    } finally {
+      MDC.remove(TraceContext.MDC_KEY);
+    }
+
+    assertEquals("req-42", onlyRecord(auditor).traceId());
+  }
+
+  @Test
+  @DisplayName("没有请求上下文时 traceId 写 null，审计照常落库")
+  void missingTraceIdDoesNotBlockAudit() {
+    RecordingAuditor auditor = new RecordingAuditor();
+    ToolExecutor executor = executorWith(probe(a -> "ok"), auditor);
+
+    executor.execute(SESSION, TURN, call("{}"));
+
+    ToolInvocationRecord row = onlyRecord(auditor);
+    assertNull(row.traceId(), "无请求上下文时 traceId 合法为空");
   }
 
   @Test

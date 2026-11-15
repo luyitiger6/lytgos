@@ -41,6 +41,16 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!--
+            单测需要真实的 MDC（与 core 同理）：slf4j-api 在无实现时会装上 NOP，
+            AuditedChatModel 落审计时取的 traceId 永远是 null，断言会全部落空。
+            test scope 不向使用方传递，不影响「运行方提供日志实现」的约束。
+        -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

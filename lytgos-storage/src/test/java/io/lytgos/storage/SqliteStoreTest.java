@@ -32,6 +32,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -86,17 +87,21 @@ class SqliteStoreTest {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement =
             connection.prepareStatement(
-                "SELECT success, prompt_tokens, total_tokens, error_message "
+                "SELECT success, prompt_tokens, total_tokens, error_message, provider, trace_id "
                     + "FROM llm_calls ORDER BY id");
         ResultSet rows = statement.executeQuery()) {
       assertTrue(rows.next());
       assertEquals(1, rows.getInt("success"));
       assertEquals(100, rows.getInt("prompt_tokens"));
       assertEquals(120, rows.getInt("total_tokens"));
+      // provider 与 trace_id 一起断言：两者在 INSERT 里相邻，只验 trace_id 发现不了整段错位。
+      assertEquals("deepseek", rows.getString("provider"));
+      assertEquals("trace-llm", rows.getString("trace_id"));
       assertTrue(rows.next());
       assertEquals(0, rows.getInt("success"));
       assertEquals(0, rows.getInt("prompt_tokens"));
       assertTrue(rows.getString("error_message").contains("上游 500"));
+      assertEquals("trace-llm", rows.getString("trace_id"));
       assertFalse(rows.next());
     }
   }
@@ -112,11 +117,13 @@ class SqliteStoreTest {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement statement =
             connection.prepareStatement(
-                "SELECT arguments, error_message FROM tool_invocations "
+                "SELECT arguments, error_message, tool_name, trace_id FROM tool_invocations "
                     + "WHERE error_message LIKE 'sandbox%'");
         ResultSet rows = statement.executeQuery()) {
       assertTrue(rows.next(), "应存在沙箱拒绝行");
       assertEquals("{\"url\":\"https://evil.example.com\"}", rows.getString("arguments"));
+      assertEquals("http_get", rows.getString("tool_name"));
+      assertEquals("trace-tool", rows.getString("trace_id"));
     }
   }
 
@@ -128,6 +135,7 @@ class SqliteStoreTest {
         new ToolInvocationRecord(
             "cli:local:t",
             "turn-1",
+            "trace-tool",
             "probe",
             longArguments,
             1,
@@ -214,6 +222,7 @@ class SqliteStoreTest {
     return new LlmCallRecord(
         "cli:local:tester",
         turnId,
+        "trace-llm",
         "deepseek",
         "deepseek-flash",
         prompt,
@@ -229,6 +238,7 @@ class SqliteStoreTest {
     return new ToolInvocationRecord(
         "cli:local:tester",
         turnId,
+        "trace-tool",
         "http_get",
         "{\"url\":\"https://evil.example.com\"}",
         7,
@@ -272,6 +282,13 @@ class SqliteStoreTest {
       SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
       factory.setDataSource(dataSource);
       return factory.getObject();
+    }
+
+    /** 与生产同构：建表之后跑一次迁移；新库上它是 no-op，靠这行保住「装配真能跑」。 */
+    @Bean(initMethod = "migrate")
+    @DependsOn("schemaInitializer")
+    SqliteSchemaMigrator sqliteSchemaMigrator(DataSource dataSource) {
+      return new SqliteSchemaMigrator(dataSource);
     }
 
     @Bean
