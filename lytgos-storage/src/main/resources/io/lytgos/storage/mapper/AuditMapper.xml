@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.lytgos.storage.mapper.AuditMapper">
+
+  <insert id="insertLlmCall">
+    INSERT INTO llm_calls (session_id, turn_id, provider, model, prompt_tokens,
+                           completion_tokens, total_tokens, duration_ms, success,
+                           error_message, created_at)
+    VALUES (#{sessionId}, #{turnId}, #{provider}, #{model}, #{promptTokens},
+            #{completionTokens}, #{totalTokens}, #{durationMs}, #{success},
+            #{errorMessage}, #{createdAt})
+  </insert>
+
+  <insert id="insertToolInvocation">
+    INSERT INTO tool_invocations (session_id, turn_id, tool_name, arguments, duration_ms,
+                                  success, error_message, created_at)
+    VALUES (#{sessionId}, #{turnId}, #{toolName}, #{arguments}, #{durationMs},
+            #{success}, #{errorMessage}, #{createdAt})
+  </insert>
+</mapper>

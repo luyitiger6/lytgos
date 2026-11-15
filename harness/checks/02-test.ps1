@@ -4,6 +4,11 @@
     因：编译通过只证明语法正确，证明不了行为正确。
         这是唯一能回答「你说的和代码做的是不是一回事」的闸门。
 
+    跑的是 verify 而不是 test：每个模块 pom 都声明了 spotless / checkstyle / pmd /
+    spotbugs 四个静态门禁，它们绑定在 verify 阶段。只跑 test 会让这些门禁在「一键验收」
+    里永远不执行——模块单测全绿、静态告警满天飞，主分支照样是绿的。dependency-check
+    默认 skip（`-Psecurity` 才开），不拖慢本闸门。
+
     三态：
       0        全部测试通过，且报告里实际执行了测试
       2        没有 pom.xml —— 无判定对象
@@ -43,9 +48,9 @@ foreach ($moduleDir in $moduleDirs) {
     }
 }
 
-& mvn -B test
+& mvn -B verify
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "测试失败（mvn exit $LASTEXITCODE）" -ForegroundColor Red
+    Write-Host "测试或静态门禁失败（mvn verify exit $LASTEXITCODE）" -ForegroundColor Red
     exit 1
 }
 

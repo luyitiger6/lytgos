@@ -5,6 +5,7 @@ import io.lytgos.core.LytgosException;
 import io.lytgos.core.agent.Profile;
 import io.lytgos.core.agent.PromptBuilder;
 import io.lytgos.core.agent.ReActLoop;
+import io.lytgos.core.audit.ToolInvocationAuditor;
 import io.lytgos.core.chat.ChatModel;
 import io.lytgos.core.tool.SandboxChecker;
 import io.lytgos.core.tool.Tool;
@@ -42,6 +43,7 @@ public final class AgentRuntimeFactory {
   private final AgentLoader agentLoader;
   private final ProviderRegistry providers;
   private final ObjectMapper mapper;
+  private final ToolInvocationAuditor toolAuditor;
   private final List<Tool> builtinTools;
 
   public AgentRuntimeFactory(
@@ -50,6 +52,7 @@ public final class AgentRuntimeFactory {
       AgentLoader agentLoader,
       ProviderRegistry providers,
       ObjectMapper mapper,
+      ToolInvocationAuditor toolAuditor,
       HttpTool httpTool,
       FileTool fileTool,
       WriteFileTool writeFileTool,
@@ -62,6 +65,7 @@ public final class AgentRuntimeFactory {
     this.agentLoader = agentLoader;
     this.providers = providers;
     this.mapper = mapper;
+    this.toolAuditor = toolAuditor;
     this.builtinTools =
         List.of(
             httpTool,
@@ -99,8 +103,9 @@ public final class AgentRuntimeFactory {
               model,
               promptBuilder,
               registry,
-              new ToolExecutor(registry, mapper),
-              profile.maxIterations()));
+              new ToolExecutor(registry, mapper, toolAuditor),
+              profile.maxIterations(),
+              profile.provider().temperature()));
       return runtime;
     } catch (RuntimeException e) {
       runtime.close();

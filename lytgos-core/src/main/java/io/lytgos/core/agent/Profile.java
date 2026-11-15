@@ -21,7 +21,8 @@ public record Profile(
     List<McpServer> mcpServers,
     List<String> channels,
     List<String> bootstrap,
-    Map<String, Object> settings) {
+    Map<String, Object> settings,
+    List<String> skills) {
 
   /** 迭代上限的默认值。 */
   public static final int DEFAULT_MAX_ITERATIONS = 10;
@@ -38,6 +39,35 @@ public record Profile(
     channels = channels == null ? List.of("cli") : List.copyOf(channels);
     bootstrap = bootstrap == null ? List.of() : List.copyOf(bootstrap);
     settings = settings == null ? Map.of() : Map.copyOf(settings);
+    skills = skills == null ? List.of() : List.copyOf(skills);
+  }
+
+  /**
+   * 不含技能声明的便捷构造器。
+   *
+   * <p>保留它而不是把所有既有调用点都改成十参：{@code skills} 与{@code settings} 在语义上 同属可选扩展，测试与早期调用点没必要为一个空列表多写一个参数。
+   */
+  public Profile(
+      String name,
+      String description,
+      String identity,
+      ProviderRef provider,
+      List<String> tools,
+      List<McpServer> mcpServers,
+      List<String> channels,
+      List<String> bootstrap,
+      Map<String, Object> settings) {
+    this(
+        name,
+        description,
+        identity,
+        provider,
+        tools,
+        mcpServers,
+        channels,
+        bootstrap,
+        settings,
+        List.of());
   }
 
   /**
@@ -58,8 +88,20 @@ public record Profile(
         "settings.maxIterations 必须是正整数，当前为: " + value);
   }
 
-  /** 指向某个已注册 provider 的引用。 */
-  public record ProviderRef(String name, String model) {
+  /**
+   * 指向某个已注册 provider 的引用。
+   *
+   * <p>{@code temperature} 可空：空表示不向上游传，由 provider 默认值决定； 非空时必须在 0.0–2.0 之间——越界不静默回退，配置写错就应该在加载
+   * Agent 时报出来。
+   */
+  public record ProviderRef(String name, String model, Double temperature) {
+
+    /** 温度下限（OpenAI 兼容接口的共同区间）。 */
+    public static final double MIN_TEMPERATURE = 0.0;
+
+    /** 温度上限。 */
+    public static final double MAX_TEMPERATURE = 2.0;
+
     public ProviderRef {
       if (name == null || name.isBlank()) {
         throw new LytgosException.InvalidAgentDefinitionException("AGENT.md 缺少 provider.name");
@@ -67,6 +109,27 @@ public record Profile(
       if (model == null || model.isBlank()) {
         throw new LytgosException.InvalidAgentDefinitionException("AGENT.md 缺少 provider.model");
       }
+      if (temperature != null && outsideRange(temperature)) {
+        throw new LytgosException.InvalidAgentDefinitionException(
+            "provider.temperature 必须在 "
+                + MIN_TEMPERATURE
+                + " 到 "
+                + MAX_TEMPERATURE
+                + " 之间，当前为: "
+                + temperature);
+      }
+    }
+
+    /** 温度是否落在合法区间之外；NaN 一律视为非法。条件单独成方法，避免构造器里的复杂布尔表达式。 */
+    private static boolean outsideRange(double temperature) {
+      return Double.isNaN(temperature)
+          || temperature < MIN_TEMPERATURE
+          || temperature > MAX_TEMPERATURE;
+    }
+
+    /** 不声明温度的便捷构造器。 */
+    public ProviderRef(String name, String model) {
+      this(name, model, null);
     }
   }
 

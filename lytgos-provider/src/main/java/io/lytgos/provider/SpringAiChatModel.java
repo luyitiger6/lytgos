@@ -41,7 +41,7 @@ public final class SpringAiChatModel implements ChatModel {
 
   @Override
   public ChatResult call(ChatRequest request) {
-    Prompt prompt = new Prompt(toSpringMessages(request.messages()), options(request.tools()));
+    Prompt prompt = new Prompt(toSpringMessages(request.messages()), options(request));
     ChatResponse response = delegate.call(prompt);
 
     if (response == null) {
@@ -61,15 +61,46 @@ public final class SpringAiChatModel implements ChatModel {
                 .map(call -> new ToolCall(call.id(), call.name(), call.arguments()))
                 .toList();
 
-    return new ChatResult(content, toolCalls);
+    return new ChatResult(content, toolCalls, usageOf(response));
   }
 
-  private OpenAiChatOptions options(List<ToolSpec> specs) {
-    if (specs.isEmpty()) {
+  /**
+   * 取上游 token 用量；任何字段缺失一律记 0。
+   *
+   * <p>不因「没给用量」报错：兼容 OpenAI 协议的供应商并非都返回 usage，审计表的三列 又都是 NOT NULL——把缺失当成 0 是唯一能两边都成立的口径。
+   */
+  private static ChatResult.Usage usageOf(ChatResponse response) {
+    if (response.getMetadata() == null || response.getMetadata().getUsage() == null) {
+      return ChatResult.Usage.ZERO;
+    }
+    var usage = response.getMetadata().getUsage();
+    return new ChatResult.Usage(
+        zeroIfNull(usage.getPromptTokens()),
+        zeroIfNull(usage.getCompletionTokens()),
+        zeroIfNull(usage.getTotalTokens()));
+  }
+
+  private static int zeroIfNull(Integer value) {
+    return value == null ? 0 : value;
+  }
+
+  /** 请求级 temperature 与工具声明一起落到选项副本上；两者都不存在时保持原选项。 */
+  private OpenAiChatOptions options(ChatRequest request) {
+    boolean hasTemperature = request.temperature() != null;
+    boolean hasTools = !request.tools().isEmpty();
+    if (!hasTemperature && !hasTools) {
       return baseOptions;
     }
-    List<ToolCallback> callbacks = specs.stream().map(SpringAiChatModel::declarationOnly).toList();
-    return baseOptions.mutate().toolCallbacks(callbacks).build();
+    OpenAiChatOptions.Builder builder = baseOptions.mutate();
+    if (hasTemperature) {
+      builder.temperature(request.temperature());
+    }
+    if (hasTools) {
+      List<ToolCallback> callbacks =
+          request.tools().stream().map(SpringAiChatModel::declarationOnly).toList();
+      builder.toolCallbacks(callbacks);
+    }
+    return builder.build();
   }
 
   /**

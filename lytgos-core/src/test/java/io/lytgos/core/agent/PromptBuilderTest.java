@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +28,10 @@ class PromptBuilderTest {
   @TempDir Path workspace;
 
   private static Profile profile(List<String> bootstrap) {
+    return profile(bootstrap, List.of());
+  }
+
+  private static Profile profile(List<String> bootstrap, List<String> skills) {
     return new Profile(
         "tester",
         "测试用 Agent",
@@ -34,7 +41,8 @@ class PromptBuilderTest {
         List.of(),
         List.of("cli"),
         bootstrap,
-        Map.of());
+        Map.of(),
+        skills);
   }
 
   @Test
@@ -158,10 +166,76 @@ class PromptBuilderTest {
   @Test
   @DisplayName("bootstrap 文件名带路径分隔符时拒绝加载")
   void rejectsBootstrapFilePath() {
+    PromptBuilder builder = PromptBuilder.from(profile(List.of("../secret.md")), workspace, "指令");
     LytgosException.InvalidAgentDefinitionException thrown =
         assertThrows(
             LytgosException.InvalidAgentDefinitionException.class,
-            () -> PromptBuilder.from(profile(List.of("../secret.md")), workspace, "指令"));
+            () -> builder.build(new Session("cli:local:tester")));
     assertTrue(thrown.getMessage().contains("../secret.md"));
+  }
+
+  @Test
+  @DisplayName("每次 build 重新读盘：改了 bootstrap 无需重建 PromptBuilder")
+  void rereadsBootstrapOnEveryBuild() throws IOException {
+    Files.writeString(workspace.resolve("SOUL.md"), "第一版语气。", StandardCharsets.UTF_8);
+    PromptBuilder builder = PromptBuilder.from(profile(List.of("SOUL.md")), workspace, "指令");
+    Session session = new Session("cli:local:tester");
+
+    assertTrue(builder.build(session).get(0).content().contains("第一版语气。"));
+
+    Files.writeString(workspace.resolve("SOUL.md"), "第二版语气。", StandardCharsets.UTF_8);
+    String second = builder.build(session).get(0).content();
+    assertTrue(second.contains("第二版语气。"), "改文件后下一次 build 必须生效");
+    assertFalse(second.contains("第一版语气。"), "不得缓存构造时的快照");
+  }
+
+  @Test
+  @DisplayName("技能注入 SKILL.md 的 name、description 与文件路径")
+  void injectsSkillSummary() throws IOException {
+    Path skillDir = Files.createDirectories(workspace.resolve("agents/tester/skills/weather"));
+    Files.writeString(
+        skillDir.resolve("SKILL.md"),
+        "---\nname: 天气查询\ndescription: 查询城市天气与时活\n---\n\n正文不注入",
+        StandardCharsets.UTF_8);
+
+    String system =
+        PromptBuilder.from(profile(List.of(), List.of("weather")), workspace, "")
+            .build(new Session("cli:local:tester"))
+            .get(0)
+            .content();
+
+    assertTrue(system.contains("天气查询"), "缺技能 name");
+    assertTrue(system.contains("查询城市天气与时活"), "缺技能 description");
+    assertTrue(system.contains("agents/tester/skills/weather/SKILL.md"), "缺技能文件路径");
+    assertFalse(system.contains("正文不注入"), "只注入摘要，不注入全文");
+    assertTrue(system.indexOf("天气查询") < system.indexOf("## 当前日期"), "技能必须在日期之前");
+  }
+
+  @Test
+  @DisplayName("声明的技能缺 SKILL.md 时报错，消息带技能名与期望路径")
+  void missingSkillFails() {
+    LytgosException.InvalidAgentDefinitionException thrown =
+        assertThrows(
+            LytgosException.InvalidAgentDefinitionException.class,
+            () ->
+                PromptBuilder.from(profile(List.of(), List.of("weather")), workspace, "")
+                    .build(new Session("cli:local:tester")));
+
+    assertTrue(thrown.getMessage().contains("weather"), thrown.getMessage());
+    assertTrue(thrown.getMessage().contains("SKILL.md"), thrown.getMessage());
+  }
+
+  @Test
+  @DisplayName("系统提示词末尾注入注入时钟的当天日期")
+  void injectsCurrentDateAtEnd() {
+    Clock fixed = Clock.fixed(Instant.parse("2026-11-15T08:00:00Z"), ZoneOffset.UTC);
+
+    String system =
+        PromptBuilder.from(profile(List.of()), workspace, "指令", fixed)
+            .build(new Session("cli:local:tester"))
+            .get(0)
+            .content();
+
+    assertTrue(system.strip().endsWith("2026-11-15"), "日期必须在末尾: " + system);
   }
 }

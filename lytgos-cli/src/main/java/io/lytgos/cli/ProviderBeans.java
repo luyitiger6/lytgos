@@ -1,5 +1,6 @@
 package io.lytgos.cli;
 
+import io.lytgos.core.audit.LlmCallAuditor;
 import io.lytgos.provider.ProviderRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 public class ProviderBeans {
 
   @Bean
-  public ProviderRegistry providerRegistry(WorkspaceConfig config) {
-    return new ProviderRegistry(config.providers());
+  public ProviderRegistry providerRegistry(WorkspaceConfig config, LlmCallAuditor auditor) {
+    return new ProviderRegistry(config.providers(), auditor);
   }
 }

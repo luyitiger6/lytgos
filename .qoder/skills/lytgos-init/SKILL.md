@@ -36,7 +36,7 @@ description: >-
 实施前确认这些硬约束，写进配置：
 - JDK 21、Spring Boot 4.1.2 + Spring AI 2.0.2、Maven 多模块、单二进制（fat JAR）部署
 - HTTP 层用 Spring MVC + Java 21 虚拟线程（不引入响应式）
-- 持久化 SQLite + Spring Data JPA；长期记忆走 MEMORY.md（本 skill 只配数据源，不建业务表）
+- 持久化 SQLite + MyBatis（数据源用 Spring Boot 管理的 HikariCP，`SqlSessionFactory` 由 `SqlSessionFactoryBean` 创建，Mapper 代理由 `@MapperScan` 生成；不用 Spring Data JPA）；长期记忆走 MEMORY.md（本 skill 只配数据源，不建业务表）
 - 审计表 `tool_invocations` / `llm_calls` 的建表脚本预留位（day one 落库）
 - 代码必须过 Google 格式 + 阿里编码规约 + 安全扫描，才能合并
 

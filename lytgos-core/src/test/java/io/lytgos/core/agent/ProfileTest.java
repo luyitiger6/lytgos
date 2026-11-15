@@ -67,6 +67,21 @@ class ProfileTest {
   }
 
   @Test
+  @DisplayName("provider.temperature 越界时拒绝，消息写清字段名与合法区间")
+  void rejectsOutOfRangeTemperature() {
+    LytgosException.InvalidAgentDefinitionException tooHigh =
+        assertThrows(
+            LytgosException.InvalidAgentDefinitionException.class,
+            () -> new Profile.ProviderRef("deepseek", "deepseek-chat", 2.5));
+    assertTrue(tooHigh.getMessage().contains("provider.temperature"), tooHigh.getMessage());
+
+    assertThrows(
+        LytgosException.InvalidAgentDefinitionException.class,
+        () -> new Profile.ProviderRef("deepseek", "deepseek-chat", -0.1),
+        "低于下界同样拒绝");
+  }
+
+  @Test
   @DisplayName("集合字段做防御性拷贝，外部改动不影响已加载的声明")
   void copiesCollections() {
     List<String> args = new ArrayList<>(List.of("a"));

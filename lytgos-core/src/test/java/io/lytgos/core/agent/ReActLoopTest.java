@@ -72,6 +72,12 @@ class ReActLoopTest {
 
     Message lastOfSecondRequest = model.requests().get(1).messages().getLast();
     assertEquals(Message.Role.TOOL, lastOfSecondRequest.role(), "第二轮请求里必须能看到上一轮的工具结果，否则模型无从继续");
+
+    ChatRequest first = model.requests().get(0);
+    ChatRequest second = model.requests().get(1);
+    assertEquals("cli:local:tester", first.sessionId());
+    assertFalse(first.turnId().isBlank(), "turnId 必须由 ReActLoop 生成并传给模型");
+    assertEquals(first.turnId(), second.turnId(), "同一轮内的多次模型调用必须共享 turnId");
   }
 
   @Test
@@ -138,6 +144,18 @@ class ReActLoopTest {
   }
 
   @Test
+  @DisplayName("temperature 从 profile 透传到每次模型请求，空值表示交给 provider 默认")
+  void passesProfileTemperatureToRequests() {
+    ScriptedModel model = new ScriptedModel(List.of(new ChatResult("好", List.of())));
+    loop(model, new ToolRegistry(List.of()), 10, 0.7).run(new Session("cli:local:tester"), "你好");
+
+    assertEquals(
+        Double.valueOf(0.7),
+        model.requests().get(0).temperature(),
+        "profile 的 temperature 必须落到 ChatRequest 上");
+  }
+
+  @Test
   @DisplayName("不含工具调用的一轮对话不改写 MEMORY.md")
   void plainConversationDoesNotRewriteMemory() throws IOException {
     Path memory = Files.createDirectories(workspace.resolve("memory")).resolve("MEMORY.md");
@@ -167,12 +185,17 @@ class ReActLoopTest {
   }
 
   private ReActLoop loop(ChatModel model, ToolRegistry registry, int maxIterations) {
+    return loop(model, registry, maxIterations, null);
+  }
+
+  private ReActLoop loop(
+      ChatModel model, ToolRegistry registry, int maxIterations, Double temperature) {
     Profile profile =
         new Profile(
             "tester",
             null,
             "你是一个测试助手。",
-            new Profile.ProviderRef("deepseek", "deepseek-chat"),
+            new Profile.ProviderRef("deepseek", "deepseek-chat", temperature),
             List.of(),
             List.of(),
             List.of("cli"),
@@ -182,8 +205,9 @@ class ReActLoopTest {
         model,
         PromptBuilder.from(profile, workspace, ""),
         registry,
-        new ToolExecutor(registry, new ObjectMapper()),
-        maxIterations);
+        new ToolExecutor(registry, new ObjectMapper(), record -> {}),
+        maxIterations,
+        temperature);
   }
 
   /** 按脚本返回结果，并记录每次请求的完整入参。 */

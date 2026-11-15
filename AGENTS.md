@@ -19,9 +19,11 @@
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：第 2 周能力已落地。** 12 个 Maven 模块已就位（11 个业务模块 + `lytgos-test`），`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；`lytgos init` / `chat` / `profile` / `provider` / `tool` 五个命令可用。第 1 周打通 ReAct 循环、Prompt 组装、会话落盘与沙箱；第 2 周补齐长期记忆（`memory/MEMORY.md` 启动注入 + `save_memory` / `recall_memory`）、`write_file` / `list_dir` 与受白名单约束的 `shell`，内置工具共七个，`Profile.tools` 白名单筛选对它们全部生效。`07-week1-acceptance.ps1` 六条与 `10-week2-acceptance.ps1` 六条均以真实操作链路为准。
+**当前状态：第 2 周能力已落地，审计链路已接入。** 12 个 Maven 模块已就位（11 个业务模块 + `lytgos-test`），`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；`lytgos init` / `chat` / `profile` / `provider` / `tool` 五个命令可用。第 1 周打通 ReAct 循环、Prompt 组装、会话落盘与沙箱；第 2 周补齐长期记忆（`memory/MEMORY.md` 启动注入 + `save_memory` / `recall_memory`）、`write_file` / `list_dir` 与受白名单约束的 `shell`，内置工具共七个，`Profile.tools` 白名单筛选对它们全部生效。`07-week1-acceptance.ps1` 六条与 `10-week2-acceptance.ps1` 六条均以真实操作链路为准。
 
-`harness\run-all.ps1` 整体仍返回 **1**：唯一未就绪的是 `05-audit-invariant`（storage 审计未实现，属第 4 周范围），其余 10 道全 PASS（含 07/08 真实调高德）。按硬规则 3，此时**不得报告「完整验收通过」**。全量单测 120 条，`mvn -B verify` BUILD SUCCESS。运行构建与闸门必须让 `JAVA_HOME` 指向 JDK 21：本机 Machine 级为 `C:\jdk-17`，不覆盖时 02-test 会报 `class file version 65.0 ... up to 61.0`（JDK 17 fork 加载 JDK 21 字节码）；`02-test` 与 `run-all` 已接入 `harness/lib/JdkGuard.ps1` 前置校验，会在跑 mvn 前直接指出 JDK 不足，同一条命令内注入 `$env:JAVA_HOME='C:\jdk21'` 即可。注意：`AMAP_MCP_KEY` 等变量若在 IDE 启动后才 setx，子终端进程读不到，需在同一命令内从 User 作用域注入后再跑闸门。
+`add-audit-trail-and-context` 把会话存储切到 SQLite（`.lytgos/lytgos.db`），并接入 `llm_calls` / `tool_invocations` 审计（`05-audit-invariant` 已从空壳改为真实执行）。**第 3 周 Web 仍只有地基**：统一响应体、异常映射、未知路径统一 404、虚拟线程、OpenAPI 已就位，但设计 §7.2 的 10 个业务端点与 `lytgos serve` 尚未实现，不得表述为「第 3 周完成」。
+
+`harness\run-all.ps1` 的结论以实际退出码为准：07/08/10 需要真实 `DEEPSEEK_API_KEY`（08 另需 `AMAP_MCP_KEY`），缺 key 时对应条目记 NOT_READY/SKIP，总闸门返回 1；按硬规则 3，此时**不得报告「完整验收通过」**。运行构建与闸门必须让 `JAVA_HOME` 指向 JDK 21：本机 Machine 级为 `C:\jdk-17`，不覆盖时 02-test 会报 `class file version 65.0 ... up to 61.0`（JDK 17 fork 加载 JDK 21 字节码）；`02-test` 与 `run-all` 已接入 `harness/lib/JdkGuard.ps1` 前置校验，会在跑 mvn 前直接指出 JDK 不足，同一条命令内注入 `$env:JAVA_HOME='C:\jdk21'` 即可。注意：`AMAP_MCP_KEY` 等变量若在 IDE 启动后才 setx，子终端进程读不到，需在同一命令内从 User 作用域注入后再跑闸门。
 
 ## 2. 三层分工
 
@@ -133,7 +135,7 @@ lytgos/
 │       ├── 02-test.ps1                  行为对不对
 │       ├── 03-static-guard.ps1          有没有伪造绿灯
 │       ├── 04-dependency-direction.ps1  依赖方向 + 禁止自动工具执行
-│       ├── 05-audit-invariant.ps1       审计不变量 I1/I2/I3（待接入）
+│       ├── 05-audit-invariant.ps1       审计不变量 I1/I2/I3
 │       ├── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
 │       ├── 07-week1-acceptance.ps1      第 1 周端到端验收（init → 对话 → 反例）
 │       ├── 08-mcp-acceptance.ps1        MCP 与内置工具双路径对照，证明共用 ToolExecutor

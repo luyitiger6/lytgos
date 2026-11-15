@@ -1,6 +1,7 @@
 package io.lytgos.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.lytgos.core.audit.ToolInvocationAuditor;
 import io.lytgos.core.tool.SandboxChecker;
 import io.lytgos.core.workspace.WorkspaceLocator;
 import io.lytgos.memory.RecallMemoryTool;
@@ -30,6 +31,7 @@ public class CliBeans {
       AgentLoader agentLoader,
       ProviderRegistry providers,
       ObjectMapper mapper,
+      ToolInvocationAuditor auditor,
       HttpTool httpTool,
       FileTool fileTool,
       WriteFileTool writeFileTool,
@@ -43,6 +45,7 @@ public class CliBeans {
         agentLoader,
         providers,
         mapper,
+        auditor,
         httpTool,
         fileTool,
         writeFileTool,

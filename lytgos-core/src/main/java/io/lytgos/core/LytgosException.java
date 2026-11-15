@@ -60,4 +60,21 @@ public class LytgosException extends RuntimeException {
       super(message);
     }
   }
+
+  /**
+   * 审计写入失败。
+   *
+   * <p>刻意不降级为日志后继续：审计是产品卖点，静默丢一行审计记录等于卖点消失。 本轮对话必须显性失败，让操作者知道「这次调用没有被记录下来」。
+   *
+   * <p>{@code errorCode} 供 HTTP 层复用：500 / {@code LYTGOS_AUDIT_WRITE_FAILED}。
+   */
+  public static class AuditWriteException extends LytgosException {
+
+    /** HTTP 层与 CLI 统一的错误码。 */
+    public static final String ERROR_CODE = "LYTGOS_AUDIT_WRITE_FAILED";
+
+    public AuditWriteException(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
 }

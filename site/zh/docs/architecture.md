@@ -1,6 +1,6 @@
 # 架构
 
-lytgos 是一个 Spring Boot 3.x 单体应用，运行在 JDK 21 上，整个系统——LLM 路由、推理循环、记忆系统、工具体系、REST API 以及 Web 管理台——打包在一个 fat JAR 里交付。除了 JVM 和你配置的 LLM Provider 凭证，不需要任何外部依赖。状态存储在 SQLite 和工作区目录下的本地文件系统中（默认 `.lytgos/`，可配置——见下文）。
+lytgos 是一个 Spring Boot 4.x 单体应用，运行在 JDK 21 上，整个系统——LLM 路由、推理循环、记忆系统、工具体系、REST API 以及 Web 管理台——打包在一个 fat JAR 里交付。除了 JVM 和你配置的 LLM Provider 凭证，不需要任何外部依赖。状态存储在 SQLite 和工作区目录下的本地文件系统中（默认 `.lytgos/`，可配置——见下文）。
 
 推理引擎是自实现的 ReAct Loop。Spring AI 的 OpenAI connector 负责 OpenAI 兼容 LLM 协议转换；循环本身、上下文组装、工具调度和审计记录，都由 lytgos 自己掌控。当前实现是单节点 Runtime；项目更广泛的方向是为企业 AI 应用提供共享的 Agent Runtime、Task Runtime 和 Control Plane。
 
@@ -116,7 +116,7 @@ Provider 和通知渠道不再是静态配置——两者都存储在 SQLite 中
 | `lytgos-tool` | 工具体系：内置工具（`FileTools`、`ShellTools`、`HttpTools`、`NotifyTools`）、`McpClientService`、`McpToolAdapter`、`ToolRegistry`、`SandboxChecker` |
 | `lytgos-channel-cli` | CLI 渠道：`CliChannel`、`lytgos chat` 命令实现 |
 | `lytgos-web` | REST API：十个 `ApiController`、`GlobalExceptionHandler`、统一响应信封、OpenAPI 规范，以及通过 `/admin/` 提供的 Vue 管理台 |
-| `lytgos-storage` | 持久化：SQLite via Spring Data JPA——会话、工具调用、LLM 调用、定时任务、任务执行、记忆条目、通知渠道、Provider 等仓库 |
+| `lytgos-storage` | 持久化：SQLite 上的 MyBatis Mapper 与 Store 实现——数据源（HikariCP）、`SqlSessionFactory` 与 Mapper 代理均由 Spring 容器提供 |
 | `lytgos-cli` | CLI 入口：Picocli 主入口、12 个子命令、`ConfigLoader`（凭证和配置校验） |
 | `lytgos-boot` | Spring Boot 启动模块：主类、自动配置、依赖聚合 |
 
@@ -132,20 +132,20 @@ Provider 和通知渠道不再是静态配置——两者都存储在 SQLite 中
 | 4 | Provider 解析 | 由 SQLite 注册表支撑的动态 `provider name → ChatModel` 映射，按 `(name\|apiKey\|baseUrl)` 缓存 | 显式映射（绝不靠 Bean 类型扫描），但可在运行时修改，Provider 增改无需重启 |
 | 5 | HTTP 服务层 | Spring MVC + Java 21 虚拟线程 | 同步风格的代码，单节点支持数千并发请求；扩展阶段可用 `SseEmitter` 支持流式 |
 | 6 | 沙箱策略 | 应用层路径/模式白名单，可运行时管理 | `SecurityManager` 从 JDK 17 起废弃、JDK 21 上不可用；完整的容器级沙箱隔离是扩展阶段的工作 |
-| 7 | 持久化方案 | SQLite + Spring Data JPA 存关系型数据；每个 Agent 的 `MEMORY.md` 存长期记忆 | 单体部署无需外部数据库进程；审计表从第一天就写入，审计能力不会是事后追加的 |
+| 7 | 持久化方案 | SQLite + MyBatis（`SqlSessionFactoryBean` 创建 `SqlSessionFactory`，`@MapperScan` 生成 Mapper 代理，数据源用 HikariCP）存关系型数据；每个 Agent 的 `MEMORY.md` 存长期记忆 | 单体部署无需外部数据库进程；审计表从第一天就写入，审计能力不会是事后追加的 |
 
 ## 技术栈
 
 | 组件 | 选型 |
 | --- | --- |
 | 语言 / 运行时 | Java 21（必须；虚拟线程，无 SecurityManager） |
-| 框架 | Spring Boot 3.x |
+| 框架 | Spring Boot 4.x |
 | LLM 集成 | Spring AI（仅用于 OpenAI 兼容协议转换和 `@Tool` Schema 生成） |
 | HTTP 服务 | Spring MVC + Java 21 虚拟线程 |
 | 管理台 | Vue 3 + Vite（通过 `/admin/` 提供） |
 | 命令行 | Picocli |
 | YAML 解析 | SnakeYAML |
-| 持久化 | SQLite + Spring Data JPA（`schema.sql` 手动维护；`CREATE TABLE IF NOT EXISTS`，不依赖脆弱的 SQLite `ALTER`） |
+| 持久化 | SQLite + MyBatis（`lytgos-schema.sql` 手动维护，由 `DataSourceInitializer` 在启动时执行；`CREATE TABLE IF NOT EXISTS`，不依赖脆弱的 SQLite `ALTER`） |
 | 长期记忆 | 每个 Agent 的 `MEMORY.md` 平文件 + 关键词检索；配置 `embedding.*` 后支持向量/关键词/时间近度语义检索；更广泛的共享后端演进中 |
 | MCP 集成 | MCP Java SDK（MCP Client 用于连接外部 MCP server） |
 | 日志 | Logback + SLF4J，结构化 JSON 输出 |
