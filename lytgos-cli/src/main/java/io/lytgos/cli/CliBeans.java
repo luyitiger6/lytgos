@@ -3,10 +3,15 @@ package io.lytgos.cli;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lytgos.core.tool.SandboxChecker;
 import io.lytgos.core.workspace.WorkspaceLocator;
+import io.lytgos.memory.RecallMemoryTool;
+import io.lytgos.memory.SaveMemoryTool;
 import io.lytgos.persona.AgentLoader;
 import io.lytgos.provider.ProviderRegistry;
 import io.lytgos.tool.FileTool;
 import io.lytgos.tool.HttpTool;
+import io.lytgos.tool.ListDirTool;
+import io.lytgos.tool.ShellTool;
+import io.lytgos.tool.WriteFileTool;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,8 +31,24 @@ public class CliBeans {
       ProviderRegistry providers,
       ObjectMapper mapper,
       HttpTool httpTool,
-      FileTool fileTool) {
+      FileTool fileTool,
+      WriteFileTool writeFileTool,
+      ListDirTool listDirTool,
+      ShellTool shellTool,
+      SaveMemoryTool saveMemoryTool,
+      RecallMemoryTool recallMemoryTool) {
     return new AgentRuntimeFactory(
-        locator, sandbox, agentLoader, providers, mapper, httpTool, fileTool);
+        locator,
+        sandbox,
+        agentLoader,
+        providers,
+        mapper,
+        httpTool,
+        fileTool,
+        writeFileTool,
+        listDirTool,
+        shellTool,
+        saveMemoryTool,
+        recallMemoryTool);
   }
 }

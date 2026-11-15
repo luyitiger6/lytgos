@@ -40,19 +40,27 @@ public final class ToolCommand implements Runnable {
   private static void list(LazyContext context, String agentName) {
     AgentRuntimeFactory factory = context.getBean(AgentRuntimeFactory.class);
     try (AgentRuntime runtime = factory.toolsFor(agentName)) {
-      List<ToolSpec> specs = runtime.tools().specs();
-
-      if (specs.isEmpty()) {
-        System.out.println("（该 Agent 没有可用的工具）");
-        return;
-      }
-
-      System.out.printf("%-24s %s%n", "NAME", "DESCRIPTION");
-      for (ToolSpec spec : specs) {
-        System.out.printf(
-            "%-24s %s%n", spec.name(), spec.description() == null ? "" : spec.description());
-      }
+      System.out.print(render(runtime.tools().specs()));
     }
+  }
+
+  /**
+   * 把工具快照渲染成两列表格。
+   *
+   * <p>抽成包内纯函数是为了让「列出来的内容」可被单测断言：走 CLI 得启动整个 Spring 容器与 MCP 子进程， 代价与收益不成比例，而模型看到的正是这张表。
+   */
+  static String render(List<ToolSpec> specs) {
+    if (specs.isEmpty()) {
+      return "（该 Agent 没有可用的工具）" + System.lineSeparator();
+    }
+    StringBuilder out = new StringBuilder();
+    out.append(String.format("%-24s %s%n", "NAME", "DESCRIPTION"));
+    for (ToolSpec spec : specs) {
+      out.append(
+          String.format(
+              "%-24s %s%n", spec.name(), spec.description() == null ? "" : spec.description()));
+    }
+    return out.toString();
   }
 
   @Command(name = "list", description = "列出所有已注册的工具")

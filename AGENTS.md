@@ -19,9 +19,9 @@
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：第 1 周链路已打通。** 12 个 Maven 模块已就位（11 个业务模块 + `lytgos-test`），`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；`lytgos init` / `chat` / `profile` / `provider` / `tool` 五个命令可用，`mvn test` 79 个单测全绿，`07-week1-acceptance.ps1` 六条全 PASS。
+**当前状态：第 2 周能力已落地。** 12 个 Maven 模块已就位（11 个业务模块 + `lytgos-test`），`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；`lytgos init` / `chat` / `profile` / `provider` / `tool` 五个命令可用。第 1 周打通 ReAct 循环、Prompt 组装、会话落盘与沙箱；第 2 周补齐长期记忆（`memory/MEMORY.md` 启动注入 + `save_memory` / `recall_memory`）、`write_file` / `list_dir` 与受白名单约束的 `shell`，内置工具共七个，`Profile.tools` 白名单筛选对它们全部生效。`07-week1-acceptance.ps1` 六条与 `10-week2-acceptance.ps1` 六条均以真实操作链路为准。
 
-`harness\run-all.ps1` 整体仍返回 **1** —— 唯一未就绪的是 `05-audit-invariant`（storage 未落地，属第 4 周范围）。按硬规则 3，此时**不得报告「完整验收通过」**。运行构建需 JDK 21（`JAVA_HOME` 指向 JDK 21，不能用 17）。
+`harness\run-all.ps1` 整体仍返回 **1**：唯一未就绪的是 `05-audit-invariant`（storage 审计未实现，属第 4 周范围），其余 10 道全 PASS（含 07/08 真实调高德）。按硬规则 3，此时**不得报告「完整验收通过」**。全量单测 120 条，`mvn -B verify` BUILD SUCCESS。运行构建与闸门必须让 `JAVA_HOME` 指向 JDK 21：本机 Machine 级为 `C:\jdk-17`，不覆盖时 02-test 会报 `class file version 65.0 ... up to 61.0`（JDK 17 fork 加载 JDK 21 字节码）；`02-test` 与 `run-all` 已接入 `harness/lib/JdkGuard.ps1` 前置校验，会在跑 mvn 前直接指出 JDK 不足，同一条命令内注入 `$env:JAVA_HOME='C:\jdk21'` 即可。注意：`AMAP_MCP_KEY` 等变量若在 IDE 启动后才 setx，子终端进程读不到，需在同一命令内从 User 作用域注入后再跑闸门。
 
 ## 2. 三层分工
 
@@ -126,6 +126,7 @@ lytgos/
 ├── harness/                   【能力层】
 │   ├── run-all.ps1            总闸门：三个退出状态（0 通过 / 2 未就绪 / 其余失败）
 │   ├── README.md              闸门清单与新增方法
+│   ├── lib/JdkGuard.ps1       构建前 JDK 版本前置校验（02-test 与 run-all 共用）
 │   └── checks/
 │       ├── 00-layout-check.ps1          骨架完整性 + 闸门清单一致性
 │       ├── 01-compile.ps1               能不能编译
@@ -136,7 +137,9 @@ lytgos/
 │       ├── 06-change-contract.ps1       每个 change 必须有 proposal 说明工作内容
 │       ├── 07-week1-acceptance.ps1      第 1 周端到端验收（init → 对话 → 反例）
 │       ├── 08-mcp-acceptance.ps1        MCP 与内置工具双路径对照，证明共用 ToolExecutor
-│       └── 09-startup-budget.ps1        启动预算回归护栏（L0 --version / L1 provider list）
+│       ├── 09-startup-budget.ps1        启动预算回归护栏（L0 --version / L1 provider list）
+│       ├── 10-week2-acceptance.ps1      第 2 周端到端验收（记忆跨进程 → 写文件 → 执行命令 → 删记忆仍可对话）
+│       └── 11-web-smoke.ps1             Web 地基冒烟（探针 / prometheus / system-info / 404 / api-docs / traceId）
 └── .agents/skills/            【行为层】
     ├── systematic-debugging/          四阶段根因法
     ├── verification-before-completion/ 先证后宣布
@@ -145,7 +148,7 @@ lytgos/
 
 12 个模块目录与根 `pom.xml` 已就位（含不含生产代码的 `lytgos-test`）：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。新增业务模块时必须在 `lytgos-test/pom.xml` 登记 test 依赖，否则 ArchUnit 扫不到它（04 闸门会拦）。
 
-<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract 07-week1-acceptance 08-mcp-acceptance 09-startup-budget -->
+<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract 07-week1-acceptance 08-mcp-acceptance 09-startup-budget 10-week2-acceptance 11-web-smoke -->
 
 上面这行是**闸门清单的机器可读副本**：新增或删除闸门时同步更新，`00-layout-check.ps1` 会把它与 `harness/checks/*.ps1` 的实际文件比对，不一致直接退出码 1。
 

@@ -1,6 +1,9 @@
 spring:
   application:
     name: lytgos-channel
+  config:
+    # Web 地基公共配置（虚拟线程、actuator 暴露面、springdoc 开关）
+    import: classpath:lytgos-web-defaults.yaml
 
 server:
   # 8080 常被本机其他服务（如 VMware vmnat）占用，这里固定 8081

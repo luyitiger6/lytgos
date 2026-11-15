@@ -98,6 +98,64 @@ class PromptBuilderTest {
   }
 
   @Test
+  @DisplayName("长期记忆在 bootstrap 之后注入")
+  void injectsMemoryAfterBootstrap() throws IOException {
+    Files.writeString(workspace.resolve("SOUL.md"), "语气克制。", StandardCharsets.UTF_8);
+    Path memory = Files.createDirectories(workspace.resolve("memory")).resolve("MEMORY.md");
+    Files.writeString(memory, "# 长期记忆\n\n- 我用 Spring Boot\n", StandardCharsets.UTF_8);
+
+    String system =
+        PromptBuilder.from(profile(List.of("SOUL.md")), workspace, "指令")
+            .build(new Session("cli:local:tester"))
+            .get(0)
+            .content();
+
+    assertTrue(system.contains("## 长期记忆（MEMORY.md）"), "缺记忆标题");
+    assertTrue(system.contains("我用 Spring Boot"), "缺记忆正文");
+    assertTrue(
+        system.indexOf("## SOUL.md") < system.indexOf("## 长期记忆（MEMORY.md）"), "记忆必须排在 bootstrap 之后");
+  }
+
+  @Test
+  @DisplayName("记忆缺失或为空时不注入")
+  void skipsMemoryWhenMissingOrEmpty() throws IOException {
+    String without =
+        PromptBuilder.from(profile(List.of()), workspace, "")
+            .build(new Session("cli:local:tester"))
+            .get(0)
+            .content();
+    assertFalse(without.contains("长期记忆"), "文件缺失时不应注入");
+
+    Path memory = Files.createDirectories(workspace.resolve("memory")).resolve("MEMORY.md");
+    Files.writeString(memory, "  \n", StandardCharsets.UTF_8);
+    String empty =
+        PromptBuilder.from(profile(List.of()), workspace, "")
+            .build(new Session("cli:local:tester"))
+            .get(0)
+            .content();
+    assertFalse(empty.contains("长期记忆"), "内容为空白时不应注入");
+  }
+
+  @Test
+  @DisplayName("超长记忆截断并标注原始长度")
+  void truncatesLongMemory() throws IOException {
+    Path memory = Files.createDirectories(workspace.resolve("memory")).resolve("MEMORY.md");
+    String head = "x".repeat(PromptBuilder.MAX_MEMORY_CHARS + 100);
+    String tail = "TAIL_MARKER";
+    Files.writeString(memory, head + tail, StandardCharsets.UTF_8);
+
+    String system =
+        PromptBuilder.from(profile(List.of()), workspace, "")
+            .build(new Session("cli:local:tester"))
+            .get(0)
+            .content();
+
+    assertTrue(system.contains("记忆已截断"), "缺截断标注");
+    assertFalse(system.contains(tail), "超出上限的内容不应注入");
+    assertTrue(system.contains(String.valueOf(head.length() + tail.length())), "截断标注应给出原始长度");
+  }
+
+  @Test
   @DisplayName("bootstrap 文件名带路径分隔符时拒绝加载")
   void rejectsBootstrapFilePath() {
     LytgosException.InvalidAgentDefinitionException thrown =

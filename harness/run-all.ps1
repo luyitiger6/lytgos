@@ -45,6 +45,11 @@ $harnessDir = $PSScriptRoot
 $projectRoot = Split-Path -Parent $harnessDir
 Set-Location $projectRoot
 
+# 总闸门先确认工具链：JDK 不对时后续每个 mvn 闸门都会报同一类误导性错误，
+# 而真正的修复只是在环境里把 JAVA_HOME 指向项目要求的版本。
+. (Join-Path $harnessDir 'lib\JdkGuard.ps1')
+Assert-JdkVersion $projectRoot
+
 Write-Host "Harness root : $projectRoot" -ForegroundColor DarkGray
 Write-Host "Started at   : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor DarkGray
 

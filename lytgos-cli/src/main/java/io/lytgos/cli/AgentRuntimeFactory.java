@@ -11,10 +11,15 @@ import io.lytgos.core.tool.Tool;
 import io.lytgos.core.tool.ToolExecutor;
 import io.lytgos.core.tool.ToolRegistry;
 import io.lytgos.core.workspace.WorkspaceLocator;
+import io.lytgos.memory.RecallMemoryTool;
+import io.lytgos.memory.SaveMemoryTool;
 import io.lytgos.persona.AgentLoader;
 import io.lytgos.provider.ProviderRegistry;
 import io.lytgos.tool.FileTool;
 import io.lytgos.tool.HttpTool;
+import io.lytgos.tool.ListDirTool;
+import io.lytgos.tool.ShellTool;
+import io.lytgos.tool.WriteFileTool;
 import io.lytgos.tool.mcp.McpServerManager;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -46,13 +51,26 @@ public final class AgentRuntimeFactory {
       ProviderRegistry providers,
       ObjectMapper mapper,
       HttpTool httpTool,
-      FileTool fileTool) {
+      FileTool fileTool,
+      WriteFileTool writeFileTool,
+      ListDirTool listDirTool,
+      ShellTool shellTool,
+      SaveMemoryTool saveMemoryTool,
+      RecallMemoryTool recallMemoryTool) {
     this.locator = locator;
     this.sandbox = sandbox;
     this.agentLoader = agentLoader;
     this.providers = providers;
     this.mapper = mapper;
-    this.builtinTools = List.of(httpTool, fileTool);
+    this.builtinTools =
+        List.of(
+            httpTool,
+            fileTool,
+            writeFileTool,
+            listDirTool,
+            shellTool,
+            saveMemoryTool,
+            recallMemoryTool);
   }
 
   /** 只装配工具，不碰模型。{@code tool list} 这类只读命令用它—— 列出工具不需要 API key，不该因为没设 key 就连看都看不到。 */
