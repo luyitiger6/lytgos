@@ -331,7 +331,12 @@
                         <retireJsUrl>${dependency-check.retireJsUrl}</retireJsUrl>
                         <dataDirectory>${dependency-check.dataDirectory}</dataDirectory>
                         <suppressionFiles>
-                            <suppressionFile>${project.basedir}/../dependency-check-suppressions.xml</suppressionFile>
+                            <!--
+                                必须用 maven.multiModuleProjectDirectory（仓库根），不能用 ${project.basedir}/../：
+                                13 号闸门在仓库根直接调用插件目标，此时 project.basedir 就是根目录，
+                                ../ 会越出仓库指向 D:\dependency-check-suppressions.xml 导致初始化失败。
+                            -->
+                            <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
                         </suppressionFiles>
                     </configuration>
                     <executions>

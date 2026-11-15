@@ -65,6 +65,7 @@
 - [根 pom 与 `lytgos-web-defaults.yaml` 两处版本可能漂移] → 两处注释互相指向；升级 swagger-ui 必须同时改两处。`11-web-smoke` 目前只断言 `/v3/api-docs`，未覆盖 UI 页面，漂移不会被自动拦截（已记入 tasks 的 Workflow follow-up）。
 - [NVD 增量更新的 4 小时窗口过期后需要联网，网络抖动会让闸门变红] → 实测遇到一次 `UnknownHostException: nvd.nist.gov`，扫描器初始化失败被判 1；重试后 NVD modified 更新成功（72.8s）并全模块通过。这是「无法判定不能算通过」的有意取舍，不是假红；断网环境下重试即可，不要为了变绿关闭更新。
 - [本分支 `run-all` 无法返回 0：`05-audit-invariant` 在 main 基线是空壳（无条件 NOT_READY），而总闸门的设计是「有 NOT_READY 即判 1」] → 不为让绿灯而改总闸门、也不跳过 05；本 change 的验收判据改为「13 号 PASS + 其余已就绪闸门全 PASS」，完整通过（退出码 0）后置到 05 实现分支合并后重跑，见 tasks 3.4。
+- [suppression 路径用 `${project.basedir}/../` 会在根目录调用插件目标时越出仓库] → 实测（2026-11-16）合并审计分支后 13 号闸门 exit 1：`Failed to load D:\lytgos/../dependency-check-suppressions.xml`。CI 的 `verify -Psecurity` 在模块内执行、`../` 恰好是仓库根，所以长期看起来是绿的；13 号闸门在仓库根直接调用 `dependency-check:check`，`project.basedir` 就是根目录。统一用 `${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml`，两种调用方式都解析到仓库根。
 
 ## Migration Plan
 
