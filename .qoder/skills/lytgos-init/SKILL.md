@@ -1,7 +1,7 @@
 ---
 name: lytgos-init
 description: >-
-  初始化 lytgos（或同类 JDK 21 + Spring Boot 3.x 企业级单体）的工程地基：Maven 多模块骨架、
+  初始化 lytgos（或同类 JDK 21 + Spring Boot 4.x 企业级单体）的工程地基：Maven 多模块骨架、
   结构化日志、Actuator + Prometheus 监控、Spring MVC + 虚拟线程、springdoc OpenAPI、
   统一响应体与全局异常/错误码、Google 格式 + 阿里编码规约（Spotless + 阿里 P3C + Checkstyle）、
   代码安全检查（SpotBugs + Find Security Bugs + PMD + OWASP Dependency-Check），以及 CI 与 pre-commit。
@@ -12,22 +12,29 @@ description: >-
 
 把"工程地基"一次性、标准化地装好——业务逻辑（五大核心能力）不在本 skill 范围内。
 
+> **落地状态（对照本仓库实际，2026-11-15）**
+>
+> - **已落地**：§1–§2 骨架与版本管理、§7 格式 + 阿里规约、§8 安全四件套，插件坐标见根 `pom.xml`
+> - **尚未落地**：§3 结构化日志、§4 Actuator/Prometheus、§5 MVC + 虚拟线程、§6 OpenAPI/统一响应体/全局异常、§9 的 pre-commit（CI 已有 `.github/workflows/verify.yml`）
+> - 进度以 `README.md` 的「路线图」为准：`CLI、REST API 与定时触发` 仍未勾选
+> - 照着本 skill 初始化新仓库时，§3–§6 是可选的「一次到位」部分；改本仓库时不要误以为它们已存在
+
 ## 什么时候用
 
 - 新建 lytgos 仓库、或给空仓库起工程骨架时
 - 要给项目补齐日志 / 监控 / API 规范 / 开发规范 / 安全检查时
-- 任何 JDK 21 + Spring Boot 3.x 的企业级单体，想一次到位地装好工程地基时
+- 任何 JDK 21 + Spring Boot 4.x 的企业级单体，想一次到位地装好工程地基时
 
 ## 不做什么（边界）
 
-- 不实现五大核心能力（Provider / ReAct / Memory / Tool / Web）——那是业务模块，走 Spec-Kit 的 user story 拆解
+- 不实现五大核心能力（Provider / ReAct / Memory / Tool / Web）——那是业务模块，走 OpenSpec 的 change 流程
 - 不硬编码任何密钥 / token / API key——一律用环境变量占位（`${ENV_VAR}`）
 - 不替换已存在的业务代码；只新增基础设施与配置
 
-## 前置约定（来自 lytgos constitution）
+## 前置约定（来自 AGENTS.md 硬规则与 engineering-baseline spec）
 
 实施前确认这些硬约束，写进配置：
-- JDK 21、Spring Boot 3.x、Maven 多模块、单二进制（fat JAR）部署
+- JDK 21、Spring Boot 4.1.2 + Spring AI 2.0.2、Maven 多模块、单二进制（fat JAR）部署
 - HTTP 层用 Spring MVC + Java 21 虚拟线程（不引入响应式）
 - 持久化 SQLite + Spring Data JPA；长期记忆走 MEMORY.md（本 skill 只配数据源，不建业务表）
 - 审计表 `tool_invocations` / `llm_calls` 的建表脚本预留位（day one 落库）
@@ -38,16 +45,17 @@ description: >-
 ## 初始化步骤（按顺序执行，每步完成后 `git commit`）
 
 ### 0. 确认参数
-向用户确认：`groupId`、根 `artifactId`、模块清单（默认 lytgos 9 模块）、端口（默认 8080）、JDK（21）。
+向用户确认：`groupId`、根 `artifactId`、模块清单（默认 lytgos 12 模块）、端口（默认 8080）、JDK（21）。
 
 ### 1. Maven 多模块骨架
-建父 `pom.xml`（packaging=pom，统一版本管理）+ 9 个子模块：
-`lytgos-core`、`lytgos-provider`、`lytgos-memory`、`lytgos-tool`、`lytgos-web`、
-`lytgos-storage`、`lytgos-boot`、`lytgos-cli`、`lytgos-channel-cli`。
-`lytgos-boot` 为启动模块（含 `main`），打 fat JAR。
+建父 `pom.xml`（packaging=pom，统一版本管理）+ 12 个子模块（本仓库现状）：
+`lytgos-core`、`lytgos-persona`、`lytgos-provider`、`lytgos-memory`、`lytgos-knowledge`、
+`lytgos-tool`、`lytgos-storage`、`lytgos-channel`、`lytgos-web`、`lytgos-cli`、`lytgos-boot`，
+外加只承载横切测试的 `lytgos-test`（ArchUnit 依赖方向检查落在这里）。
+`lytgos-boot` 为启动模块（含 `main`），打 fat JAR；`lytgos-cli-boot` 与 `lytgos-channel-boot` 是 CLI / 渠道入口。
 
 ### 2. 基础依赖与版本管理（父 pom `dependencyManagement` / `pluginManagement`）
-固定 Spring Boot BOM、Spring AI Alibaba BOM、SQLite JDBC、Picocli、SnakeYAML、
+固定 Spring Boot BOM（本仓库 4.1.2）、Spring AI BOM（2.0.2）、SQLite JDBC、Picocli、SnakeYAML、
 logstash-logback-encoder、springdoc 等版本。**具体版本号以实施时最新稳定版为准，先锁定再开发。**
 
 ### 3. 日志（结构化）
@@ -156,20 +164,20 @@ spring.threads.virtual.enabled: true   # JDK 21 虚拟线程，单机扛高并�
 ```
 
 ### 9. CI + pre-commit
-- **pre-commit**（本地）：提交前跑 `mvn spotless:check`（或 `spotless:apply`）+ 快速 SpotBugs
-- **CI**（GitHub Actions）：`mvn verify` 串起 spotless:check → checkstyle → spotbugs → pmd → dependency-check；任一不过则红，禁止合并
+- **CI**（GitHub Actions）：`mvn verify` 串起 spotless:check → checkstyle → spotbugs → pmd → dependency-check；任一不过则红，禁止合并。本仓库已落地（`.github/workflows/verify.yml`）
+- **pre-commit**（本地）：提交前跑 `mvn spotless:check`（或 `spotless:apply`）+ 快速 SpotBugs。**本仓库尚未落地**
 
 ### 10. 验证
-- `mvn clean verify` 全绿
-- `mvn -pl lytgos-boot spring-boot:run` 起得来
-- 访问 `/actuator/health`（UP）、`/actuator/prometheus`（有指标）、`/swagger-ui.html`（能打开）
-- 故意写一行不规范代码 → `spotless:check` 报错；故意引一个有 CVE 的旧依赖 → depcheck 报警
+- `mvn clean verify` 全绿 —— 本仓库可验
+- `mvn -pl lytgos-boot spring-boot:run` 起得来 —— **待 §3–§6 落地后可验**
+- 访问 `/actuator/health`（UP）、`/actuator/prometheus`（有指标）、`/swagger-ui.html`（能打开）—— **待 §4 与 §6 落地后可验**
+- 故意写一行不规范代码 → `spotless:check` 报错；故意引一个有 CVE 的旧依赖 → depcheck 报警 —— 本仓库可验
 
 ---
 
 ## 检查清单（Definition of Done）
 
-- [ ] 9 个 Maven 模块骨架建好，`mvn clean package` 出 fat JAR
+- [ ] 12 个 Maven 模块骨架建好，`mvn clean package` 出 fat JAR
 - [ ] 结构化日志（prod 为 JSON，含 traceId），无 `System.out`
 - [ ] `/actuator/health` `/info` `/prometheus` 可访问
 - [ ] 虚拟线程开启（`spring.threads.virtual.enabled=true`）
@@ -181,10 +189,11 @@ spring.threads.virtual.enabled: true   # JDK 21 虚拟线程，单机扛高并�
 
 ---
 
-## 与 constitution / Spec-Kit 的分工
+## 与 AGENTS.md / OpenSpec 的分工
 
 - **本 skill**：把上面这套工程地基"装上"（一次性、可复用、跨模块）
--把硬约束"钉死"（JDK 21、Google 规范、必须过安全扫描、Spring AI 只用一半…），让 AI 每次都遵守
+- **`AGENTS.md`**：把硬约束"钉死"（JDK 21、Google 规范、必须过安全扫描、Spring AI 只用一半…），让 AI 每次都遵守；门禁契约落在 `openspec/specs/engineering-baseline/spec.md`
+- **OpenSpec**：超过「改个拼写」的改动先在 `openspec/changes/<change-id>/` 立 proposal 与 tasks，人工放行后再实施
 - **CI + pre-commit**：把检查"强制执行"（机器把关，不靠人自觉）
 地基起好后，再按五大核心能力逐个开发
 
