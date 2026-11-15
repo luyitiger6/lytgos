@@ -2,6 +2,7 @@ package io.lytgos.persona;
 
 import io.lytgos.core.LytgosException;
 import io.lytgos.core.agent.Profile;
+import io.lytgos.core.util.LogSafe;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -11,6 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -25,6 +28,8 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
  * 定义是用户手写的，报错信息若只说「格式错误」，用户除了猜没有别的办法。
  */
 public final class AgentLoader {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AgentLoader.class);
 
   private static final String DELIMITER = "---";
 
@@ -69,6 +74,12 @@ public final class AgentLoader {
     String instructions = content.substring(frontEnd + DELIMITER.length()).strip();
 
     Profile profile = toProfile(parseYaml(frontYaml, agentFile), agentFile);
+    // 加载结果直接决定这一轮用哪个模型：agent 名与 provider/model 同属排查时最先要看的三个值。
+    LOG.debug(
+        "agent 已加载: {} provider={} model={}",
+        LogSafe.sanitize(profile.name()),
+        LogSafe.sanitize(profile.provider().name()),
+        LogSafe.sanitize(profile.provider().model()));
     return new AgentDefinition(profile, instructions);
   }
 

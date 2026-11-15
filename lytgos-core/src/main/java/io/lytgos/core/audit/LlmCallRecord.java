@@ -8,11 +8,15 @@ import java.time.Instant;
  * <p>{@code sessionId} 与 {@code turnId} 是审计不变量 I1/I3 的关联键：前者对应 {@code sessions.key}，
  * 后者在同一轮对话内保持不变，让「模型调用」与「工具执行」能按一次用户输入聚到一起。
  *
+ * <p>{@code traceId} 把审计行接回日志：它等于触发本次调用的请求 traceId（Web）或本轮 turnId（CLI）。
+ * 允许为空——历史行与将来的后台任务都可能没有请求上下文；审计不能因为取不到 trace 就写不进去。
+ *
  * <p>截断放在构造器里而不是存储实现里：审计行是唯一证据，任何写入路径都不该拿到超长原文—— 否则换一个存储实现就悄悄换了口径。
  */
 public record LlmCallRecord(
     String sessionId,
     String turnId,
+    String traceId,
     String provider,
     String model,
     int promptTokens,

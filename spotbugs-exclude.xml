@@ -93,6 +93,52 @@
     </Match>
 
     <!--
+      AgentLoader 从 AGENT.md 读出的 agent 名与 provider/model 是 FindSecBugs 的 taint source
+      （文件内容），三个值在写日志前都经过 LogSafe.sanitize。理由同上：插件不识别自定义 sanitizer。
+      「本轮到底用了哪个 agent、哪个模型」是排查时最先要看的现场，删掉日志比豁免更糟。
+
+      重审条件：新增日志参数未走 LogSafe.sanitize，或 FindSecBugs 支持自定义 sanitizer 标注。
+    -->
+    <Match>
+        <Class name="io.lytgos.persona.AgentLoader"/>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
+    <!--
+      ProviderRegistry 输出的是从配置文件绑定的 provider 名与 model（taint source），
+      describe() 与 require() 里的值均经 LogSafe.sanitize；FindSecBugs 不识别自定义 sanitizer。
+      这两行是「启动时到底认了哪几个 provider」与「首次构造 ChatModel」的现场证据。
+
+      重审条件：新增日志参数未走 LogSafe.sanitize，或 FindSecBugs 支持自定义 sanitizer 标注。
+    -->
+    <Match>
+        <Class name="io.lytgos.provider.ProviderRegistry"/>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
+    <!--
+      MemoryStore.append 的 file 参数可能来自模型工具入参（taint source），写日志前经 LogSafe.sanitize；
+      同文件自身的读写路径不构成注入面（单进程、路径已由 SandboxChecker 校验）。
+
+      重审条件：新增日志参数未走 LogSafe.sanitize，或 FindSecBugs 支持自定义 sanitizer 标注。
+    -->
+    <Match>
+        <Class name="io.lytgos.memory.MemoryStore"/>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
+    <!--
+      SqliteSessionStore.save 的 key 来自会话标识（CLI 拼接 / Web 请求），写日志前经 LogSafe.sanitize；
+      messages 是整数。两者都不构成日志伪造面。
+
+      重审条件：新增日志参数未走 LogSafe.sanitize，或 FindSecBugs 支持自定义 sanitizer 标注。
+    -->
+    <Match>
+        <Class name="io.lytgos.storage.SqliteSessionStore"/>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
+    <!--
       THROWS_METHOD_THROWS_RUNTIMEEXCEPTION：catch 后原样 rethrow 被识别成「故意抛 RuntimeException」。
 
       这些都是「先清理再抛出」的失败路径：catch (RuntimeException e) 里先 close 半启动资源
@@ -222,6 +268,18 @@
     <Match>
         <Class name="io.lytgos.web.trace.TraceIdFilter"/>
         <Bug pattern="SERVLET_HEADER"/>
+    </Match>
+
+    <!--
+      TraceIdFilter 的探针行参数（HTTP 方法、请求 URI）来自请求行，属于 taint source；
+      两者写日志前都经 LogSafe.sanitize。理由同上：插件不识别自定义 sanitizer。
+      这一行是闸门 12 判据 1/3 的锚点（dev 业务 DEBUG 可见 / 请求 traceId 落到日志），不能删。
+
+      重审条件：探针行新增未净化的参数，或闸门 12 改为依赖框架日志。
+    -->
+    <Match>
+        <Class name="io.lytgos.web.trace.TraceIdFilter"/>
+        <Bug pattern="CRLF_INJECTION_LOGS"/>
     </Match>
 
     <!--

@@ -6,6 +6,7 @@ import io.lytgos.core.audit.LlmCallRecord;
 import io.lytgos.core.chat.ChatModel;
 import io.lytgos.core.chat.ChatRequest;
 import io.lytgos.core.chat.ChatResult;
+import io.lytgos.core.trace.TraceContext;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -52,6 +53,8 @@ public final class AuditedChatModel implements ChatModel {
         new LlmCallRecord(
             request.sessionId(),
             request.turnId(),
+            // 与日志同一个 traceId：取自 MDC，无请求上下文时（后台任务、直接调用）合法为 null。
+            TraceContext.current(),
             provider,
             model,
             usage.promptTokens(),

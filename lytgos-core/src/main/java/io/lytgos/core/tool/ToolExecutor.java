@@ -7,6 +7,7 @@ import io.lytgos.core.LytgosException;
 import io.lytgos.core.audit.ToolInvocationAuditor;
 import io.lytgos.core.audit.ToolInvocationRecord;
 import io.lytgos.core.chat.ToolCall;
+import io.lytgos.core.trace.TraceContext;
 import io.lytgos.core.util.LogSafe;
 import java.time.Instant;
 import java.util.Map;
@@ -119,6 +120,8 @@ public final class ToolExecutor {
         new ToolInvocationRecord(
             sessionId,
             turnId,
+            // 与同轮模型调用共享同一个 traceId；无请求上下文时合法为 null。
+            TraceContext.current(),
             call.name(),
             call.arguments(),
             durationMs,

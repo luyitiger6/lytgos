@@ -9,6 +9,7 @@ import io.lytgos.core.workspace.WorkspaceLocator;
 import io.lytgos.memory.MemoryStore;
 import io.lytgos.persona.AgentLoader;
 import io.lytgos.storage.SqliteAuditStore;
+import io.lytgos.storage.SqliteSchemaMigrator;
 import io.lytgos.storage.SqliteSessionStore;
 import io.lytgos.storage.mapper.AuditMapper;
 import io.lytgos.storage.mapper.SessionMapper;
@@ -18,6 +19,7 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -91,6 +93,18 @@ public class CoreBeans {
     initializer.setDatabasePopulator(
         new ResourceDatabasePopulator(new ClassPathResource("lytgos-schema.sql")));
     return initializer;
+  }
+
+  /**
+   * 老库补列：建表脚本全是 {@code IF NOT EXISTS}，对已经存在的表什么也不做，新列只能靠迁移器补。
+   *
+   * <p>{@code @DependsOn} 把「建表先于迁移」写成显式依赖，不靠 Bean 方法的书写顺序： 新库由脚本一次性建出完整结构，迁移器对它是 no-op；老库在脚本之后补上
+   * trace_id。
+   */
+  @Bean(initMethod = "migrate")
+  @DependsOn("schemaInitializer")
+  public SqliteSchemaMigrator sqliteSchemaMigrator(DataSource dataSource) {
+    return new SqliteSchemaMigrator(dataSource);
   }
 
   /** MyBatis 会话工厂交给容器管理；Mapper 接口由 {@code CliConfiguration} 上的 {@code @MapperScan} 生成代理。 */

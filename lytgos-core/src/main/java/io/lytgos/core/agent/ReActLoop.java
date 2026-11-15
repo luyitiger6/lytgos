@@ -8,6 +8,7 @@ import io.lytgos.core.chat.ToolCall;
 import io.lytgos.core.session.Session;
 import io.lytgos.core.tool.ToolExecutor;
 import io.lytgos.core.tool.ToolRegistry;
+import io.lytgos.core.trace.TraceContext;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,37 +60,42 @@ public final class ReActLoop {
     // 审计表靠这个 turnId 把它们聚到一起；换一轮就换一个，不复用。
     String turnId = UUID.randomUUID().toString();
 
-    String lastText = "";
-    for (int iteration = 1; iteration <= maxIterations; iteration++) {
-      ChatResult result =
-          model.call(
-              new ChatRequest(
-                  promptBuilder.build(session),
-                  toolRegistry.specs(),
-                  session.key(),
-                  turnId,
-                  temperature));
+    // traceId：外层（HTTP 请求）已有时沿用，没有时用本轮 turnId，让日志与审计行落在同一个值上。
+    // 本轮所有执行必须在调用线程上完成——MDC 不会自动跨线程传递，异步化时需显式带上 traceId。
+    try (TraceContext.Scope scope = TraceContext.ensure(turnId)) {
+      String lastText = "";
+      for (int iteration = 1; iteration <= maxIterations; iteration++) {
+        ChatResult result =
+            model.call(
+                new ChatRequest(
+                    promptBuilder.build(session),
+                    toolRegistry.specs(),
+                    session.key(),
+                    turnId,
+                    temperature));
 
-      if (!result.hasToolCalls()) {
-        String text = result.content() == null ? "" : result.content();
-        session.append(Message.assistant(text));
-        return text;
+        if (!result.hasToolCalls()) {
+          String text = result.content() == null ? "" : result.content();
+          session.append(Message.assistant(text));
+          return text;
+        }
+
+        String content = result.content() == null ? "" : result.content();
+        session.append(Message.assistant(content, result.toolCalls()));
+        if (!content.isBlank()) {
+          lastText = content;
+        }
+        LOG.debug("第 {} 轮：模型请求 {} 个工具调用", iteration, result.toolCalls().size());
+
+        executeAll(session, turnId, result.toolCalls());
       }
 
-      String content = result.content() == null ? "" : result.content();
-      session.append(Message.assistant(content, result.toolCalls()));
-      if (!content.isBlank()) {
-        lastText = content;
-      }
-      LOG.debug("第 {} 轮：模型请求 {} 个工具调用", iteration, result.toolCalls().size());
-
-      executeAll(session, turnId, result.toolCalls());
+      LOG.warn("达到最大迭代次数 {}，返回已有文本", maxIterations);
+      String fallback =
+          lastText.isBlank() ? "（已达到最大迭代次数 " + maxIterations + "，未能给出最终答复）" : lastText;
+      session.append(Message.assistant(fallback));
+      return fallback;
     }
-
-    LOG.warn("达到最大迭代次数 {}，返回已有文本", maxIterations);
-    String fallback = lastText.isBlank() ? "（已达到最大迭代次数 " + maxIterations + "，未能给出最终答复）" : lastText;
-    session.append(Message.assistant(fallback));
-    return fallback;
   }
 
   private void executeAll(Session session, String turnId, Iterable<ToolCall> calls) {

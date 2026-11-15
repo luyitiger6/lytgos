@@ -29,6 +29,7 @@ public final class SqliteAuditStore implements LlmCallAuditor, ToolInvocationAud
       mapper.insertLlmCall(
           record.sessionId(),
           record.turnId(),
+          record.traceId(),
           record.provider(),
           record.model(),
           record.promptTokens(),
@@ -49,6 +50,7 @@ public final class SqliteAuditStore implements LlmCallAuditor, ToolInvocationAud
       mapper.insertToolInvocation(
           record.sessionId(),
           record.turnId(),
+          record.traceId(),
           record.toolName(),
           record.arguments(),
           record.durationMs(),

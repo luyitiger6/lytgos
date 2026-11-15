@@ -5,6 +5,7 @@ import io.lytgos.core.LytgosException;
 import io.lytgos.core.chat.Message;
 import io.lytgos.core.session.Session;
 import io.lytgos.core.session.SessionStore;
+import io.lytgos.core.util.LogSafe;
 import io.lytgos.storage.mapper.SessionMapper;
 import java.io.IOException;
 import java.time.Instant;
@@ -12,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.ibatis.exceptions.PersistenceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 会话的 SQLite 实现（MyBatis Mapper）。
@@ -25,6 +28,8 @@ import org.apache.ibatis.exceptions.PersistenceException;
  * <p>旧 {@code sessions/*.json} 不读不删：迁移会引入一次性双读分支，而当前没有需要保住的 生产会话（见 change 的 Migration Plan）。
  */
 public final class SqliteSessionStore implements SessionStore {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SqliteSessionStore.class);
 
   private final SessionMapper mapper;
   private final ObjectMapper objectMapper;
@@ -47,6 +52,9 @@ public final class SqliteSessionStore implements SessionStore {
           session.key(),
           objectMapper.writeValueAsString(session.history()),
           Instant.now().toString());
+      // 消息数能直接区分「历史没恢复」与「历史恢复了但被覆盖」：两者看库都不报错。
+      LOG.debug(
+          "会话已保存: key={} messages={}", LogSafe.sanitize(session.key()), session.history().size());
     } catch (PersistenceException | IOException e) {
       throw new LytgosException("会话落盘失败: " + session.key(), e);
     }

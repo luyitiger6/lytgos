@@ -22,6 +22,7 @@ import io.lytgos.core.tool.ToolExecutor;
 import io.lytgos.core.tool.ToolRegistry;
 import io.lytgos.provider.AuditedChatModel;
 import io.lytgos.storage.SqliteAuditStore;
+import io.lytgos.storage.SqliteSchemaMigrator;
 import io.lytgos.storage.mapper.AuditMapper;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -43,6 +44,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -138,6 +140,10 @@ class AuditInvariantTest {
     assertEquals(snapshot.toolInvocations(), snapshot.toolInvocationsInSession(), "工具行必须全部归属测试会话");
     assertEquals(2, snapshot.joinedTurns(), "同轮两次模型调用都应与该轮工具行关联");
     assertEquals(0, snapshot.crossSessionTurns(), "同一个 turn_id 不得跨 session");
+    // ReActLoop 是本轮 traceId 的建立者（等于 turnId），两条模型行与一条工具行都必须带上它。
+    assertEquals(2, snapshot.tracedLlmCalls(), "模型行必须携带 traceId");
+    assertEquals(1, snapshot.tracedToolInvocations(), "工具行必须携带 traceId");
+    assertEquals(3, snapshot.traceMatchesTurn(), "审计行的 traceId 必须等于本轮 turnId（即本轮日志的 traceId）");
   }
 
   /** 跑一轮真实 ReAct：第一次模型调用要工具，第二次给最终文本。 */
@@ -216,7 +222,11 @@ class AuditInvariantTest {
                     + "'),"
                     + " (SELECT COUNT(*) FROM tool_invocations WHERE session_id = '"
                     + SESSION
-                    + "')");
+                    + "'),"
+                    + " (SELECT COUNT(*) FROM llm_calls WHERE trace_id IS NOT NULL),"
+                    + " (SELECT COUNT(*) FROM tool_invocations WHERE trace_id IS NOT NULL),"
+                    + " (SELECT (SELECT COUNT(*) FROM llm_calls WHERE trace_id = turn_id)"
+                    + " + (SELECT COUNT(*) FROM tool_invocations WHERE trace_id = turn_id))");
         ResultSet rows = statement.executeQuery()) {
       assertTrue(rows.next());
       return new Snapshot(
@@ -229,13 +239,16 @@ class AuditInvariantTest {
           rows.getInt(7),
           rows.getInt(8),
           rows.getInt(9),
-          rows.getInt(10));
+          rows.getInt(10),
+          rows.getInt(11),
+          rows.getInt(12),
+          rows.getInt(13));
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
   }
 
-  /** 审计表的整数快照：行数、失败行数、关联行数与会话归属。 */
+  /** 审计表的整数快照：行数、失败行数、关联行数、会话归属与 traceId 覆盖。 */
   private record Snapshot(
       int llmCalls,
       int toolInvocations,
@@ -246,7 +259,10 @@ class AuditInvariantTest {
       int llmSessions,
       int toolSessions,
       int llmCallsInSession,
-      int toolInvocationsInSession) {}
+      int toolInvocationsInSession,
+      int tracedLlmCalls,
+      int tracedToolInvocations,
+      int traceMatchesTurn) {}
 
   private record Run(String answer, int modelCalls, int toolCalls) {}
 
@@ -324,6 +340,13 @@ class AuditInvariantTest {
       SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
       factory.setDataSource(dataSource);
       return factory.getObject();
+    }
+
+    /** 与生产同构：建表之后跑一次迁移；新库上它是 no-op，靠这行保住「装配真能跑」。 */
+    @Bean(initMethod = "migrate")
+    @DependsOn("schemaInitializer")
+    SqliteSchemaMigrator sqliteSchemaMigrator(DataSource dataSource) {
+      return new SqliteSchemaMigrator(dataSource);
     }
 
     @Bean

@@ -3,6 +3,7 @@ package io.lytgos.provider;
 import io.lytgos.core.LytgosException;
 import io.lytgos.core.audit.LlmCallAuditor;
 import io.lytgos.core.chat.ChatModel;
+import io.lytgos.core.util.LogSafe;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * provider name → {@link ChatModel} 的显式映射，{@code ChatModel} 按需创建。
@@ -28,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ProviderRegistry {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ProviderRegistry.class);
+
   private final Map<String, ProviderConfig> configs;
 
   private final LlmCallAuditor auditor;
@@ -43,6 +48,19 @@ public final class ProviderRegistry {
     }
     this.configs = Collections.unmodifiableMap(byName);
     this.auditor = Objects.requireNonNull(auditor, "auditor");
+    // 登记结果来自配置而不是类路径：这行日志就是「启动时到底认了哪几个 provider」的现场证据。
+    LOG.info("provider 已登记 {} 个: {}", byName.size(), describe(byName));
+  }
+
+  /** 形如 {@code deepseek(deepseek-flash), openai(gpt-4o)}，逐个经 LogSafe 处理。 */
+  private static String describe(Map<String, ProviderConfig> configs) {
+    return String.join(
+        ", ",
+        configs.values().stream()
+            .map(
+                config ->
+                    LogSafe.sanitize(config.name()) + "(" + LogSafe.sanitize(config.model()) + ")")
+            .toList());
   }
 
   /**
@@ -69,9 +87,17 @@ public final class ProviderRegistry {
       throw new LytgosException.InvalidConfigurationException(
           "环境变量未设置: " + missing + "（provider " + name + " 需要）");
     }
-    return created.computeIfAbsent(
-        name,
-        key -> new AuditedChatModel(ChatModelFactory.create(config), key, config.model(), auditor));
+    ChatModel createdModel =
+        created.computeIfAbsent(
+            name,
+            key ->
+                new AuditedChatModel(
+                    ChatModelFactory.create(config), key, config.model(), auditor));
+    LOG.debug(
+        "首次构造 ChatModel: provider={} model={}",
+        LogSafe.sanitize(name),
+        LogSafe.sanitize(config.model()));
+    return createdModel;
   }
 
   /** 已配置的 provider 名；不触发任何模型构造。 */

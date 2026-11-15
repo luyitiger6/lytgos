@@ -1,10 +1,13 @@
 package io.lytgos.memory;
 
+import io.lytgos.core.util.LogSafe;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 长期记忆的唯一读写入口：工作区 {@code memory/MEMORY.md}。
@@ -14,6 +17,8 @@ import java.nio.file.StandardOpenOption;
  * <p>文件按 UTF-8 纯文本处理，不解析 Markdown 结构——记忆长什么样留给用户自己决定。
  */
 public final class MemoryStore {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MemoryStore.class);
 
   /** 记忆文件的相对路径，启动注入与工具读写共用同一位置。 */
   public static final String RELATIVE_PATH = "memory/MEMORY.md";
@@ -88,6 +93,8 @@ public final class MemoryStore {
     } catch (IOException e) {
       throw new IllegalStateException("写入记忆失败: " + file + " → " + e.getMessage(), e);
     }
+    // 路径可能含用户输入的名字，必须过 LogSafe；字符数是纯数字，无需净化。
+    LOG.debug("记忆已追加: file={} chars={}", LogSafe.sanitize(file), projected);
     return projected;
   }
 
