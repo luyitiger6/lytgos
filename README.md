@@ -10,7 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="Apache 2.0"/></a>
   <a href="https://openjdk.org/projects/jdk/21/"><img src="https://img.shields.io/badge/Java-21-orange?style=flat-square" alt="Java 21"/></a>
   <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?style=flat-square" alt="Spring Boot 4.1"/></a>
-  <a href="#roadmap"><img src="https://img.shields.io/badge/status-skeleton-yellow?style=flat-square" alt="status"/></a>
+  <a href="#roadmap"><img src="https://img.shields.io/badge/status-week2-blue?style=flat-square" alt="status"/></a>
   <a href="../../issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs welcome"/></a>
   <a href="https://lytgos.tigerustmq.com"><img src="https://img.shields.io/badge/website-lytgos.tigerustmq.com-FF7A1A?style=flat-square" alt="website"/></a>
 </p>
@@ -317,20 +317,20 @@ lytgos session list              # 查看会话历史
 
 ## 当前状态
 
-lytgos 目前处于**骨架阶段**：
+lytgos 目前处于**第 2 周：记忆与内置工具落地**：
 
-- 11 个 Maven 模块已就位，`mvn clean package` 可产出三个可执行入口：`lytgos.jar`（完整装配）、`lytgos-cli-boot.jar`（命令行）、`lytgos-channel-boot.jar`（渠道，监听 8081）
-- 需求、技术方案、架构与 AI 编程指南已完成，作为内部设计资料维护
-- 业务实现按 OpenSpec change 逐个推进，先规格后代码
-- 质量闸门（Harness）已启用，未接入的闸门会显式返回 `NOT_READY`，不伪造绿灯
+- 12 个 Maven 模块已就位，`mvn clean package` 可产出三个可执行入口：`lytgos.jar`（完整装配）、`lytgos-cli-boot.jar`（命令行）、`lytgos-channel-boot.jar`（渠道，监听 8081）
+- 第 1 周打通自实现 ReAct 循环、Prompt 组装、会话落盘与沙箱；第 2 周补齐长期记忆（`memory/MEMORY.md` 启动注入 + `save_memory` / `recall_memory`）、`write_file` / `list_dir` 与受命令白名单约束的 `shell`
+- 内置工具共七个，按 `AGENT.md` 的 `tools` 白名单筛选；所有执行仍走 `ToolExecutor` → `SandboxChecker`，不引入旁路
+- 质量闸门（Harness）已启用：`10-week2-acceptance` 用真实模型跑通「记住偏好 → 新进程答出 → 写文件 → 执行命令」；未接入的闸门显式返回 `NOT_READY`，不伪造绿灯
 
 ## 路线图
 
 **核心阶段（运行时内核）**
 
 - [x] 项目骨架与工程约束
-- [ ] Provider 抽象与 ReAct 循环
-- [ ] Memory 会话 + 长期记忆
+- [x] Provider 抽象与 ReAct 循环
+- [x] Memory 会话 + 长期记忆
 - [x] 内置工具 + MCP Client + Sandbox（MCP 支持远程 HTTP 与本地 stdio，只做 tools）
 - [ ] CLI、REST API 与定时触发
 - [ ] SQLite 持久化与 Day-one 审计落库

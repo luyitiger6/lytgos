@@ -119,7 +119,9 @@ public final class Workspace {
 
       Path memoryIndex = memory().resolve("MEMORY.md");
       if (!Files.exists(memoryIndex)) {
-        Files.writeString(memoryIndex, "# 长期记忆\n\n<!-- 第 2 周起由系统写入 -->\n", StandardCharsets.UTF_8);
+        // 建空文件而不是写说明文字：MEMORY.md 会被整段注入 system prompt，
+        // 任何占位文案都会变成模型眼里的「记忆」。
+        Files.writeString(memoryIndex, "", StandardCharsets.UTF_8);
         created++;
       }
 
@@ -200,8 +202,9 @@ public final class Workspace {
               allowed-domains:
                 - restapi.amap.com
                 - mcp.amap.com
-              # 命令白名单：本地形态 MCP server 的启动命令必须先在这里出现，否则拒绝启动。
-              # 例如允许用 node 起 server 就写 - node。留空 = 任何本地 MCP server 都起不来。
+              # 命令白名单：内置 shell 工具只能执行这里列出的命令（如 - java），
+              # 本地形态 MCP server 的启动命令也必须先在这里出现，否则拒绝启动。
+              # 留空 = shell 全部拒绝、任何本地 MCP server 都起不来。
               allowed-commands: []
             """;
 
@@ -226,6 +229,11 @@ public final class Workspace {
             tools:
               - http_get
               - file_read
+              - write_file
+              - list_dir
+              - shell
+              - save_memory
+              - recall_memory
             channels:
               - cli
             bootstrap:
@@ -236,6 +244,6 @@ public final class Workspace {
               maxIterations: 10
             ---
 
-            回答用户问题；需要实时数据时调用 http_get。
+            回答用户问题；需要实时数据时调用 http_get；用户要求记住偏好时调用 save_memory。
             """;
 }

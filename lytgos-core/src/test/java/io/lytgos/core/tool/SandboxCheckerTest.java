@@ -6,9 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.lytgos.core.LytgosException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,6 +54,27 @@ class SandboxCheckerTest {
     assertThrows(
         LytgosException.SandboxViolationException.class,
         () -> sandbox.checkPath(tempDir.resolve("outside.txt")));
+  }
+
+  @Test
+  @DisplayName("工作区内的符号链接指向外部时被拒——规范化必须解析链接")
+  void rejectsSymlinkEscapingWorkspace() throws IOException {
+    SandboxChecker sandbox = checker();
+    Path outside = Files.createDirectories(tempDir.resolve("outside-dir"));
+    Files.writeString(outside.resolve("secret.txt"), "secret", StandardCharsets.UTF_8);
+    Path link = workspace.resolve("link-to-outside");
+    try {
+      Files.createSymbolicLink(link, outside);
+    } catch (IOException | UnsupportedOperationException e) {
+      // Windows 未开开发者模式时普通用户没有符号链接特权；把该分支留给 CI（Linux）
+      Assumptions.abort("当前系统不允许创建符号链接，无法覆盖该分支：" + e.getMessage());
+    }
+
+    LytgosException.SandboxViolationException thrown =
+        assertThrows(
+            LytgosException.SandboxViolationException.class,
+            () -> sandbox.checkPath(link.resolve("secret.txt")));
+    assertTrue(thrown.getMessage().contains("越界"), "应指出解析后的真实路径越界: " + thrown.getMessage());
   }
 
   @Test

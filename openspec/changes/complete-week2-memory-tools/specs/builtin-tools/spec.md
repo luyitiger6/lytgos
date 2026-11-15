@@ -20,7 +20,7 @@
 
 ### Requirement: 文件写入
 
-系统 SHALL 提供 `write_file`，接收相对路径与内容，在沙箱校验通过后创建或覆盖文件；父目录不存在时 MUST 在工作区内创建；成功时 MUST 返回路径与写入字节数。对 `agents/*/AGENT.md` 与根 `config.yaml` 的写入 MUST 被拒绝；内容超过 64KB MUST 拒绝。
+系统 SHALL 提供 `write_file`，接收相对路径与内容，在沙箱校验通过后创建或覆盖文件；父目录不存在时 MUST 在工作区内创建；成功时 MUST 返回路径与写入字节数。对 `agents/*/AGENT.md`、根 `config.yaml` 与 `memory/MEMORY.md` 的写入 MUST 被拒绝（记忆只能经 `save_memory` 追加，以保住 8000 字符上限与「旧条目不淘汰」）；内容超过 64KB MUST 拒绝。
 
 #### Scenario: 写入后可回读
 - **WHEN** 调用 `write_file` 写入 `output/notes.txt`，内容为 `hello`
@@ -31,8 +31,8 @@
 - **THEN** 沙箱拒绝，文件未被创建
 
 #### Scenario: 受保护文件不可改写
-- **WHEN** 路径为 `agents/default/AGENT.md` 或 `config.yaml`
-- **THEN** 拒绝写入并说明受保护原因，原文件字节不变
+- **WHEN** 路径为 `agents/default/AGENT.md`、`config.yaml` 或 `memory/MEMORY.md`
+- **THEN** 拒绝写入并说明受保护原因，原文件字节不变；若目标是记忆文件，额外提示改用 `save_memory` 追加
 
 #### Scenario: 超长内容被拒绝
 - **WHEN** 内容超过 64KB

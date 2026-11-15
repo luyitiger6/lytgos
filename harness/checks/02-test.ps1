@@ -28,6 +28,11 @@ if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
+# JDK 版本不够时，mvn 会在 surefire fork 里报「class file version 65.0 ... up to 61.0」，
+# 看起来像测试代码坏了。提前拦下并说明真实原因。
+. (Join-Path $PSScriptRoot '..\lib\JdkGuard.ps1')
+Assert-JdkVersion $projectRoot
+
 # 先删旧报告：mvn 若在编译阶段就失败、根本没进测试阶段，旧的 surefire 报告还在，
 # 后面统计到的会是上一次的结果——「没跑过」与「跑过且通过」就不可区分了。
 $moduleDirs = @(Get-ChildItem -Path $projectRoot -Directory -Force)

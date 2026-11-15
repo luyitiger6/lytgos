@@ -20,8 +20,9 @@
       EI_EXPOSE_REP2：构造器保存外部传入的可变引用。
 
       这些类保存的是 Spring 容器持有的共享单例（ObjectMapper、ToolRegistry、
-      McpSyncClient、OpenAiChatModel 等），生命周期不短于本类，构造器只是转交引用。
-      逐个防御性拷贝既不现实也没有意义：调用方本来就是容器本身。
+      McpSyncClient、OpenAiChatModel、MemoryStore 等），生命周期不短于本类，
+      构造器只是转交引用。MemoryStore 是 final 字段、无 mutator 的不可变门面，
+      append 只写文件、不改对象状态。逐个防御性拷贝既不现实也没有意义：调用方本来就是容器本身。
 
       重审条件：类改为自行 new 这些依赖，或允许业务代码传入可变配置对象。
     -->
@@ -47,6 +48,14 @@
     </Match>
     <Match>
         <Class name="io.lytgos.cli.CliChannel"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.memory.SaveMemoryTool"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.memory.RecallMemoryTool"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 
@@ -88,6 +97,26 @@
     <Match>
         <Class name="io.lytgos.tool.mcp.McpServerManager"/>
         <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+
+    <!--
+      COMMAND_INJECTION：ShellTool 就是「受控命令执行」能力本身，命令来自模型但必须过白名单。
+
+      补偿措施：execute 先把可执行文件名交给 SandboxChecker.checkCommand，不在
+      allowed-commands 内直接抛 SandboxViolationException；ProcessBuilder 用 List 形式且不经系统 shell，
+      ; | > 只作为普通参数；参数切分复用与校验相同的规则（裸命令 / 带路径 / 引号包裹），
+      不存在「校验按 A 解析、执行按 B 解析」的缺口。FindSecBugs 看不到自定义白名单与不经 shell 的事实。
+      ShellToolTest 的同类报点来自测试夹具故意执行 java（参数是测试常量，不来自外部输入）。
+
+      重审条件：ShellTool 改为经过系统 shell 执行，或白名单校验移到 execute 之外。
+    -->
+    <Match>
+        <Class name="io.lytgos.tool.ShellTool"/>
+        <Bug pattern="COMMAND_INJECTION"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.tool.ShellToolTest"/>
+        <Bug pattern="COMMAND_INJECTION"/>
     </Match>
 
     <!--

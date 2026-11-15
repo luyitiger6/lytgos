@@ -88,8 +88,10 @@
 3. 新进程 `chat --message "我的后端框架是什么？只回答框架名"` → 回答包含 `Spring Boot`（证明注入生效，不依赖第二次工具调用）。
 4. `chat --message "请用 write_file 把 hello 写入 output/gate.txt"` → 文件内容为 `hello`。
 5. `chat --message "请用 shell 执行 java -version"` → 输出包含 `version`。
-6. 清理临时工作区，输出六条式小结，退出码 0。
+6. 移走 `memory/MEMORY.md` 后 `chat --message "你好"` → 退出码 0、stderr 无 `ERROR`/`Exception`、且不顺手重建该文件。
+7. 清理临时工作区，输出六条式小结，退出码 0。
 
+- 第 6 条不在初版设计内：原设计只覆盖「记忆存在」的路径，memory spec 中「记忆文件缺失不阻断对话」没有机器判据，代码审查后补入。它是六条中的最后一条，前五条编号不变。
 - 模型是否按指令调用工具存在波动：失败时闸门输出具体步骤与最后一次模型回复，便于区分「实现坏了」与「模型没照做」；这与 07/08 的既有做法一致。
 - 闸门编号紧跟 09；需同步 `AGENTS.md` 机器可读清单与 `harness/README.md`，否则 00 闸门直接红。
 

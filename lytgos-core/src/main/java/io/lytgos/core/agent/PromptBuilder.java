@@ -26,6 +26,9 @@ public final class PromptBuilder {
   /** 历史消息上限。超过后从最早的消息开始丢，但不切断 tool 调用与结果的配对。 */
   private static final int MAX_HISTORY_MESSAGES = 40;
 
+  /** 记忆注入上限（字符）。与 MemoryStore 的写入上限一致，超出截断并标注。 */
+  public static final int MAX_MEMORY_CHARS = 8000;
+
   private final String systemPrompt;
 
   private PromptBuilder(String systemPrompt) {
@@ -62,6 +65,7 @@ public final class PromptBuilder {
         LOG.warn("Bootstrap 文件读取失败，跳过: {}", LogSafe.sanitize(file));
       }
     }
+    appendMemory(prompt, workspaceRoot);
 
     return new PromptBuilder(prompt.toString().strip());
   }
@@ -91,6 +95,41 @@ public final class PromptBuilder {
       start--;
     }
     return List.copyOf(history.subList(start, history.size()));
+  }
+
+  /**
+   * 注入长期记忆。
+   *
+   * <p>放在 bootstrap 之后：AGENT.md / SOUL.md / USER.md 定义「我是谁」，MEMORY.md 记录「我记得什么」，
+   * 记忆不该覆盖身份设定。文件缺失或为空直接跳过——新工作区还没记忆是常态，不是故障。
+   */
+  private static void appendMemory(StringBuilder prompt, Path workspaceRoot) {
+    Path file = workspaceRoot.resolve("memory").resolve("MEMORY.md");
+    if (!Files.isRegularFile(file)) {
+      return;
+    }
+    String content;
+    try {
+      content = Files.readString(file, StandardCharsets.UTF_8).strip();
+    } catch (IOException e) {
+      LOG.warn("记忆文件读取失败，跳过: {}", LogSafe.sanitize(file));
+      return;
+    }
+    if (content.isEmpty()) {
+      return;
+    }
+    prompt.append("## 长期记忆（MEMORY.md）\n\n");
+    if (content.length() <= MAX_MEMORY_CHARS) {
+      prompt.append(content).append("\n\n");
+      return;
+    }
+    prompt
+        .append(content, 0, MAX_MEMORY_CHARS)
+        .append("\n\n[记忆已截断，仅注入前 ")
+        .append(MAX_MEMORY_CHARS)
+        .append(" 字符，原始长度 ")
+        .append(content.length())
+        .append(" 字符]\n\n");
   }
 
   /**

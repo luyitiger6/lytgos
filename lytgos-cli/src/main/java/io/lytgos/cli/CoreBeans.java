@@ -5,6 +5,7 @@ import io.lytgos.core.session.FileSessionStore;
 import io.lytgos.core.session.SessionStore;
 import io.lytgos.core.tool.SandboxChecker;
 import io.lytgos.core.workspace.WorkspaceLocator;
+import io.lytgos.memory.MemoryStore;
 import io.lytgos.persona.AgentLoader;
 import java.nio.file.Path;
 import org.springframework.context.annotation.Bean;
@@ -43,6 +44,12 @@ public class CoreBeans {
   public SandboxChecker sandboxChecker(WorkspaceLocator locator, WorkspaceConfig config) {
     return new SandboxChecker(
         locator.get().root(), config.allowedCommands(), config.allowedDomains());
+  }
+
+  /** 长期记忆读写入口。路径由工作区决定，记忆工具与启动注入看到的是同一份文件。 */
+  @Bean
+  public MemoryStore memoryStore(WorkspaceLocator locator) {
+    return new MemoryStore(locator.get().root());
   }
 
   @Bean

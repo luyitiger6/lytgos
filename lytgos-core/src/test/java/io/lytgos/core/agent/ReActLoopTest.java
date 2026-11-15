@@ -1,6 +1,8 @@
 package io.lytgos.core.agent;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,6 +18,9 @@ import io.lytgos.core.session.Session;
 import io.lytgos.core.tool.Tool;
 import io.lytgos.core.tool.ToolExecutor;
 import io.lytgos.core.tool.ToolRegistry;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -130,6 +135,35 @@ class ReActLoopTest {
     assertEquals(Message.Role.TOOL, last.role(), "抛异常前必须补上对应的 tool 消息");
     assertEquals("c1", last.toolCallId());
     assertTrue(last.content().contains("sandbox"));
+  }
+
+  @Test
+  @DisplayName("不含工具调用的一轮对话不改写 MEMORY.md")
+  void plainConversationDoesNotRewriteMemory() throws IOException {
+    Path memory = Files.createDirectories(workspace.resolve("memory")).resolve("MEMORY.md");
+    byte[] before = "## 长期记忆\n\n- 我用 Spring Boot\n".getBytes(StandardCharsets.UTF_8);
+    Files.write(memory, before);
+
+    ScriptedModel model = new ScriptedModel(List.of(new ChatResult("你好，有什么可以帮你？", List.of())));
+    String answer =
+        loop(model, new ToolRegistry(List.of()), 10).run(new Session("cli:local:tester"), "你好");
+
+    assertEquals("你好，有什么可以帮你？", answer);
+    assertArrayEquals(before, Files.readAllBytes(memory), "记忆只由 save_memory 写入，普通对话不得改动文件字节");
+  }
+
+  @Test
+  @DisplayName("MEMORY.md 缺失时对话正常完成，且不被顺手创建")
+  void completesWhenMemoryFileMissing() {
+    Path memory = workspace.resolve("memory").resolve("MEMORY.md");
+    assertFalse(Files.exists(memory), "前置条件：记忆文件不存在");
+
+    ScriptedModel model = new ScriptedModel(List.of(new ChatResult("你好", List.of())));
+    String answer =
+        loop(model, new ToolRegistry(List.of()), 10).run(new Session("cli:local:tester"), "你好");
+
+    assertEquals("你好", answer);
+    assertFalse(Files.exists(memory), "对话流程不应创建记忆文件");
   }
 
   private ReActLoop loop(ChatModel model, ToolRegistry registry, int maxIterations) {

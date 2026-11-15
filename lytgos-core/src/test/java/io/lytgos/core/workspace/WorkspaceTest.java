@@ -41,4 +41,24 @@ class WorkspaceTest {
 
     assertEquals(edited, Files.readString(agentFile, StandardCharsets.UTF_8));
   }
+
+  @Test
+  @DisplayName("initialize 建出 6 个目录、3 个 bootstrap、config 与空的 MEMORY.md")
+  void createsFullLayout() throws IOException {
+    Workspace.at(dir).initialize();
+
+    for (String name : Workspace.DIRECTORIES) {
+      assertTrue(Files.isDirectory(dir.resolve(name)), "缺目录: " + name);
+    }
+    assertTrue(Files.isDirectory(dir.resolve("output")), "output/ 是模型写文件的默认目标，必须存在");
+    for (String name : Workspace.BOOTSTRAP_FILES) {
+      assertTrue(Files.isRegularFile(dir.resolve(name)), "缺 bootstrap 文件: " + name);
+    }
+    assertTrue(Files.isRegularFile(dir.resolve(Workspace.CONFIG_FILE)), "缺 config.yaml");
+
+    Path memoryIndex = dir.resolve("memory/MEMORY.md");
+    assertTrue(Files.isRegularFile(memoryIndex), "应建出 memory/MEMORY.md");
+    assertEquals(
+        "", Files.readString(memoryIndex, StandardCharsets.UTF_8), "MEMORY.md 必须是空文件，占位文案会被当成记忆注入");
+  }
 }
