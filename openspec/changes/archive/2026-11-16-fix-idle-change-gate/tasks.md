@@ -15,4 +15,5 @@
   - **实测**：`openspec validate --changes` 4/4 通过（本 change 以 `skip_specs: true` 声明零 delta）；06 闸门「change 契约完整：4 个进行中的 change 均有 proposal 说明工作内容」，exit 0
 - [x] 2.2 `harness\run-all.ps1` 退出码 0
   - **实测**：14 道闸门全 PASS，`RESULT: ALL CHECKS PASSED`，`RUNALL_EXIT=0`（02-test 220.5s / 06 闸门 0.6s / 13 依赖扫描 144.9s）
-- [ ] 2.3 合并归档 PR #20 后，在「零进行中 change」状态下复跑 `harness\run-all.ps1`，退出码 0
+- [x] 2.3 合并归档 PR #20 后，在「零进行中 change」状态下复跑 `harness\run-all.ps1`，退出码 0
+  - **实测**：PR #20 合并后 main=95758ba，changes 根目录仅剩 `archive/`；06 闸门 exit 0 并打印「无进行中 change，本维度无需判定」；完整 `harness\run-all.ps1` 14 道全 PASS，`RESULT: ALL CHECKS PASSED`，`RUNALL_EXIT=0`（02-test 206.8s / 06 0.5s / 13 130.2s）。验证后目录移回，工作树干净
