@@ -147,4 +147,70 @@
         <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     </Match>
 
+    <!--
+      SPRING_ENDPOINT：Spring 控制器的「信息性提示」，不是缺陷。
+
+      FindSecBugs 对每个 @Controller / @RestController 都报一条，提醒人工检查该端点，
+      它本身不指向任何具体风险。lytgos 的端点只返回只读数据或统一 404，没有表单与会话。
+      按类逐条登记而不是按包放水：新增控制器时必须单独决定是否豁免，强制过一次人工确认。
+      测试桩控制器只经 standaloneSetup / 随机端口装载，不进入任何可执行入口。
+
+      重审条件：该控制器引入状态变更端点（写库、发消息、扣配额）时，逐方法复核。
+    -->
+    <Match>
+        <Class name="io.lytgos.web.api.ApiNotFoundController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.SystemInfoController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.error.GlobalExceptionHandlerTest$StubController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.trace.TraceIdFilterTest$StubController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+
+    <!--
+      SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING：通配 404 处理器不是「未限制方法的状态变更端点」。
+
+      ApiNotFoundController 承接 /api 与 /api/** 的所有 HTTP 方法，只为把「路径不存在」
+      统一成 LYTGOS_NOT_FOUND；它不读请求体、不写任何状态，CSRF 没有可触发的副作用。
+      精确映射的优先级高于通配，真实端点不会被它截获。
+
+      重审条件：该处理器开始读取请求体 / 会话，或改为 catch-all 过滤器与拦截器。
+    -->
+    <Match>
+        <Class name="io.lytgos.web.api.ApiNotFoundController"/>
+        <Bug pattern="SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING"/>
+    </Match>
+
+    <!--
+      SERVLET_HEADER：读取调用方传入的 X-Request-Id 是 observability spec 明文要求的行为。
+
+      头部可被篡改是事实，因此 traceId 在写入 MDC 与响应头之前先净化（剔控制字符、截断 128），
+      不会把外部输入原样拼进日志。伪造 traceId 只影响该请求自身的可追踪性，不放大任何权限。
+
+      重审条件：traceId 被用于鉴权、审计归属或跨服务的信任边界。
+    -->
+    <Match>
+        <Class name="io.lytgos.web.trace.TraceIdFilter"/>
+        <Bug pattern="SERVLET_HEADER"/>
+    </Match>
+
+    <!--
+      THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION：JUnit 测试方法声明 throws Exception 是标准写法。
+
+      测试方法不由生产调用方调用，收窄 throws 没有收益；RestClient 调用与 JSON 解析都可能抛受检异常。
+
+      重审条件：该断言逻辑被提取进生产类。
+    -->
+    <Match>
+        <Class name="io.lytgos.web.api.SystemInfoIntegrationTest"/>
+        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION"/>
+    </Match>
+
 </FindBugsFilter>

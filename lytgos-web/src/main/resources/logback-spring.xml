@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  lytgos Web 入口的日志配置，随 lytgos-web 进入两个可执行入口（lytgos.jar / lytgos-channel-boot.jar）。
+  lytgos-cli 不依赖 lytgos-web，classpath 上拿不到本文件，CLI 日志行为保持不变。
+-->
+<configuration>
+    <!-- 默认（dev / test / staging）：彩色单行，traceId 由 TraceIdFilter 写入 MDC -->
+    <springProfile name="!prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{36}) [%X{traceId:-}] - %msg%n</pattern>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <!-- prod：单行 JSON；字段名对齐 observability spec 的 timestamp / level / logger / message，MDC 的 traceId 并入顶层 -->
+    <springProfile name="prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <logger>logger</logger>
+                    <message>message</message>
+                    <level>level</level>
+                </fieldNames>
+                <timeZone>UTC</timeZone>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

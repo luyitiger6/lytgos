@@ -27,6 +27,7 @@
 | `08-mcp-acceptance` | MCP 两种形态走同一条治理路径：三条路径（内置 / 远程 URL / 本地 stdio）各留 `tool_call` 日志、来源标注、按形态的边界提示、命令白名单与域名白名单、无残留子进程 | 生效（需 jar + 测试夹具；第 1/2/3 条需 `DEEPSEEK_API_KEY`，第 2/4/5 条的远程部分需 `AMAP_MCP_KEY`） |
 | `09-startup-budget` | L0 `--version` 30 次采样最小值 ≤ 900ms 且 `-verbose:class` 不含 `org.springframework.context.*`；L1 `provider list`（无工作区快速失败）10 次采样最小值 ≤ 2500ms | 生效（需 `lytgos-cli/target/lytgos-cli-boot.jar`） |
 | `10-week2-acceptance` | 第 2 周端到端：init+空 `MEMORY.md` → `save_memory` 写入 → 移走 sessions 后新进程答出注入内容 → `write_file` 回读 → `shell java -version` → 删 `MEMORY.md` 后对话仍退出码 0 | 生效（需 jar + `DEEPSEEK_API_KEY`） |
+| `11-web-smoke` | Web 地基冒烟：启动 `lytgos-boot/target/lytgos.jar`（`--server.port=18080`），九条断言 health 三组探针、prometheus `jvm_` 指标、`system/info`、未知 `/api/**` 统一 404、`/v3/api-docs`、`X-Request-Id` 复用与生成 | 生效（需 jar；不依赖任何外部 key） |
 
 `harness/lib/` 放闸门共享的非闸门脚本：`JdkGuard.ps1` 被 `02-test` 与 `run-all.ps1` dot-source，比对根 `pom.xml` 的 `<java.version>` 与 `mvn -v` 报出的 Java 主版本，不足即 `exit 1` 并打印当前 `JAVA_HOME` 与修复命令。它不占闸门编号，也不进入 `checks/` 与机器可读清单。
 
@@ -45,6 +46,8 @@
 `09` 测的是 `lytgos-cli/target/lytgos-cli-boot.jar`（CLI 入口），**不是** `lytgos-boot/target/lytgos.jar`（后者是 Web 服务入口，`@SpringBootApplication` 直接起 Tomcat，不接 CLI 参数，拿它测 `--version` 会得到 3.8s 的假回归）。判据取 30 次采样的**最小值**而非均值/p95：本机 `--version` 采样呈双峰（600-900ms 与 1.0-1.3s，差值来自杀软扫描与页缓存回收，与代码路径无关），最小值才能稳定反映启动成本。L0 还额外用 `-verbose:class` 断言不出现 `org.springframework.context.*`——耗时会被机器噪声淹没，类加载记录不会。
 
 `10` 跑的是第 2 周的用户真实动作：init 后把 `allowed-commands` 配成含 `java` → `chat` 显式调 `save_memory` → **移走 `sessions/`** 后新进程再问同一事实 → `chat` 调 `write_file` 写 `output/gate.txt` → `chat` 调 `shell` 执行 `java -version`。第 3 条移走会话是刻意的：会话还在，回答可能来自历史而不是 `MEMORY.md` 的启动注入；第 5 条的工具结果不回显到进程输出，判据取会话落盘 JSON 里的 `exit=0` 与 `version`。模型没按指令调工具时，失败详情会带上最后一次回复，用于区分「实现坏了」与「模型没照做」。第 6 条把 `memory/MEMORY.md` 移出后跑 `chat -m 你好`，要求退出码 0、stderr 无 `ERROR`/`Exception`、且不顺手重建文件——这是 memory spec「记忆文件缺失不阻断对话」的机器判据。
+
+`11` 启动的是 Web 入口 `lytgos-boot/target/lytgos.jar`（`--server.port=18080` 覆盖默认端口），不依赖任何 API key：health 三组探针、`/actuator/prometheus` 的 `jvm_` 指标、`/api/v1/system/info`（`code=0` 且 `virtualThread=true`）、未知 `/api/**` 的 `LYTGOS_NOT_FOUND`、`/v3/api-docs` 含 `system/info`、`X-Request-Id` 复用与生成共九条。两个踩过的坑已固化在脚本里：PS 5.1 对 actuator 的 `vnd.spring-boot.actuator.v3+json` 返回 `byte[]` 需手动解码；`Start-Process` 返回的 PID 与真实 java 进程可能不一致，收尸按「端口 + 命令行双重校验」，只杀本闸门的 jar 进程。
 
 **测量方式有坑**：不能用 `Start-Process -RedirectStandardOutput` 计时，PowerShell 的流重定向会给每次测量注入约 350ms 开销（同一 jar 实测 1038ms vs 650ms），足以把 PASS 判成 FAIL。09 用 `System.Diagnostics.Process` 直接起进程计时，用 PATH 上的 `java`（与 07/08 验收调用点一致）。
 

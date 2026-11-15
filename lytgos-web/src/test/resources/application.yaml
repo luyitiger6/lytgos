@@ -1,0 +1,5 @@
+spring:
+  config:
+    # 测试上下文与两个真实入口保持同一套 defaults：虚拟线程、actuator 暴露面、
+    # springdoc 开关都走生产配置，避免测试与运行时分叉
+    import: classpath:lytgos-web-defaults.yaml

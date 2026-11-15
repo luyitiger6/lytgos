@@ -14,10 +14,10 @@ description: >-
 
 > **落地状态（对照本仓库实际，2026-11-15）**
 >
-> - **已落地**：§1–§2 骨架与版本管理、§7 格式 + 阿里规约、§8 安全四件套，插件坐标见根 `pom.xml`
-> - **尚未落地**：§3 结构化日志、§4 Actuator/Prometheus、§5 MVC + 虚拟线程、§6 OpenAPI/统一响应体/全局异常、§9 的 pre-commit（CI 已有 `.github/workflows/verify.yml`）
-> - 进度以 `README.md` 的「路线图」为准：`CLI、REST API 与定时触发` 仍未勾选
-> - 照着本 skill 初始化新仓库时，§3–§6 是可选的「一次到位」部分；改本仓库时不要误以为它们已存在
+> - **已落地**：§1–§2 骨架与版本管理、§3 结构化日志（console / prod JSON 双 profile）、§4 Actuator + Prometheus（health / liveness / readiness / prometheus 最小暴露面）、§5 MVC + 虚拟线程（`GET /api/v1/system/info` 返回 `virtualThread=true`）、§6 OpenAPI + 统一响应体 + 全局异常（springdoc 3.2.0；prod 关 Swagger UI、保留 api-docs）、§7 格式 + 阿里规约、§8 安全四件套，插件坐标见根 `pom.xml`
+> - **尚未落地**：§9 的 pre-commit（CI 已有 `.github/workflows/verify.yml`）
+> - 进度以 `README.md` 的「路线图」为准：`CLI、REST API 与定时触发` 仍未勾选——REST 地基已就位，业务端点与定时触发属于后续 change
+> - 照着本 skill 初始化新仓库时，§3–§6 在本仓库已验证过一遍；新仓库仍按需取舍
 
 ## 什么时候用
 
@@ -169,8 +169,8 @@ spring.threads.virtual.enabled: true   # JDK 21 虚拟线程，单机扛高并�
 
 ### 10. 验证
 - `mvn clean verify` 全绿 —— 本仓库可验
-- `mvn -pl lytgos-boot spring-boot:run` 起得来 —— **待 §3–§6 落地后可验**
-- 访问 `/actuator/health`（UP）、`/actuator/prometheus`（有指标）、`/swagger-ui.html`（能打开）—— **待 §4 与 §6 落地后可验**
+- `java -jar lytgos-boot/target/lytgos.jar` 起得来（默认端口 9898）—— 本仓库可验
+- 访问 `/actuator/health`（UP）、`/actuator/prometheus`（有指标）、`/v3/api-docs`（有 `openapi` 与 `paths`）；非 prod 下 `/swagger-ui.html` 能打开，prod 下应为 404 —— 本仓库可验
 - 故意写一行不规范代码 → `spotless:check` 报错；故意引一个有 CVE 的旧依赖 → depcheck 报警 —— 本仓库可验
 
 ---

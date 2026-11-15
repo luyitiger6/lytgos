@@ -25,6 +25,16 @@
         <!-- 与 spring-ai-mcp:2.0.2 内部依赖的版本保持一致，便于将来一起升级 -->
         <mcp-sdk.version>2.1.0</mcp-sdk.version>
         <!--
+            springdoc-openapi 2.x 只兼容 Spring Boot 3，支持 Boot 4 的是 3.x 线（官方兼容矩阵）。
+            3.2.0 为 2026-10 的当前 release；升级 Spring Boot 时同步复核本项。
+        -->
+        <springdoc.version>3.2.0</springdoc.version>
+        <!--
+            Spring Boot 4 的 dependencyManagement 不再含 logstash-logback-encoder（Boot 3 时代曾管理），
+            不显式锁版本则子模块引用时报 version is missing。9.0 兼容 logback 1.5.x。
+        -->
+        <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
+        <!--
             Kotlin 运行时传递依赖（openai-java / okhttp-okio 带入）：2.3.21 命中 CVE-2026-53914
             （CVSS 9.8，build cache 元数据不安全反序列化，修复于 2.4.20），覆盖 Spring Boot 父 pom 管理的版本。
             kotlin-stdlib-common 自 Kotlin 2.0 起停发、没有 2.4.20，由 lytgos-provider 在 spring-ai-openai 上排除。
@@ -90,6 +100,18 @@
                 <artifactId>archunit-junit5</artifactId>
                 <version>${archunit.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <!-- OpenAPI 文档：UI 与 api-docs 同一 starter，版本在根 pom 统一锁定 -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <!-- prod profile 的 JSON 日志编码器（Boot 4 BOM 不管它，见 properties 注释） -->
+            <dependency>
+                <groupId>net.logstash.logback</groupId>
+                <artifactId>logstash-logback-encoder</artifactId>
+                <version>${logstash-logback-encoder.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

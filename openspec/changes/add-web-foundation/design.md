@@ -31,6 +31,8 @@
 
 `application.yaml` 不能共享（同名文件在 classpath 上互相遮蔽），改为 `lytgos-web/src/main/resources/lytgos-web-defaults.yaml`，两个入口各自的 `application.yaml` 写一行 `spring.config.import: classpath:lytgos-web-defaults.yaml`。
 
+组件注册走 `LytgosWebAutoConfiguration` + `META-INF/spring/...AutoConfiguration.imports`：两个入口的组件扫描只覆盖各自包，依赖 jar 里的组件不会被自动发现。用 `@AutoConfiguration` + `@Import` 而不是条件装配（`@ConditionalOnBean` 等），一是遵守 AGENTS.md 4.2 的显式装配约定，二是 04 闸门的 ArchUnit 规则会直接拦下条件注解。
+
 - 备选 A：每个入口复制一份配置 → 两份漂移不可避免，排除。
 - 备选 B：把 `CliChannelApplication` 合并进 `lytgos-boot` → 破坏渠道独立调试能力，排除。
 
@@ -58,7 +60,12 @@
 
 ### D6 404 的判据来源
 
-Spring Boot 4.x 对未匹配路径抛 `NoResourceFoundException`（而非早期的 `NoHandlerFoundException`）。`GlobalExceptionHandler` 捕获它并仅对 `/api/**` 前缀返回统一 404，静态资源与 springdoc 路径保持框架默认行为。实施第一步先写一个失败用例确认当前版本的真实异常类型，再落映射。
+实现采用**显式通配控制器**：`ApiNotFoundController` 用 `@RequestMapping({"/api", "/api/**"})` 承接所有未匹配的 API 路径，返回统一 404。
+
+- 不捕获 `NoResourceFoundException`：Spring Boot 4.x 已换过一次内部异常类型（早期是 `NoHandlerFoundException`），绑定具体类型等于把契约押在框架内部实现上；`@RestControllerAdvice(basePackages = "io.lytgos.web")` 的限定作用域也让它接不到资源处理器抛出的异常。
+- 未匹配的非 `/api` 请求完全不经过本类，静态资源与 springdoc 的 404 保持框架默认行为。
+- 精确路径的映射优先级高于通配，本类不会遮蔽任何真实端点。
+- 代价：FindSecBugs 对此报 `SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING`——该处理器只返回 404、不读请求体、不写状态，CSRF 没有可触发的副作用，按 D10 豁免。
 
 ### D7 Actuator 最小暴露面
 
@@ -72,7 +79,22 @@ Spring Boot 4.x 对未匹配路径抛 `NoResourceFoundException`（而非早期�
 
 ### D9 OpenAPI 用 springdoc，prod 关 UI
 
-依赖 `springdoc-openapi-starter-webmvc-ui`；`application-prod` 里 `springdoc.swagger-ui.enabled=false`。版本必须在实施第一步查与 Spring Boot 4.1.2 的兼容矩阵后锁定到根 pom 的 `dependencyManagement`。
+依赖 `springdoc-openapi-starter-webmvc-ui`；`application-prod` 里 `springdoc.swagger-ui.enabled=false`。版本必须在实施第一步查与 Spring Boot 4.1.2 的兼容矩阵后锁定到根 pom 的 `dependencyManagement`（实施结论：springdoc 2.x 只兼容 Boot 3，选用 3.2.0；`logstash-logback-encoder` 9.0 因 Boot 4 BOM 不再管理而一并锁版本）。
+
+### D10 本 change 新增的 SpotBugs 豁免（台账）
+
+豁免书写规范见 `spotbugs-exclude.xml` 文件头（类 + 模式粒度、逐条注释、重审条件）。本 change 新增 6 条类级豁免，全部来自 Spring / FindSecBugs 的框架语义误报：
+
+| 类 | 模式 | 理由 | 重审条件 |
+|---|---|---|---|
+| `io.lytgos.web.api.ApiNotFoundController` | `SPRING_ENDPOINT` | FindSecBugs 对每个控制器的信息性提示 | 引入状态变更端点时逐方法复核 |
+| `io.lytgos.web.api.SystemInfoController` | `SPRING_ENDPOINT` | 同上；端点只读 | 同上 |
+| `io.lytgos.web.error.GlobalExceptionHandlerTest$StubController` | `SPRING_ENDPOINT` | 测试桩，只经 standaloneSetup 装载 | 提取进生产类时重审 |
+| `io.lytgos.web.trace.TraceIdFilterTest$StubController` | `SPRING_ENDPOINT` | 同上 | 同上 |
+| `io.lytgos.web.api.ApiNotFoundController` | `SPRING_CSRF_UNRESTRICTED_REQUEST_MAPPING` | 通配 404 处理器无状态变更，CSRF 无副作用（见 D6） | 开始读写请求体 / 会话时重审 |
+| `io.lytgos.web.trace.TraceIdFilter` | `SERVLET_HEADER` | 复用 `X-Request-Id` 是 spec 要求；值已净化后再进 MDC 与响应头 | traceId 用于鉴权或审计归属时重审 |
+
+另有 1 条测试方法豁免：`SystemInfoIntegrationTest` 的 `THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION`（JUnit 方法 `throws Exception` 是标准写法），与上表一并登记。
 
 ## Risks / Trade-offs
 

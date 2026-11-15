@@ -317,12 +317,13 @@ lytgos session list              # 查看会话历史
 
 ## 当前状态
 
-lytgos 目前处于**第 2 周：记忆与内置工具落地**：
+lytgos 目前处于**第 2 周能力完成、Web 地基就位**：
 
-- 12 个 Maven 模块已就位，`mvn clean package` 可产出三个可执行入口：`lytgos.jar`（完整装配）、`lytgos-cli-boot.jar`（命令行）、`lytgos-channel-boot.jar`（渠道，监听 8081）
+- 12 个 Maven 模块已就位，`mvn clean package` 可产出三个可执行入口：`lytgos.jar`（Web 服务，默认 9898）、`lytgos-cli-boot.jar`（命令行）、`lytgos-channel-boot.jar`（渠道，监听 8081）
 - 第 1 周打通自实现 ReAct 循环、Prompt 组装、会话落盘与沙箱；第 2 周补齐长期记忆（`memory/MEMORY.md` 启动注入 + `save_memory` / `recall_memory`）、`write_file` / `list_dir` 与受命令白名单约束的 `shell`
+- Web 地基已落地：统一响应体与全局异常、`X-Request-Id` traceId、虚拟线程、Actuator 三组探针 + Prometheus、springdoc OpenAPI（非 prod 开 Swagger UI，prod 只保留 api-docs），`GET /api/v1/system/info` 可直接验证运行时事实；**业务 REST 端点与定时触发尚未开始**，路线图中该条仍未勾选
 - 内置工具共七个，按 `AGENT.md` 的 `tools` 白名单筛选；所有执行仍走 `ToolExecutor` → `SandboxChecker`，不引入旁路
-- 质量闸门（Harness）已启用：`10-week2-acceptance` 用真实模型跑通「记住偏好 → 新进程答出 → 写文件 → 执行命令」；未接入的闸门显式返回 `NOT_READY`，不伪造绿灯
+- 质量闸门（Harness）已启用：`10-week2-acceptance` 用真实模型跑通「记住偏好 → 新进程答出 → 写文件 → 执行命令」，`11-web-smoke` 启动真实 `lytgos.jar` 验证 Web 地基九条；未接入的闸门显式返回 `NOT_READY`，不伪造绿灯
 
 ## 路线图
 

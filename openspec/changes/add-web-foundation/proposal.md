@@ -10,7 +10,7 @@
 - 接入 Actuator + Micrometer + Prometheus：暴露 `/actuator/health`、`/actuator/info`、`/actuator/prometheus`，health 带 liveness / readiness 探针
 - 开启 Spring MVC + JDK 21 虚拟线程（`spring.threads.virtual.enabled=true`），不引入响应式栈
 - 接入 springdoc：`/v3/api-docs` 与 `/swagger-ui.html`；prod profile 默认关闭 UI
-- 新增统一响应体 `ApiResponse<T>`（code / message / data / timestamp）与全局异常处理 `GlobalExceptionHandler`，把 core 的 `LytgosException` 体系映射为 400 / 404 / 500 / 503 与稳定错误码
+- 新增统一响应体 `ApiResponse<T>`（code / message / data / timestamp）与全局异常处理 `GlobalExceptionHandler`，把 core 的 `LytgosException` 体系映射为 403 / 400 / 500 与稳定错误码；未知 `/api/**` 路径由通配处理器统一返回 404
 - 新增 11 号闸门 `web-smoke`：用真实进程验证健康端点、OpenAPI 文档、异常映射三件事
 
 **BREAKING**：无。CLI 行为不变；`lytgos-web` 由空模块变为有实现。

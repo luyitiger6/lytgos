@@ -1,0 +1,44 @@
+# lytgos Web 地基的共享配置。
+# 各入口的 application.yaml 用 spring.config.import 引入本文件；
+# 不直接叫 application.yaml，是因为同名文件在 classpath 上会互相遮蔽。
+spring:
+  threads:
+    # JDK 21 虚拟线程承载 MVC 请求（验收判据见 /api/v1/system/info）
+    virtual:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # 只开放健康、信息与指标抓取；/actuator/env 等其余端点不暴露
+        include: health,info,prometheus
+  endpoint:
+    health:
+      # 匿名调用方不应看到依赖细节
+      show-details: never
+      # 供 K8s 区分「进程活着」与「可以接流量」
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  # Spring Boot 4 不会从依赖 jar 自动发现 logback-spring.xml，必须显式指路；
+  # 写在这里两个入口一次生效（文件随 lytgos-web 打进各自的 fat jar）。
+  config: classpath:logback-spring.xml
+
+---
+# prod 只关调试页面，保留 /v3/api-docs 供网关与客户导入契约
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+springdoc:
+  swagger-ui:
+    enabled: false
