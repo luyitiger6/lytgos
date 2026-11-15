@@ -30,6 +30,13 @@
         -->
         <springdoc.version>3.2.0</springdoc.version>
         <!--
+            swagger-ui 是 springdoc 的传递依赖（3.2.0 → swagger-ui 5.34.0），后者内嵌的
+            DOMPurify 3.4.16 命中 CVE-2026-116803 / CVE-2026-116804（均 CVSS 10.0）。
+            5.35.0 的 bundle 内为 DOMPurify 3.4.17（修复版本）。这里覆盖传递版本：
+            swagger-ui 是纯前端静态资源，不影响 springdoc 生成 API 文档的服务端逻辑。
+        -->
+        <swagger-ui.version>5.35.0</swagger-ui.version>
+        <!--
             Spring Boot 4 的 dependencyManagement 不再含 logstash-logback-encoder（Boot 3 时代曾管理），
             不显式锁版本则子模块引用时报 version is missing。9.0 兼容 logback 1.5.x。
         -->
@@ -68,6 +75,12 @@
             REST API 2.0 在本项目实测带有效 key 仍持续 503，分页到 10,000/425,753 条后无法继续。
         -->
         <dependency-check.nvdDatafeedUrl>https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz</dependency-check.nvdDatafeedUrl>
+        <!--
+            RetireJS 仓库默认从 raw.githubusercontent.com 拉取，国内网络经常无法解析（实测
+            UnknownHostException）；缓存 24 小时过期后更新失败会让扫描器直接初始化失败、闸门恒红。
+            改走 jsDelivr 的 GitHub 镜像：内容同源 Retirejs/retire.js 仓库，仅换分发通道。
+        -->
+        <dependency-check.retireJsUrl>https://cdn.jsdelivr.net/gh/Retirejs/retire.js@master/repository/jsrepository.json</dependency-check.retireJsUrl>
     </properties>
 
     <modules>
@@ -106,6 +119,15 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+            <!--
+                覆盖 springdoc 传递的 swagger-ui 5.34.0：其内嵌 DOMPurify 3.4.16 命中
+                CVE-2026-116803 / CVE-2026-116804（CVSS 10.0），5.35.0 内为修复版 3.4.17。
+            -->
+            <dependency>
+                <groupId>org.webjars</groupId>
+                <artifactId>swagger-ui</artifactId>
+                <version>${swagger-ui.version}</version>
             </dependency>
             <!-- prod profile 的 JSON 日志编码器（Boot 4 BOM 不管它，见 properties 注释） -->
             <dependency>
@@ -274,6 +296,8 @@
                             <failBuildOnCVSS>7</failBuildOnCVSS>
                             <!-- 官方 JSON feeds 2.0：无需 API key，首次下载年度包，之后按 meta 做增量更新 -->
                             <nvdDatafeedUrl>${dependency-check.nvdDatafeedUrl}</nvdDatafeedUrl>
+                            <!-- RetireJS 数据源走 jsDelivr 镜像（见 properties 注释）：raw.githubusercontent.com 国内不可达 -->
+                            <retireJsUrl>${dependency-check.retireJsUrl}</retireJsUrl>
                             <dataDirectory>${dependency-check.dataDirectory}</dataDirectory>
                             <suppressionFiles>
                                 <suppressionFile>${maven.multiModuleProjectDirectory}/dependency-check-suppressions.xml</suppressionFile>
