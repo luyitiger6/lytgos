@@ -22,7 +22,7 @@
 | `03-static-guard` | 禁 `TODO`/`FIXME`/`XXX`、`System.out.print`、`@Disabled`、任意 pom 的 `skipTests` | 生效 |
 | `04-dependency-direction` | ArchUnit 四条规则：禁 `ChatClient`、禁 `ToolCallingManager`、禁条件装配注解、禁类型扫描（`lytgos-test` 模块承载） | 生效 |
 | `05-audit-invariant` | 审计不变量 I1 / I2 / I3，执行 `AuditInvariantTest` 并核对实际用例数 | 生效（3 条全过） |
-| `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes` | 生效 |
+| `06-change-contract` | 每个 change 必须有 proposal，且含 `## Why` 与 `## What Changes`；无进行中 change 时视为通过（空闲期不是未就绪） | 生效 |
 | `07-week1-acceptance` | 第 1 周端到端：init → 幂等 → 对话+工具往返 → 反例 → 多轮上下文 | 生效（需 jar + `DEEPSEEK_API_KEY`；六条已全 PASS） |
 | `08-mcp-acceptance` | MCP 两种形态走同一条治理路径：三条路径（内置 / 远程 URL / 本地 stdio）各留 `tool_call` 日志、来源标注、按形态的边界提示、命令白名单与域名白名单、无残留子进程 | 生效（需 jar + 测试夹具；第 1/2/3 条需 `DEEPSEEK_API_KEY`，第 2/4/5 条的远程部分需 `AMAP_MCP_KEY`） |
 | `09-startup-budget` | L0 `--version` 30 次采样最小值 ≤ 900ms 且 `-verbose:class` 不含 `org.springframework.context.*`；L1 `provider list`（无工作区快速失败）10 次采样最小值 ≤ 2500ms | 生效（需 `lytgos-cli/target/lytgos-cli-boot.jar`） |
