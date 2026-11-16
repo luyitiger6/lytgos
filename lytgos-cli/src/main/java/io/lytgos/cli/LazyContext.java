@@ -11,12 +11,12 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
  * <p>容器首次 refresh 实测约 815ms（JDK 21 / Spring 7 / 本机），而同一容器的稳态 refresh 只要 9-19ms——首次的成本几乎全在 Spring
  * 自身的类加载与注解基础设施初始化上。所以只要有 任何一条路径在进程启动时就 refresh，CLI 就会从百毫秒级掉到秒级。
  *
- * <p>配置类以字符串形式延迟到 {@link #context()} 里再解析：直接写 {@code CliConfiguration.class} 会让本类的常量池引用它，进而让 JVM
- * 在加载本类时就去解析 {@code @Configuration} 等注解类型， 白白把 Spring 类加载提前到启动阶段。
+ * <p>配置类以字符串形式延迟到 {@link #context()} 里再解析：直接写 {@code RuntimeConfiguration.class} 会让本类的常量池引用它，进而让
+ * JVM 在加载本类时就去解析 {@code @Configuration} 等注解类型， 白白把 Spring 类加载提前到启动阶段。
  */
 public final class LazyContext implements AutoCloseable {
 
-  private static final String CONFIGURATION_CLASS = "io.lytgos.cli.CliConfiguration";
+  private static final String CONFIGURATION_CLASS = "io.lytgos.runtime.RuntimeConfiguration";
 
   private AnnotationConfigApplicationContext context;
 

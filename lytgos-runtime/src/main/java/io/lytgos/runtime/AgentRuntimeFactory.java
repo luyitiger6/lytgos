@@ -1,4 +1,4 @@
-package io.lytgos.cli;
+package io.lytgos.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lytgos.core.LytgosException;

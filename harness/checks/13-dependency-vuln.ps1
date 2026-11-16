@@ -6,8 +6,11 @@
         CVSS 10.0 的传递依赖上」——本地看不见的高危漏洞，等于这道门禁不存在。
         本闸门把同一门禁、同一阈值、同一份 suppressions 补进本地一键验收。
 
-    做法：只执行 dependency-check 插件目标，不重跑 compile / test / 静态检查——
-        那些由 01-compile 与 02-test 负责。扫描需要上一次构建的 class 产物，
+    做法：带 security profile 跑完整 verify 生命周期——与 CI 的 security job 完全一致。
+        不能用 direct goal（`dependency-check:check`）：Maven 在 direct goal 调用时只从本地仓库
+        解析内部模块依赖，新增模块未 install 会直接报 Could not find artifact；
+        只有生命周期会话（verify）才会把 reactor 内的未安装模块按 target/classes 解析。
+        代价是重复 02-test 的编译/测试，换来「与 CI 同一命令」的确定性。
         缺产物时按「未就绪」返回 2，既不冒充通过也不冒充失败。
 
     三态：
@@ -17,6 +20,8 @@
 
     注意：
       - 命令自带 -Psecurity：不依赖调用方记得加 profile，否则扫描被 skip 而假绿。
+      - 必须是 verify 而不是 direct goal：direct goal 不解析 reactor 内未 install 的模块，
+        新增模块后闸门会假红（实测 Could not find artifact io.lytgos:lytgos-runtime）。
       - NVD 数据目录为 ~/.m2/dependency-check-data；无缓存时首次要下载年度包（分钟级）。
       - 豁免只能写进 dependency-check-suppressions.xml（CVE + 依赖坐标 + 理由 + 复查日期），
         本闸门不提供任何「跳过」开关。
@@ -57,7 +62,7 @@ if (-not (Test-Path -LiteralPath $nvdDir)) {
 }
 
 $start = Get-Date
-& mvn -B -Psecurity org.owasp:dependency-check-maven:check
+& mvn -B -Psecurity verify
 $scanExit = $LASTEXITCODE
 $elapsed = [int]((New-TimeSpan -Start $start).TotalSeconds)
 

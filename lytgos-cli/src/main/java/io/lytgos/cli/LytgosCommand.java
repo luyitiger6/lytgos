@@ -23,7 +23,8 @@ import picocli.CommandLine.Command;
       ChatCommand.class,
       ProfileCommand.class,
       ProviderCommand.class,
-      ToolCommand.class
+      ToolCommand.class,
+      ServeCommand.class
     })
 public class LytgosCommand implements Runnable {
 

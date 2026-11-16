@@ -7,6 +7,11 @@ spring:
     virtual:
       enabled: true
 
+server:
+  # 默认只监听回环地址：把服务暴露到非回环网卡不属于本能力，
+  # 需要时由使用者显式覆盖（serve 的命令行参数里再重复一次，命令行优先）。
+  address: 127.0.0.1
+
 management:
   endpoints:
     web:

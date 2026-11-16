@@ -22,11 +22,13 @@
       1  启动失败、端口被占或任一断言 FAIL
 
     注意：
-      - 端口用启动参数 --server.port=18080 覆盖，避开 8080（VMware 常占）、8081
-        （lytgos-channel）与 9898（默认入口），不影响本机其他服务。
+      - 端口用启动参数 --server.port=18090 覆盖，避开 8080（不用）、8081（lytgos-channel）、
+        9898（默认入口）与 18080（预留 Nacos），不影响本机其他服务。
+      - 启动时用 --lytgos.root 指向临时空工作区：Web 入口已装配业务 Bean，需要工作区；
+        不能拿仓库根当工作区（它是源码目录，且干净克隆里没有 .lytgos）。
       - 用 PATH 上的 java（与 07/08/09 的调用点一致）；JDK 版本一致性由 run-all 的
         JdkGuard 负责，本闸门不重复判定。
-      - 启动失败时保留临时日志并打印尾部，成功时删除；失败现场比干净磁盘重要。
+      - 启动失败时保留临时日志与临时工作区并打印尾部，成功时删除；失败现场比干净磁盘重要。
 #>
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -43,11 +45,21 @@ if (-not $java) {
     exit 2
 }
 
-$port = 18080
+$port = 18090
 $base = "http://localhost:$port"
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$tempRoot = Join-Path $env:TEMP "lytgos-web-smoke-$stamp"
 $logFile = Join-Path $env:TEMP "lytgos-web-smoke-$stamp.log"
 $errFile = Join-Path $env:TEMP "lytgos-web-smoke-$stamp.err"
+
+# 最小工作区：只要 config.yaml 存在且是合法 YAML，九条断言都不碰模型与 Agent。
+New-Item -ItemType Directory -Force -Path (Join-Path $tempRoot '.lytgos') | Out-Null
+@'
+providers: {}
+sandbox:
+  allowed-domains: []
+  allowed-commands: []
+'@ | Set-Content -LiteralPath (Join-Path $tempRoot '.lytgos/config.yaml') -Encoding UTF8
 
 $passes = @()
 $failures = @()
@@ -119,7 +131,7 @@ if ($occupant) {
 $proc = $null
 try {
     $proc = Start-Process -FilePath $java.Source `
-        -ArgumentList @('-jar', "`"$jar`"", "--server.port=$port") `
+        -ArgumentList @('-jar', "`"$jar`"", "--server.port=$port", "--lytgos.root=$tempRoot") `
         -RedirectStandardOutput $logFile -RedirectStandardError $errFile -PassThru
     Write-Host ("启动 lytgos.jar（PID {0}，端口 {1}），日志: {2}" -f $proc.Id, $port, $logFile) -ForegroundColor DarkGray
 
@@ -144,7 +156,7 @@ try {
             Write-Host '----- 错误流尾部 -----' -ForegroundColor DarkYellow
             Get-Content -LiteralPath $errFile -Tail 30 | ForEach-Object { Write-Host $_ -ForegroundColor DarkYellow }
         }
-        Write-Host ("日志保留在 {0}" -f $logFile) -ForegroundColor DarkYellow
+        Write-Host ("日志保留在 {0}，临时工作区 {1}" -f $logFile, $tempRoot) -ForegroundColor DarkYellow
         exit 1
     }
 
@@ -219,5 +231,6 @@ if ($failures.Count -gt 0) {
 
 Remove-Item -LiteralPath $logFile -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $errFile -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ("RESULT: 九条全 PASS（端口 {0} 已释放）" -f $port) -ForegroundColor Green
 exit 0

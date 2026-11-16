@@ -1,4 +1,4 @@
-package io.lytgos.cli;
+package io.lytgos.runtime;
 
 import io.lytgos.core.tool.SandboxChecker;
 import io.lytgos.core.workspace.WorkspaceLocator;

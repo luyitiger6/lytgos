@@ -1,8 +1,10 @@
 # CLI 参考
 
-`lytgos` 命令行工具提供 12 个子命令，用于管理工作区、Profile、会话和运行 Agent。
+`lytgos` 命令行工具当前实现 6 个子命令：`init` / `chat` / `profile` / `provider` / `tool` / `serve`，用于管理工作区与 Agent、查看 Provider 与工具、运行 Agent，以及对外提供 HTTP 服务。
 
 所有命令都支持 `--help`（`-h`）查看用法、`--version`（`-V`）打印版本及 JVM/OS 信息。
+
+> 本文中标注「未实现」的章节属于路线图——`status` / `session` / `gateway` / `user` 等子命令在当前版本中不存在，`--help` 里也不会出现，不要据此操作。
 
 ## 工作区根目录
 
@@ -10,9 +12,9 @@
 
 | 方式 | 作用范围 | 说明 |
 | --- | --- | --- |
-| `LYTGOS_ROOT`（环境变量） | 所有命令 | 轻命令直接读取；`serve`/`gateway` 经 Spring relaxed binding 也认 |
+| `LYTGOS_ROOT`（环境变量） | 所有命令 | 轻命令直接读取；`serve` 经 Spring relaxed binding 也认 |
 | `-Dlytgos.root=<path>`（JVM 系统属性） | 所有命令 | 轻命令优先级最高 |
-| `application.yml` 的 `lytgos.root` | 仅 `serve` / `gateway` | 轻命令（`init`/`status`/`profile`）不启动 Spring、不读 yaml，要给它们自定义根请用环境变量或系统属性 |
+| `application.yml` 的 `lytgos.root` | 仅 `serve` | 轻命令（`init` / `profile`）不启动 Spring、不读 yaml，要给它们自定义根请用环境变量或系统属性 |
 
 轻命令解析顺序：`-Dlytgos.root` → `LYTGOS_ROOT` → 默认 `.lytgos`。配置的根目录会在运行时自动加入文件沙箱白名单，换根不会破坏文件工具。
 
@@ -47,73 +49,62 @@ LYTGOS_ROOT=/data/ws lytgos init
 └── USER.md       # Bootstrap：用户偏好（只读）
 ```
 
-`lytgos.db` 在首次运行重命令（`serve`/`gateway`/`chat`）时创建，`init` 本身不建库。
+`lytgos.db` 在首次运行重命令（`serve` / `chat`）时创建，`init` 本身不建库。
 
-### lytgos status
+### lytgos status（未实现）
 
-查看工作区与数据文件状态：工作区是否初始化、`agents/` 下有多少个 Agent、SQLite 库是否已创建。与 `init` 一样是轻命令——不启动 Spring，认 `LYTGOS_ROOT` / `-Dlytgos.root`。
-
-```bash
-lytgos status
-```
-
-示例输出：
-
-```text
-工作区 .lytgos/  : 已初始化
-Agent 目录      : 3 个
-SQLite 数据库   : lytgos.db 存在
-```
+> **未实现（路线图）**：当前版本没有 `status` 子命令。工作区是否可用看 `lytgos init` 的输出，服务是否起来看 `lytgos serve` 的启动日志与 `GET /api/v1/health`。
 
 ## 对话
 
 ### lytgos chat
 
-启动交互式多轮对话。每轮对话经过完整的 ReAct Loop，Agent 可调用工具后再回复。使用 `/quit` 或 `Ctrl-D` 退出。
+启动对话。不带 `--message` 时为交互式多轮对话，每轮经过完整的 ReAct Loop，Agent 可调用工具后再回复，使用 `/quit` 或 `Ctrl-D` 退出；带 `--message` 时只跑一轮然后退出。
 
 ```bash
-lytgos chat [--profile <name>]
+lytgos chat [--agent <name>] [--message <text>]
 ```
 
 | 选项 | 说明 |
 | --- | --- |
-| `--profile <name>` | 指定使用的 Profile，默认为 `default` |
+| `-a`, `--agent <name>` | 指定使用的 Agent，默认为 `default` |
+| `-m`, `--message <text>` | 单条消息模式：发送后打印回复并退出 |
 
 示例：
 
 ```bash
-lytgos chat --profile ops-agent
+lytgos chat --agent ops-agent
+lytgos chat -m 你好
 ```
 
 ## 服务
 
 ### lytgos serve
 
-启动 HTTP API 服务：对外暴露 `/api/v1` 下的 REST API，并在 `/admin/` 提供 Web 管理台。作为重命令，`serve` 会启动 Spring，从 `application.yml` 的 `lytgos.root` 读取工作区根（Spring relaxed binding 同样认 `LYTGOS_ROOT` 环境变量）。
+启动 HTTP API 服务：对外暴露 `/api/v1` 下的 REST API，并在 `/admin/` 提供**只读** Web 管理台（服务信息、Profile、工具、记忆、会话列表与会话详情）。作为重命令，`serve` 会启动 Spring；工作区根依次取 `--root` 参数、`LYTGOS_ROOT` 环境变量、启动目录。服务默认只绑定回环地址 `127.0.0.1`，把服务暴露到其他网卡不属于当前能力。
 
 ```bash
-lytgos serve [--port <port>]
+lytgos serve [--port <port>] [--root <path>]
 ```
 
 | 选项 | 说明 |
 | --- | --- |
-| `--port <port>` | 监听端口，默认 `8080` |
+| `-p`, `--port <port>` | 监听端口，默认 `8989`（避开 8080 / 8081 / 9898） |
+| `-r`, `--root <path>` | 工作区根目录，默认当前目录（也认 `LYTGOS_ROOT`） |
 
 示例：
 
 ```bash
 lytgos serve --port 9090
-# REST API:    http://0.0.0.0:9090/api/v1
-# 管理台:      http://0.0.0.0:9090/admin/
+# REST API:    http://127.0.0.1:9090/api/v1
+# 管理台:      http://127.0.0.1:9090/admin/
 ```
 
-### lytgos gateway
+在非工作区目录启动且未指定 `--root` 时，进程以非 0 退出码结束，stderr 只有一行「当前目录不在 lytgos 工作区内，请先执行 lytgos init」，不打印堆栈。
 
-以守护进程模式启动（完整运行时常驻），适合生产多 Agent 部署；多 Channel 挂载属扩展阶段。与 `serve` 一样启动 Spring，从 `lytgos.root` 读取工作区根（经 relaxed binding 认 `LYTGOS_ROOT`）。`Ctrl-C` 退出。
+### lytgos gateway（未实现）
 
-```bash
-lytgos gateway
-```
+> **未实现（路线图）**：当前版本没有 `gateway` 子命令。多渠道常驻进程、定时任务调度随后续 change 交付。
 
 ## Agent（Profile）管理
 
@@ -129,7 +120,7 @@ lytgos profile list
 
 ### lytgos profile create
 
-创建新 Agent，在 `<工作区>/agents/<name>/` 下生成带默认字段的最小 `AGENT.md` 模板；已存在则不覆盖。
+创建新 Agent，在 `<工作区>/agents/<name>/` 下生成带默认字段的最小 `AGENT.md` 模板；已存在时默认不覆盖，加 `--force` 覆盖。
 
 ```bash
 lytgos profile create <name>
@@ -152,7 +143,7 @@ lytgos profile show <name>
 
 ### lytgos profile delete
 
-删除指定 Agent：整个目录（含 `MEMORY.md`）归档到 `<root>/archive/`，不物理删除。
+删除指定 Agent：整个目录（含 `MEMORY.md`）**物理删除**，不可恢复。默认需要输入 `yes` 二次确认，加 `-y` / `--yes` 跳过确认。
 
 ```bash
 lytgos profile delete <name>
@@ -162,7 +153,7 @@ lytgos profile delete <name>
 
 ### lytgos provider list
 
-列出本实例实际运行所用的 Provider 注册表。轻命令查的是运行时同一个库——默认 `lytgos.db` 里的 `providers` 表，或 `config/application.yml` 配置的外部数据源——打印每个 Provider 的名字、派生默认标记、base URL 与描述。打包的 `application.yml` 只在服务首次启动时为数据库缺失的条目播种；之后数据库是唯一事实源，管理台（`/api/v1/providers`）的新增/删除在这里立即反映。
+列出 `config.yaml` 中声明的 Provider：名字、模型、base URL 与 API key 状态。命令只读配置、不建立任何连接——没设 key 也能看清「配了什么、缺哪个环境变量」。
 
 ```bash
 lytgos provider list
@@ -171,54 +162,31 @@ lytgos provider list
 示例输出：
 
 ```text
-Provider 注册表（lytgos.db）：
-NAME                 DEFAULT  BASE-URL                                             DESCRIPTION
-deepseek             *        https://api.deepseek.com                             默认 DeepSeek
-mock                          -                                                    内置假模型
-qwen                          https://dashscope.aliyuncs.com/compatible-mode/v1    通义
-default(*) 为运行时派生（注册表内按大小写无关排序的最小名），不是库字段。
+NAME           MODEL                  BASE-URL                               API-KEY
+deepseek       deepseek-chat          https://api.deepseek.com               已配置
 ```
 
-数据库不可达 / 未初始化 / 缺 `providers` 表时命令非零退出，不会回落到打包 YAML。
+不打印 api-key 的值：终端输出会进 shell 历史、CI 日志与截图，只报「已配置 / 未配置（环境变量名）」。
 
 ### lytgos tool list
 
-列出内置 Tool。运行时 `ToolRegistry` 接线后，此清单反映实时注册表（内置 + MCP Tool）。
+列出指定 Agent 装配完成后模型实际能看到的工具（`NAME` / `DESCRIPTION` 两列）。默认 Agent 为 `default`，可用 `-a` / `--agent` 指定。打印的是运行时注册表快照，包含该 Agent 声明的 MCP 工具；内置 7 个：`http_get` / `file_read` / `write_file` / `list_dir` / `shell` / `save_memory` / `recall_memory`。
 
 ```bash
-lytgos tool list
+lytgos tool list [--agent <name>]
 ```
 
-示例输出：
+### lytgos session list（未实现）
 
-```text
-内置 Tool：
-  read_file
-  write_file
-  list_dir
-  shell
-  http_get
-  http_post
-  save_memory
-  recall_memory
-  notify
-```
-
-### lytgos session list
-
-列出 SQLite 库（当前目录的 `lytgos.db`）里的会话，按最后活跃时间倒序。字段：session id、profile 名、状态、最后活跃时间。
-
-```bash
-lytgos session list
-```
+> **未实现（路线图）**：当前版本没有 `session` 子命令。会话列表可经 `serve` 的 `GET /api/v1/sessions` 或 `/admin/` 管理台查看。
 
 ---
 
-## 用户管理
+## 用户管理（未实现）
 
-管理管理台（`/admin/**`）Basic Auth 的管理员账号。账号存于 `web_users` SQLite 表，密码 BCrypt 哈希、绝不存明文。变更即时生效——新增账号无需重启服务即可登录。
+> **未实现（路线图）**：当前版本没有任何 `user` 子命令，`/admin/**` 也没有 Basic Auth。REST 鉴权与 RBAC 随后续 change 交付；本阶段 `serve` 默认只监听 `127.0.0.1`，不对外暴露。
 
-> Basic Auth 默认关（`lytgos.web.auth.enabled=false`，假设受信内网）。在 `config/application.yml` 中开启后，启动 `serve` 前必须先用 `lytgos user add` 建至少一个账号，否则启动会被阻断并报清晰错误。
+下列命令与行为属于路线图设计，当前 `--help` 中不存在：
 
 ### lytgos user add
 

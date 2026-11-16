@@ -27,10 +27,13 @@
       ReActLoop 保存的 PromptBuilder 同理：全字段 final、私有构造器 + 静态工厂，
       没有 mutator，在 AgentRuntimeFactory 内构造后只读，SpotBugs 无法识别这类不可变门面。
 
+      web 控制器（Info / Memory / Message / Session）保存的 SessionStore 与 MemoryStore
+      同样是容器单例：控制器内无 getter 外泄、无 mutator 替换，引用只在请求方法内部用于读写。
+
       重审条件：类改为自行 new 这些依赖，或允许业务代码传入可变配置对象。
     -->
     <Match>
-        <Class name="io.lytgos.cli.AgentRuntimeFactory"/>
+        <Class name="io.lytgos.runtime.AgentRuntimeFactory"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
@@ -75,6 +78,26 @@
     </Match>
     <Match>
         <Class name="io.lytgos.storage.SqliteSessionStore"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!--
+      web 控制器持有的 Store 引用：理由同上，容器单例、无 getter 外泄、无 mutator。
+      重审条件：控制器开始对外暴露 Store 引用，或 Store 改为可替换的可变字段。
+    -->
+    <Match>
+        <Class name="io.lytgos.web.api.InfoController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.MemoryController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.MessageController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.SessionController"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 
@@ -148,7 +171,7 @@
       重审条件：这些 catch 块开始构造新的 RuntimeException 而不是 rethrow 原异常。
     -->
     <Match>
-        <Class name="io.lytgos.cli.AgentRuntimeFactory"/>
+        <Class name="io.lytgos.runtime.AgentRuntimeFactory"/>
         <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
     </Match>
     <Match>
@@ -201,7 +224,7 @@
         <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
     </Match>
     <Match>
-        <Class name="io.lytgos.cli.WorkspaceConfigProviderTest"/>
+        <Class name="io.lytgos.runtime.WorkspaceConfigProviderTest"/>
         <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
     </Match>
 
@@ -212,7 +235,7 @@
       重审条件：Spring Boot 升级后 Binder 契约变化，或该处改为 chain 上的第三方方法。
     -->
     <Match>
-        <Class name="io.lytgos.cli.WorkspaceConfigProvider"/>
+        <Class name="io.lytgos.runtime.WorkspaceConfigProvider"/>
         <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     </Match>
 
@@ -220,18 +243,61 @@
       SPRING_ENDPOINT：Spring 控制器的「信息性提示」，不是缺陷。
 
       FindSecBugs 对每个 @Controller / @RestController 都报一条，提醒人工检查该端点，
-      它本身不指向任何具体风险。lytgos 的端点只返回只读数据或统一 404，没有表单与会话。
+      它本身不指向任何具体风险。lytgos 的 Web 端点共同具备以下前提：
+
+      1. 只绑定回环地址（serve 默认 127.0.0.1），不存在跨主机直接暴露；
+      2. 无 Cookie / HTTP Session 认证，浏览器跨站请求不携带任何可被 CSRF 利用的凭据；
+      3. 写端点只接受 application/json 请求体（非简单请求，跨站需经 CORS 预检）；
+      4. 无服务端会话状态，请求即处理、不留下登录态。
+
       按类逐条登记而不是按包放水：新增控制器时必须单独决定是否豁免，强制过一次人工确认。
       测试桩控制器只经 standaloneSetup / 随机端口装载，不进入任何可执行入口。
 
-      重审条件：该控制器引入状态变更端点（写库、发消息、扣配额）时，逐方法复核。
+      重审条件：引入 Cookie / Session 认证、新增表单（application/x-www-form-urlencoded）入口、
+      或绑定非回环地址时，逐方法复核。
     -->
+    <Match>
+        <Class name="io.lytgos.web.api.AdminPageController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.AgentController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
     <Match>
         <Class name="io.lytgos.web.api.ApiNotFoundController"/>
         <Bug pattern="SPRING_ENDPOINT"/>
     </Match>
     <Match>
+        <Class name="io.lytgos.web.api.HealthController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.InfoController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.MemoryController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.MessageController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.ProfileController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.SessionController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
         <Class name="io.lytgos.web.api.SystemInfoController"/>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Class name="io.lytgos.web.api.ToolController"/>
         <Bug pattern="SPRING_ENDPOINT"/>
     </Match>
     <Match>

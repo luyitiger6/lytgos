@@ -3,6 +3,7 @@ package io.lytgos.cli;
 import io.lytgos.core.workspace.Workspace;
 import io.lytgos.core.workspace.WorkspaceLocator;
 import io.lytgos.provider.ProviderConfig;
+import io.lytgos.runtime.WorkspaceConfig;
 import java.util.List;
 import picocli.CommandLine.Command;
 

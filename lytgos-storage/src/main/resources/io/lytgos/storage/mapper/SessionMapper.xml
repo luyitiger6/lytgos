@@ -11,4 +11,16 @@
     VALUES (#{key}, #{messages}, #{updatedAt})
     ON CONFLICT(key) DO UPDATE SET messages = excluded.messages, updated_at = excluded.updated_at
   </insert>
+
+  <select id="exists" resultType="int">
+    SELECT COUNT(1) FROM sessions WHERE key = #{key}
+  </select>
+
+  <select id="selectAll" resultType="io.lytgos.storage.mapper.SessionRow">
+    SELECT key, messages, updated_at AS updatedAt FROM sessions ORDER BY updated_at DESC, key
+  </select>
+
+  <delete id="delete">
+    DELETE FROM sessions WHERE key = #{key}
+  </delete>
 </mapper>

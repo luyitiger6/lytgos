@@ -109,6 +109,7 @@
         <module>lytgos-knowledge</module>
         <module>lytgos-tool</module>
         <module>lytgos-storage</module>
+        <module>lytgos-runtime</module>
         <module>lytgos-channel</module>
         <module>lytgos-web</module>
         <module>lytgos-cli</module>

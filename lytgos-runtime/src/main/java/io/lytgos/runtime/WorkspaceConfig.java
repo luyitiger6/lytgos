@@ -1,4 +1,4 @@
-package io.lytgos.cli;
+package io.lytgos.runtime;
 
 import io.lytgos.provider.ProviderConfig;
 import java.nio.file.Path;

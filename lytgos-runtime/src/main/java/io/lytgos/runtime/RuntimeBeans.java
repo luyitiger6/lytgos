@@ -1,4 +1,4 @@
-package io.lytgos.cli;
+package io.lytgos.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lytgos.core.audit.ToolInvocationAuditor;
@@ -17,12 +17,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * CLI 侧的装配 Bean。
+ * per-Agent 对象的装配 Bean。
  *
  * <p>{@link AgentRuntimeFactory} 是 per-Agent 对象的创建入口：它本身无状态， 单例登记；每次调用产出一份新的运行时。
+ *
+ * <p>{@link RuntimePool} 是 Web 侧的运行时缓存：按 Agent 懒创建、会话级串行、容器关闭时回收 （含 MCP 子进程）。它实现 {@link
+ * AgentInvoker} 端口，控制器只依赖接口。
  */
 @Configuration(proxyBeanMethods = false)
-public class CliBeans {
+public class RuntimeBeans {
+
+  @Bean
+  public AgentInvoker agentInvoker(AgentRuntimeFactory factory) {
+    return new RuntimePool(factory);
+  }
 
   @Bean
   public AgentRuntimeFactory agentRuntimeFactory(

@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lytgos 控制台</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #1c2128;
+    --muted: #5b6570;
+    --line: #d8dde3;
+    --accent: #2f6fde;
+    --ok: #1f8a4c;
+    --bad: #c0392b;
+    --code-bg: #f0f2f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b;
+      --card: #1c2026;
+      --ink: #e6e9ed;
+      --muted: #98a2ad;
+      --line: #2c333b;
+      --accent: #6ea2ff;
+      --ok: #4ccb83;
+      --bad: #ff7b6b;
+      --code-bg: #23282f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--card);
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .hint { color: var(--muted); font-size: 12px; }
+  .badge {
+    display: inline-block;
+    padding: 1px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .badge.up { color: var(--ok); border-color: var(--ok); }
+  .badge.down { color: var(--bad); border-color: var(--bad); }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 24px 48px;
+    display: grid;
+    gap: 16px;
+  }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  section h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); font-weight: 600; }
+  dl.info { display: grid; grid-template-columns: 160px 1fr; gap: 6px 16px; margin: 0; }
+  dl.info dt { color: var(--muted); }
+  dl.info dd { margin: 0; word-break: break-all; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tbody tr:last-child td { border-bottom: none; }
+  code, pre {
+    background: var(--code-bg);
+    border-radius: 6px;
+    font: 12px/1.5 "Cascadia Mono", Consolas, monospace;
+  }
+  code { padding: 1px 5px; }
+  pre { padding: 12px; overflow: auto; max-height: 320px; white-space: pre-wrap; word-break: break-word; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  select, button {
+    font: inherit;
+    color: var(--ink);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  .muted { color: var(--muted); }
+  .error { color: var(--bad); }
+  .clickable { cursor: pointer; color: var(--accent); }
+  .empty { color: var(--muted); padding: 8px 0; }
+  ul.tools { margin: 10px 0 0; padding-left: 20px; }
+  ul.tools li { margin: 3px 0; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 0 32px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>lytgos 控制台</h1>
+  <span id="health" class="badge">检查中</span>
+  <span id="version" class="muted"></span>
+  <span class="hint">只读管理台：展示服务状态，不提供写操作</span>
+</header>
+<main>
+  <section>
+    <h2>运行信息</h2>
+    <dl id="info" class="info"><dt>载入中</dt><dd></dd></dl>
+  </section>
+  <section>
+    <h2>Profile</h2>
+    <div id="profiles"></div>
+  </section>
+  <section>
+    <h2>工具</h2>
+    <div class="row">
+      <label class="muted" for="agent-select">Agent</label>
+      <select id="agent-select"></select>
+      <span id="tools-meta" class="muted"></span>
+    </div>
+    <ul id="tools" class="tools"></ul>
+  </section>
+  <section>
+    <h2>长期记忆</h2>
+    <div id="memory-meta" class="muted"></div>
+    <pre id="memory"></pre>
+  </section>
+  <section>
+    <h2>会话</h2>
+    <div class="row">
+      <span id="sessions-meta" class="muted"></span>
+      <button id="sessions-refresh" type="button">刷新</button>
+    </div>
+    <div id="sessions"></div>
+  </section>
+  <section>
+    <h2>会话详情</h2>
+    <div id="session-detail" class="empty">点击上方会话标识查看消息历史</div>
+  </section>
+</main>
+<footer>lytgos · 只读管理台</footer>
+<script>
+(function () {
+  "use strict";
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) { node.className = className; }
+    if (text !== undefined && text !== null) { node.textContent = String(text); }
+    return node;
+  }
+
+  function api(path) {
+    return fetch(path, { headers: { Accept: "application/json" } }).then(function (resp) {
+      return resp.json().then(function (body) {
+        if (!resp.ok || body.code !== "0") {
+          throw new Error((body && body.message) || ("请求失败: " + resp.status));
+        }
+        return body.data;
+      });
+    });
+  }
+
+  function fail(target, error) {
+    target.replaceChildren(el("div", "error", error.message || String(error)));
+  }
+
+  function renderHealth(data) {
+    var badge = document.getElementById("health");
+    badge.textContent = data.status === "UP" ? "UP" : data.status;
+    badge.className = "badge " + (data.status === "UP" ? "up" : "down");
+    document.getElementById("version").textContent = "v" + data.version;
+  }
+
+  function renderInfo(data) {
+    var list = document.getElementById("info");
+    list.replaceChildren();
+    var rows = [
+      ["应用名", data.appName],
+      ["版本", data.version],
+      ["JDK", data.javaVersion],
+      ["虚拟线程", data.virtualThread ? "是" : "否"],
+      ["工作区", data.workspaceRoot],
+      ["会话总数", data.sessions],
+      ["Provider", (data.providers || []).map(function (p) {
+        return p.name + " (" + p.model + ")";
+      }).join("、") || "未配置"]
+    ];
+    rows.forEach(function (row) {
+      list.appendChild(el("dt", null, row[0]));
+      list.appendChild(el("dd", null, row[1]));
+    });
+  }
+
+  function renderProfiles(data) {
+    var box = document.getElementById("profiles");
+    box.replaceChildren();
+    var items = data.items || [];
+    if (items.length === 0) {
+      box.appendChild(el("div", "empty", "工作区内还没有 Agent"));
+    } else {
+      var table = el("table");
+      var head = el("tr");
+      ["名称", "描述", "Provider", "模型", "工具"].forEach(function (name) {
+        head.appendChild(el("th", null, name));
+      });
+      table.appendChild(el("thead")).appendChild(head);
+      var body = el("tbody");
+      items.forEach(function (item) {
+        var tr = el("tr");
+        tr.appendChild(el("td", null, item.name));
+        tr.appendChild(el("td", "muted", item.description || "—"));
+        tr.appendChild(el("td", null, item.provider));
+        tr.appendChild(el("td", null, item.model));
+        tr.appendChild(el("td", null, (item.tools || []).join(", ") || "—"));
+        body.appendChild(tr);
+      });
+      table.appendChild(body);
+      box.appendChild(table);
+    }
+    var errors = data.errors || [];
+    if (errors.length > 0) {
+      box.appendChild(el("div", "error", "以下 Agent 解析失败："));
+      errors.forEach(function (entry) {
+        box.appendChild(el("div", "error", entry.name + "：" + entry.message));
+      });
+    }
+
+    var select = document.getElementById("agent-select");
+    select.replaceChildren();
+    items.forEach(function (item) {
+      var option = el("option", null, item.name);
+      option.value = item.name;
+      select.appendChild(option);
+    });
+    if (items.length > 0) { loadTools(items[0].name); }
+    select.addEventListener("change", function () { loadTools(select.value); });
+  }
+
+  function loadTools(agent) {
+    var list = document.getElementById("tools");
+    var meta = document.getElementById("tools-meta");
+    list.replaceChildren();
+    meta.textContent = "载入中…";
+    api("/api/v1/tools?agent=" + encodeURIComponent(agent)).then(function (data) {
+      meta.textContent = data.agent + " · " + data.tools.length + " 个工具";
+      data.tools.forEach(function (tool) {
+        var item = el("li");
+        item.appendChild(el("code", null, tool.name));
+        item.appendChild(document.createTextNode(" — " + (tool.description || "")));
+        list.appendChild(item);
+      });
+    }).catch(function (error) {
+      meta.textContent = "";
+      list.replaceChildren(el("li", "error", error.message));
+    });
+  }
+
+  function renderMemory(data) {
+    document.getElementById("memory-meta").textContent =
+      data.chars + " / " + data.maxChars + " 字符";
+    var pre = document.getElementById("memory");
+    if (data.content) {
+      pre.textContent = data.content;
+    } else {
+      pre.textContent = "（暂无记忆）";
+    }
+  }
+
+  function renderSessions(data) {
+    document.getElementById("sessions-meta").textContent = "共 " + data.total + " 个会话";
+    var box = document.getElementById("sessions");
+    box.replaceChildren();
+    if (!data.items || data.items.length === 0) {
+      box.appendChild(el("div", "empty", "还没有会话"));
+      return;
+    }
+    var table = el("table");
+    var head = el("tr");
+    ["会话标识", "消息数", "最后更新"].forEach(function (name) {
+      head.appendChild(el("th", null, name));
+    });
+    table.appendChild(el("thead")).appendChild(head);
+    var body = el("tbody");
+    data.items.forEach(function (item) {
+      var tr = el("tr");
+      var idCell = el("td");
+      var link = el("span", "clickable", item.sessionId);
+      link.addEventListener("click", function () { loadSession(item.sessionId); });
+      idCell.appendChild(link);
+      tr.appendChild(idCell);
+      tr.appendChild(el("td", null, item.messageCount));
+      tr.appendChild(el("td", "muted", item.updatedAt));
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    box.appendChild(table);
+  }
+
+  function loadSession(id) {
+    var box = document.getElementById("session-detail");
+    box.replaceChildren(el("div", "muted", "载入中…"));
+    api("/api/v1/sessions/" + encodeURIComponent(id)).then(function (data) {
+      box.replaceChildren();
+      box.appendChild(el("div", "muted", data.sessionId + " · " + data.messages.length + " 条消息"));
+      data.messages.forEach(function (message) {
+        var block = el("div");
+        block.appendChild(el("code", null, message.role));
+        block.appendChild(el("div", null, message.content));
+        box.appendChild(block);
+      });
+      if (data.messages.length === 0) {
+        box.appendChild(el("div", "empty", "该会话还没有消息"));
+      }
+    }).catch(function (error) { fail(box, error); });
+  }
+
+  api("/api/v1/health").then(renderHealth).catch(function (error) {
+    var badge = document.getElementById("health");
+    badge.textContent = "DOWN";
+    badge.className = "badge down";
+    badge.title = error.message;
+  });
+  api("/api/v1/info").then(renderInfo).catch(function (error) {
+    fail(document.getElementById("info"), error);
+  });
+  api("/api/v1/profiles").then(renderProfiles).catch(function (error) {
+    fail(document.getElementById("profiles"), error);
+  });
+  api("/api/v1/memory").then(renderMemory).catch(function (error) {
+    fail(document.getElementById("memory-meta"), error);
+  });
+  function refreshSessions() {
+    api("/api/v1/sessions").then(renderSessions).catch(function (error) {
+      fail(document.getElementById("sessions"), error);
+    });
+  }
+  refreshSessions();
+  document.getElementById("sessions-refresh").addEventListener("click", refreshSessions);
+})();
+</script>
+</body>
+</html>

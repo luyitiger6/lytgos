@@ -1,6 +1,7 @@
-package io.lytgos.cli;
+package io.lytgos.runtime;
 
 import io.lytgos.core.agent.ReActLoop;
+import io.lytgos.core.session.Session;
 import io.lytgos.core.tool.ToolRegistry;
 import io.lytgos.tool.mcp.McpServerManager;
 
@@ -10,7 +11,7 @@ import io.lytgos.tool.mcp.McpServerManager;
  * <p>为什么必须能关：MCP server 是独立子进程，不关就会在用户机器上留下孤儿。 {@code chat} 和 {@code tool list} 都绕不过这个对象，所以关闭点只有一处，
  * 不会出现「某个命令忘了回收」的缺口。
  */
-public final class AgentRuntime implements AutoCloseable {
+public final class AgentRuntime implements RuntimeHandle {
 
   private ReActLoop loop;
   private final ToolRegistry tools;
@@ -35,6 +36,12 @@ public final class AgentRuntime implements AutoCloseable {
       throw new IllegalStateException("该运行时只装配了工具，没有对话循环");
     }
     return loop;
+  }
+
+  /** {@link RuntimeHandle} 的实现：把一轮对话委托给已装配的循环。 */
+  @Override
+  public String run(Session session, String input) {
+    return loop().run(session, input);
   }
 
   /** 该 Agent 实际能看到的工具：内置工具 + 它声明的 MCP 工具，已按 tools 白名单筛过。 */

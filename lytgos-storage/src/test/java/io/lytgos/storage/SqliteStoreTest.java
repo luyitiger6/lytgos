@@ -12,6 +12,7 @@ import io.lytgos.core.audit.ToolInvocationRecord;
 import io.lytgos.core.chat.Message;
 import io.lytgos.core.session.Session;
 import io.lytgos.core.session.SessionStore;
+import io.lytgos.core.session.SessionSummary;
 import io.lytgos.storage.mapper.AuditMapper;
 import io.lytgos.storage.mapper.SessionMapper;
 import java.nio.file.Path;
@@ -20,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.List;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -179,6 +181,47 @@ class SqliteStoreTest {
   void missingSessionStartsEmpty() throws SQLException {
     assertTrue(sessionStore.get("cli:local:nobody").history().isEmpty());
     assertEquals(0, counts().sessions());
+  }
+
+  @Test
+  @DisplayName("空库列出空列表，exists 为 false")
+  void listsNothingOnEmptyDatabase() {
+    assertTrue(sessionStore.list().isEmpty());
+    assertFalse(sessionStore.exists("cli:local:nobody"));
+  }
+
+  @Test
+  @DisplayName("保存后列表含正确标识、消息数与更新时间")
+  void listsSavedSessionWithMessageCount() {
+    String key = "api:u1:default";
+    Session session = new Session(key);
+    session.append(Message.user("你好"));
+    session.append(Message.assistant("你好，有什么可以帮你"));
+    sessionStore.save(session);
+
+    List<SessionSummary> summaries = sessionStore.list();
+
+    assertEquals(1, summaries.size());
+    assertEquals(key, summaries.get(0).key());
+    assertEquals(2, summaries.get(0).messageCount());
+    assertFalse(summaries.get(0).updatedAt().isBlank(), "更新时间不能为空");
+    assertTrue(sessionStore.exists(key));
+  }
+
+  @Test
+  @DisplayName("归档后 exists 为 false、不出现在列表、行已删除")
+  void deleteRemovesSession() throws SQLException {
+    String key = "api:u1:archived";
+    Session session = new Session(key);
+    session.append(Message.user("准备被归档"));
+    sessionStore.save(session);
+
+    sessionStore.delete(key);
+
+    assertFalse(sessionStore.exists(key));
+    assertTrue(sessionStore.list().isEmpty());
+    assertEquals(0, counts().sessions());
+    assertTrue(sessionStore.get(key).history().isEmpty(), "归档后按 key 取仍给空历史");
   }
 
   /** 用同一个库文件重建容器：建表脚本与 Mapper 装配都会再跑一遍。 */

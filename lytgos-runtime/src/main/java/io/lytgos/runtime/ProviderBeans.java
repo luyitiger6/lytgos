@@ -1,4 +1,4 @@
-package io.lytgos.cli;
+package io.lytgos.runtime;
 
 import io.lytgos.core.audit.LlmCallAuditor;
 import io.lytgos.provider.ProviderRegistry;
