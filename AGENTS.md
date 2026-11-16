@@ -19,9 +19,9 @@
 | 存储 | SQLite 三张表（sessions / tool_invocations / llm_calls） | 已定 |
 | 模型接入 | Spring AI 只取协议转换 + schema 生成，**禁用自动工具执行** | 已定 |
 
-**当前状态：第 2 周能力已落地，审计链路已接入。** 12 个 Maven 模块已就位（11 个业务模块 + `lytgos-test`），`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；`lytgos init` / `chat` / `profile` / `provider` / `tool` 五个命令可用。第 1 周打通 ReAct 循环、Prompt 组装、会话落盘与沙箱；第 2 周补齐长期记忆（`memory/MEMORY.md` 启动注入 + `save_memory` / `recall_memory`）、`write_file` / `list_dir` 与受白名单约束的 `shell`，内置工具共七个，`Profile.tools` 白名单筛选对它们全部生效。`07-week1-acceptance.ps1` 六条与 `10-week2-acceptance.ps1` 六条均以真实操作链路为准。
+**当前能力以 `openspec/specs/` 的主 spec 为准，进度叙事见 `site/zh/docs/roadmap.md`。本文件不维护按周划分的完成度快照**——与 spec 重复的事实源必然漂移，任何 change 合并后都不得用本段的描述判断“做到第几周”。
 
-`add-audit-trail-and-context` 把会话存储切到 SQLite（`.lytgos/lytgos.db`），并接入 `llm_calls` / `tool_invocations` 审计（`05-audit-invariant` 已从空壳改为真实执行）。**第 3 周 Web 仍只有地基**：统一响应体、异常映射、未知路径统一 404、虚拟线程、OpenAPI 已就位，但设计 §7.2 的 10 个业务端点与 `lytgos serve` 尚未实现，不得表述为「第 3 周完成」。
+稳定事实：12 个 Maven 模块（11 个业务模块 + `lytgos-test`）；`mvn clean package` 产出 `lytgos-cli-boot.jar` 与 `lytgos.jar`；CLI 提供 `init` / `chat` / `profile` / `provider` / `tool` / `serve` 六个命令；会话与审计数据存于 SQLite（`.lytgos/lytgos.db`），`llm_calls` / `tool_invocations` 第一天起写入；`lytgos serve` 默认端口 8989，`lytgos.jar` 入口 9898。端到端验收以 `07` / `08` / `10` / `11` / `12` / `14` 号闸门的真实操作链路为准。
 
 `harness\run-all.ps1` 的结论以实际退出码为准：07/08/10 需要真实 `DEEPSEEK_API_KEY`（08 另需 `AMAP_MCP_KEY`），缺 key 时对应条目记 NOT_READY/SKIP，总闸门返回 1；按硬规则 3，此时**不得报告「完整验收通过」**。运行构建与闸门必须让 `JAVA_HOME` 指向 JDK 21：本机 Machine 级为 `C:\jdk-17`，不覆盖时 02-test 会报 `class file version 65.0 ... up to 61.0`（JDK 17 fork 加载 JDK 21 字节码）；`02-test` 与 `run-all` 已接入 `harness/lib/JdkGuard.ps1` 前置校验，会在跑 mvn 前直接指出 JDK 不足，同一条命令内注入 `$env:JAVA_HOME='C:\jdk21'` 即可。注意：`AMAP_MCP_KEY` 等变量若在 IDE 启动后才 setx，子终端进程读不到，需在同一命令内从 User 作用域注入后再跑闸门。
 
@@ -89,6 +89,8 @@ provider name → `ChatModel` 是一张**启动时构造的显式 Map**，来自
                 ↓ CI 通过 + 人工审阅
                 ↓ ⚠️ 合并与打 tag 都在远程，本地 main 不得产生未推送提交
 ⑥ 归档          /opsx:archive
+                ↓ ⚠️ 归档前复读本文件第 1 节的状态段：确认没有过期的完成度断言
+                ↓ 需要改就随本次归档一起提交——闸门清单行有 00 闸门强制，状态段只能靠这一步
 ```
 
 改动分级：纯内部重构可只写 proposal + tasks；涉及对外行为变化必须带 `specs/` delta。
