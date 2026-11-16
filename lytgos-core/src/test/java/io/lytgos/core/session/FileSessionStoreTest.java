@@ -1,6 +1,7 @@
 package io.lytgos.core.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -87,6 +88,50 @@ class FileSessionStoreTest {
       assertTrue(names.get(0).endsWith(".json"));
       assertTrue(names.get(0).indexOf(':') < 0, "文件名里不能出现冒号: " + names.get(0));
     }
+  }
+
+  @Test
+  @DisplayName("空目录列出空列表，exists 为 false")
+  void listsNothingOnEmptyDirectory() {
+    FileSessionStore store = new FileSessionStore(dir, new ObjectMapper());
+
+    assertTrue(store.list().isEmpty());
+    assertFalse(store.exists("cli:local:nobody"));
+  }
+
+  @Test
+  @DisplayName("保存后列表含正确标识、消息数与更新时间")
+  void listsSavedSessionWithMessageCount() {
+    String key = "api:u1:default";
+    FileSessionStore store = new FileSessionStore(dir, new ObjectMapper());
+    Session session = store.get(key);
+    session.append(Message.user("你好"));
+    session.append(Message.assistant("你好，有什么可以帮你"));
+    store.save(session);
+
+    List<SessionSummary> summaries = new FileSessionStore(dir, new ObjectMapper()).list();
+
+    assertEquals(1, summaries.size());
+    assertEquals(key, summaries.get(0).key());
+    assertEquals(2, summaries.get(0).messageCount());
+    assertFalse(summaries.get(0).updatedAt().isBlank(), "更新时间不能为空");
+    assertTrue(store.exists(key));
+  }
+
+  @Test
+  @DisplayName("归档后 exists 为 false、不出现在列表、文件已删除")
+  void deleteRemovesSession() {
+    String key = "api:u1:archived";
+    FileSessionStore store = new FileSessionStore(dir, new ObjectMapper());
+    Session session = store.get(key);
+    session.append(Message.user("准备被归档"));
+    store.save(session);
+
+    store.delete(key);
+
+    assertFalse(store.exists(key));
+    assertTrue(new FileSessionStore(dir, new ObjectMapper()).list().isEmpty());
+    assertTrue(store.get(key).history().isEmpty(), "归档后缓存也要清掉");
   }
 
   @Test

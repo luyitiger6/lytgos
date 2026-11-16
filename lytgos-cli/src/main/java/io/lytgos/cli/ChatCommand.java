@@ -3,6 +3,8 @@ package io.lytgos.cli;
 import io.lytgos.core.agent.ReActLoop;
 import io.lytgos.core.session.Session;
 import io.lytgos.core.session.SessionStore;
+import io.lytgos.runtime.AgentRuntime;
+import io.lytgos.runtime.AgentRuntimeFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 

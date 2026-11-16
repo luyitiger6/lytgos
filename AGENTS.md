@@ -152,7 +152,7 @@ lytgos/
 
 12 个模块目录与根 `pom.xml` 已就位（含不含生产代码的 `lytgos-test`）：各模块含 `pom.xml` 与 `src/main/java`，依赖方向为「所有模块单向依赖 `lytgos-core`，`lytgos-boot` 聚合全部」；产物为 `lytgos-boot/target/lytgos.jar`。新增业务模块时必须在 `lytgos-test/pom.xml` 登记 test 依赖，否则 ArchUnit 扫不到它（04 闸门会拦）。
 
-<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract 07-week1-acceptance 08-mcp-acceptance 09-startup-budget 10-week2-acceptance 11-web-smoke 12-log-trace 13-dependency-vuln -->
+<!-- harness-checks: 00-layout-check 01-compile 02-test 03-static-guard 04-dependency-direction 05-audit-invariant 06-change-contract 07-week1-acceptance 08-mcp-acceptance 09-startup-budget 10-week2-acceptance 11-web-smoke 12-log-trace 13-dependency-vuln 14-web-api-acceptance -->
 
 上面这行是**闸门清单的机器可读副本**：新增或删除闸门时同步更新，`00-layout-check.ps1` 会把它与 `harness/checks/*.ps1` 的实际文件比对，不一致直接退出码 1。
 

@@ -20,6 +20,13 @@
             <artifactId>lytgos-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 控制器要读工作区、会话、记忆、Profile 与运行时，这些装配都在 runtime；
+             反过来 runtime 不依赖 web，serve 命令由 lytgos-cli 负责把两者接起来 -->
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- HTTP 接入层：控制器、统一响应体与全局异常都编译在本模块 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

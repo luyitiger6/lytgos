@@ -27,9 +27,26 @@
 | `08-mcp-acceptance` | MCP 两种形态走同一条治理路径：三条路径（内置 / 远程 URL / 本地 stdio）各留 `tool_call` 日志、来源标注、按形态的边界提示、命令白名单与域名白名单、无残留子进程 | 生效（需 jar + 测试夹具；第 1/2/3 条需 `DEEPSEEK_API_KEY`，第 2/4/5 条的远程部分需 `AMAP_MCP_KEY`） |
 | `09-startup-budget` | L0 `--version` 30 次采样最小值 ≤ 900ms 且 `-verbose:class` 不含 `org.springframework.context.*`；L1 `provider list`（无工作区快速失败）10 次采样最小值 ≤ 2500ms | 生效（需 `lytgos-cli/target/lytgos-cli-boot.jar`） |
 | `10-week2-acceptance` | 第 2 周端到端：init+空 `MEMORY.md` → `save_memory` 写入 → 移走 sessions 后新进程答出注入内容 → `write_file` 回读 → `shell java -version` → 删 `MEMORY.md` 后对话仍退出码 0 | 生效（需 jar + `DEEPSEEK_API_KEY`） |
-| `11-web-smoke` | Web 地基冒烟：启动 `lytgos-boot/target/lytgos.jar`（`--server.port=18080`），九条断言 health 三组探针、prometheus `jvm_` 指标、`system/info`、未知 `/api/**` 统一 404、`/v3/api-docs`、`X-Request-Id` 复用与生成 | 生效（需 jar；不依赖任何外部 key） |
+| `11-web-smoke` | Web 地基冒烟：启动 `lytgos-boot/target/lytgos.jar`（`--server.port=18090`），九条断言 health 三组探针、prometheus `jvm_` 指标、`system/info`、未知 `/api/**` 统一 404、`/v3/api-docs`、`X-Request-Id` 复用与生成 | 生效（需 jar；不依赖任何外部 key） |
 | `12-log-trace` | 日志契约端到端：dev 默认 profile 下断言日志为人类可读文本、业务 DEBUG 可见、探针行携带请求 `X-Request-Id`；prod profile 下断言每个 JSON 行可解析、启动行含 timestamp/level/logger/message、请求行 `traceId` 等于请求头 | 生效（需 jar；不依赖任何外部 key） |
 | `13-dependency-vuln` | `mvn -B -Psecurity org.owasp:dependency-check-maven:check`：依赖树中存在 CVSS≥7 的已知漏洞即 FAIL；缺构建产物时 NOT_READY | 生效（需 mvn + 上一次构建的 `target/`；首次扫描需联网下载 NVD 数据） |
+| `14-web-api-acceptance` | `serve` 端到端：临时工作区 `init` 后启动 `lytgos-cli-boot.jar serve --port 18083`，12 条不依赖模型的断言（health / info / profiles / tools / memory / sessions 四端点 / 未知路径 404 / admin / OpenAPI 新路径）+ 3 条模型断言（发消息往返 / 跨请求上下文 / 无状态 invoke） | 生效（需 jar；模型三条需 `DEEPSEEK_API_KEY`，缺 key 时记 SKIP 并返回 2） |
+
+### 端口分配
+
+全仓端口只认这一张表（出处：`openspec/changes/add-web-service/design.md` D9），闸门与脚本不再就近挑号：
+
+| 用途 | 端口 | 性质 |
+|---|---|---|
+| `lytgos.jar`（boot 入口） | 9898 | 常驻，`application.yaml` |
+| `lytgos-channel` | 8081 | 常驻 |
+| `lytgos serve` | **8989** | 常驻，默认值 + `--port` 可覆盖 |
+| 11 号闸门 `web-smoke` | **18090** | 测试期临时（从 18080 迁入） |
+| 12 号闸门 `log-trace` | 18081 / 18082 | 测试期临时（dev / prod） |
+| 14 号闸门 `web-api-acceptance` | **18083** | 测试期临时 |
+| 手工验证 | **18084** | 实施期临时 |
+| **预留 Nacos** | **18080** | **不被任何本项目脚本占用** |
+| 不推荐使用 | 8080 | VMware vmnat 常占 |
 
 `harness/lib/` 放闸门共享的非闸门脚本：`JdkGuard.ps1` 被 `02-test` 与 `run-all.ps1` dot-source，比对根 `pom.xml` 的 `<java.version>` 与 `mvn -v` 报出的 Java 主版本，不足即 `exit 1` 并打印当前 `JAVA_HOME` 与修复命令。它不占闸门编号，也不进入 `checks/` 与机器可读清单。
 
@@ -49,11 +66,13 @@
 
 `10` 跑的是第 2 周的用户真实动作：init 后把 `allowed-commands` 配成含 `java` → `chat` 显式调 `save_memory` → **移走 `sessions/`** 后新进程再问同一事实 → `chat` 调 `write_file` 写 `output/gate.txt` → `chat` 调 `shell` 执行 `java -version`。第 3 条移走会话是刻意的：会话还在，回答可能来自历史而不是 `MEMORY.md` 的启动注入；第 5 条的工具结果不回显到进程输出，判据取会话落盘 JSON 里的 `exit=0` 与 `version`。模型没按指令调工具时，失败详情会带上最后一次回复，用于区分「实现坏了」与「模型没照做」。第 6 条把 `memory/MEMORY.md` 移出后跑 `chat -m 你好`，要求退出码 0、stderr 无 `ERROR`/`Exception`、且不顺手重建文件——这是 memory spec「记忆文件缺失不阻断对话」的机器判据。
 
-`11` 启动的是 Web 入口 `lytgos-boot/target/lytgos.jar`（`--server.port=18080` 覆盖默认端口），不依赖任何 API key：health 三组探针、`/actuator/prometheus` 的 `jvm_` 指标、`/api/v1/system/info`（`code=0` 且 `virtualThread=true`）、未知 `/api/**` 的 `LYTGOS_NOT_FOUND`、`/v3/api-docs` 含 `system/info`、`X-Request-Id` 复用与生成共九条。两个踩过的坑已固化在脚本里：PS 5.1 对 actuator 的 `vnd.spring-boot.actuator.v3+json` 返回 `byte[]` 需手动解码；`Start-Process` 返回的 PID 与真实 java 进程可能不一致，收尸按「端口 + 命令行双重校验」，只杀本闸门的 jar 进程。
+`11` 启动的是 Web 入口 `lytgos-boot/target/lytgos.jar`（`--server.port=18090` 覆盖默认端口），不依赖任何 API key：health 三组探针、`/actuator/prometheus` 的 `jvm_` 指标、`/api/v1/system/info`（`code=0` 且 `virtualThread=true`）、未知 `/api/**` 的 `LYTGOS_NOT_FOUND`、`/v3/api-docs` 含 `system/info`、`X-Request-Id` 复用与生成共九条。两个踩过的坑已固化在脚本里：PS 5.1 对 actuator 的 `vnd.spring-boot.actuator.v3+json` 返回 `byte[]` 需手动解码；`Start-Process` 返回的 PID 与真实 java 进程可能不一致，收尸按「端口 + 命令行双重校验」，只杀本闸门的 jar 进程。
 
 `12` 必须起两个进程：logback 的 `<springProfile>` 只在日志上下文初始化时求值，一个 JVM 只有一组 active profile，进程内切不出另一套格式。dev 阶段用默认 profile + 不加任何 `--logging` 覆盖，判据 1 依赖 dev 默认把 `io.lytgos` 开到 DEBUG（有人删掉那条 logger 覆盖时这里会 FAIL 而不是静默跳过）；prod 阶段用 `--spring.profiles.active=prod --logging.level.io.lytgos=DEBUG`。prod 的「每行可 JSON」只校验以 `{` 开头的行——第三方库可能往 stdout 打非 JSON 文本，把它算作日志会让闸门因别人的输出而假红。`12` 的脚本首跑曾因无 BOM 被 PS 5.1 按 GBK 解码，大面积 ParserError，见下方编码约定。
 
 `13` 补的是本地验收与 CI 的口径差：`.github/workflows/verify.yml` 的 `security` job 一直跑 `mvn -B verify -Psecurity`，而 02-test 只跑 `mvn verify`（`dependency-check.skip=true` 是默认值）—— 本地全绿、CI 却可能挂在 CVSS 10.0 的传递依赖上。只执行插件目标而不重跑完整生命周期：compile / test / 静态检查已由 01 / 02 负责，重复执行只会把 run-all 拉长几分钟；代价是它依赖上一次构建的 `target\`，缺产物时如实返回 NOT_READY。命令自带 `-Psecurity`，避免调用方忘加 profile 导致「扫描被 skip 却报通过」。闸门不提供跳过开关：确实无法升级的依赖只能写进 `dependency-check-suppressions.xml`，并附 CVE、坐标、理由与复查日期。
+
+`14` 是 `serve` 命令的端到端验收，也是第一个从 CLI 入口起 Web 服务的闸门：复用与 `09` 同一个 `lytgos-cli-boot.jar`，在临时工作区里 `init` 后 `serve --port 18083`，断言 REST 端点、只读管理台与 OpenAPI 文档。12 条不依赖模型；M1/M2/M3 直接与真实模型对话（M2 先报名字再问名字，验证跨请求上下文），缺 `DEEPSEEK_API_KEY` 时记 SKIP 并返回 2。收尸按「端口 + 命令行」双重校验，匹配 `--port 18083` 而非 `--server.port`——`serve` 只是把端口转成 Spring 参数，进程命令行里只有前者。**踩过的坑**：`Content-Type: application/json` 不带 charset 时，PS 5.1 的 `Invoke-WebRequest` 会把中文按 ISO-8859-1 解成乱码（SQLite 里落盘的「张三」完全正确，闸门却报 M2 失败），所以 `Invoke-Api` 一律用 `RawContentStream.ToArray()` 按 UTF-8 手工解码。
 
 **测量方式有坑**：不能用 `Start-Process -RedirectStandardOutput` 计时，PowerShell 的流重定向会给每次测量注入约 350ms 开销（同一 jar 实测 1038ms vs 650ms），足以把 PASS 判成 FAIL。09 用 `System.Diagnostics.Process` 直接起进程计时，用 PATH 上的 `java`（与 07/08 验收调用点一致）。
 

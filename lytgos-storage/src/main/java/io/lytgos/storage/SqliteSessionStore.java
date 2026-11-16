@@ -5,10 +5,13 @@ import io.lytgos.core.LytgosException;
 import io.lytgos.core.chat.Message;
 import io.lytgos.core.session.Session;
 import io.lytgos.core.session.SessionStore;
+import io.lytgos.core.session.SessionSummary;
 import io.lytgos.core.util.LogSafe;
 import io.lytgos.storage.mapper.SessionMapper;
+import io.lytgos.storage.mapper.SessionRow;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,6 +60,54 @@ public final class SqliteSessionStore implements SessionStore {
           "会话已保存: key={} messages={}", LogSafe.sanitize(session.key()), session.history().size());
     } catch (PersistenceException | IOException e) {
       throw new LytgosException("会话落盘失败: " + session.key(), e);
+    }
+  }
+
+  @Override
+  public boolean exists(String key) {
+    try {
+      return mapper.exists(key) > 0;
+    } catch (PersistenceException e) {
+      throw new LytgosException("会话查询失败: " + key, e);
+    }
+  }
+
+  @Override
+  public List<SessionSummary> list() {
+    List<SessionRow> rows;
+    try {
+      rows = mapper.selectAll();
+    } catch (PersistenceException e) {
+      throw new LytgosException("会话列表读取失败", e);
+    }
+    List<SessionSummary> summaries = new ArrayList<>(rows.size());
+    for (SessionRow row : rows) {
+      summaries.add(new SessionSummary(row.key(), messageCount(row), row.updatedAt()));
+    }
+    return summaries;
+  }
+
+  @Override
+  public void delete(String key) {
+    try {
+      mapper.delete(key);
+      cache.remove(key);
+      LOG.debug("会话已归档: key={}", LogSafe.sanitize(key));
+    } catch (PersistenceException e) {
+      throw new LytgosException("会话归档失败: " + key, e);
+    }
+  }
+
+  /** 单行解析失败只让这条计为 0 条消息：一条写坏的记录不该把整个列表变成 500，但必须留日志以便定位。 */
+  private int messageCount(SessionRow row) {
+    if (row.messages() == null || row.messages().isBlank()) {
+      return 0;
+    }
+    try {
+      return objectMapper.readValue(row.messages(), Message[].class).length;
+    } catch (IOException e) {
+      LOG.warn("会话消息不是合法 JSON，列表按 0 条计: key={}", LogSafe.sanitize(row.key()));
+      return 0;
     }
   }
 

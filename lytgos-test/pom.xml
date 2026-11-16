@@ -61,6 +61,12 @@
         </dependency>
         <dependency>
             <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-runtime</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lytgos</groupId>
             <artifactId>lytgos-channel</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

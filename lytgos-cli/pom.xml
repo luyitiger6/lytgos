@@ -15,6 +15,25 @@
     <description>命令行入口：子命令解析与运行模式选择</description>
 
     <dependencies>
+        <!-- 业务装配下沉在 lytgos-runtime；下面六个业务模块是 CLI 命令直接引用到的类型 -->
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- serve 子命令：REST 端点与管理台都编译在 lytgos-web，入口只负责把它拉起来。
+             反向不成立（web 不依赖 cli），否则入口层会被库引用。 -->
+        <dependency>
+            <groupId>io.lytgos</groupId>
+            <artifactId>lytgos-web</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- serve 的 Servlet 容器与自动配置；CLI 其余子命令走懒启动（LazyContext），
+             不碰这里的任何类，version / help 两条命令的启动预算不受影响。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.lytgos</groupId>
             <artifactId>lytgos-core</artifactId>

@@ -10,10 +10,15 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,6 +98,68 @@ public final class FileSessionStore implements SessionStore {
     }
     return session;
   }
+
+  @Override
+  public boolean exists(String key) {
+    return Files.isRegularFile(fileOf(key));
+  }
+
+  /**
+   * 遍历 {@code sessions/*.json} 反序列化取消息数；最后更新时间取文件修改时间。
+   *
+   * <p>坏文件不中断列表：它与 {@link #load(String)} 同口径——一条写坏的记录不应让整个列表变 500， 但这条不计入结果（{@code load} 会把它改名留证）。
+   */
+  @Override
+  public List<SessionSummary> list() {
+    List<FileEntry> entries = new ArrayList<>();
+    try (Stream<Path> files = Files.list(directory)) {
+      for (Path file : files.filter(FileSessionStore::isSessionFile).toList()) {
+        FileEntry entry = summarize(file);
+        if (entry != null) {
+          entries.add(entry);
+        }
+      }
+    } catch (IOException e) {
+      throw new LytgosException("会话列表读取失败: " + directory, e);
+    }
+    entries.sort(Comparator.comparingLong(FileEntry::lastModifiedMillis).reversed());
+    return entries.stream().map(FileEntry::summary).toList();
+  }
+
+  @Override
+  public void delete(String key) {
+    try {
+      Files.deleteIfExists(fileOf(key));
+      cache.remove(key);
+      LOG.debug("会话已归档: key={}", LogSafe.sanitize(key));
+    } catch (IOException e) {
+      throw new LytgosException("会话归档失败: " + key, e);
+    }
+  }
+
+  private FileEntry summarize(Path file) {
+    try {
+      Snapshot snapshot =
+          mapper.readValue(Files.readString(file, StandardCharsets.UTF_8), Snapshot.class);
+      List<Message> messages = snapshot.messages() == null ? List.of() : snapshot.messages();
+      FileTime modified = Files.getLastModifiedTime(file);
+      String updatedAt = Instant.ofEpochMilli(modified.toMillis()).toString();
+      return new FileEntry(
+          new SessionSummary(snapshot.key(), messages.size(), updatedAt), modified.toMillis());
+    } catch (IOException e) {
+      LOG.warn("会话文件不可读，已从列表跳过: {}", LogSafe.sanitize(file.getFileName()));
+      return null;
+    }
+  }
+
+  private static boolean isSessionFile(Path file) {
+    Path name = file.getFileName();
+    // getFileName() 对无 name 元素的路径（如文件系统根）返回 null，先判空再解引用
+    return name != null && name.toString().endsWith(".json") && Files.isRegularFile(file);
+  }
+
+  /** 摘要与排序键分开携带：摘要里的 ISO 字符串不适合作为毫秒级排序依据。 */
+  private record FileEntry(SessionSummary summary, long lastModifiedMillis) {}
 
   private Path fileOf(String key) {
     String name =

@@ -26,7 +26,7 @@ public class SystemInfoController {
   }
 
   /** 版本号来自 jar 清单的 Implementation-Version；直接跑 classes 时退化为 dev。 */
-  private static String version() {
+  static String version() {
     String version = SystemInfoController.class.getPackage().getImplementationVersion();
     return version == null ? "dev" : version;
   }

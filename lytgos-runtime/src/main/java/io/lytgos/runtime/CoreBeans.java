@@ -1,4 +1,4 @@
-package io.lytgos.cli;
+package io.lytgos.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariConfig;
@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
@@ -44,9 +45,23 @@ public class CoreBeans {
     return new ObjectMapper();
   }
 
+  /**
+   * 工作区起点由 {@code lytgos.root} 决定：属性非空时以它为起点向上发现，为空时用进程启动目录。
+   *
+   * <p>用环境属性而不是方法内硬编码目录：Spring 的属性源会把 {@code LYTGOS_ROOT} 环境变量与 {@code --lytgos.root}
+   * 命令行参数都解析成同一个属性名，命令行优先级最高。{@code serve} 的 {@code --root} 因此不需要单独的 Bean。
+   */
   @Bean
-  public WorkspaceLocator workspaceLocator() {
-    return new WorkspaceLocator(Path.of(System.getProperty("user.dir")));
+  public WorkspaceLocator workspaceLocator(@Value("${lytgos.root:}") String configuredRoot) {
+    return new WorkspaceLocator(startDir(configuredRoot));
+  }
+
+  /** 拆出来只为可单测：路径选择不该靠启动整个容器才能验证。 */
+  static Path startDir(String configuredRoot) {
+    if (configuredRoot == null || configuredRoot.isBlank()) {
+      return Path.of(System.getProperty("user.dir"));
+    }
+    return Path.of(configuredRoot);
   }
 
   /**

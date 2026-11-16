@@ -27,8 +27,10 @@
         「日志」，闸门就会因为别人的输出而假红。
       - dev 判据依赖 D8 的「dev 默认把 io.lytgos 开到 DEBUG」；有人删掉那两条 logger
         覆盖时，本闸门会在判据 1 上报 FAIL，而不是静默跳过。
-      - 端口用 18081 / 18082，避开 11 号闸门的 18080 与本机常见端口；收尸按
+      - 端口用 18081 / 18082，避开 11 号闸门的 18090 与本机常见端口；收尸按
         「端口 + 命令行双重校验」，只终止本闸门的 jar 进程。
+      - 启动时用 --lytgos.root 指向临时空工作区：Web 入口已装配业务 Bean，需要工作区；
+        不能拿仓库根当工作区（它是源码目录，且干净克隆里没有 .lytgos）。
 #>
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -48,10 +50,20 @@ if (-not $java) {
 $devPort = 18081
 $prodPort = 18082
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$tempRoot = Join-Path $env:TEMP "lytgos-log-trace-root-$stamp"
 $devLog = Join-Path $env:TEMP "lytgos-log-trace-dev-$stamp.log"
 $devErr = Join-Path $env:TEMP "lytgos-log-trace-dev-$stamp.err"
 $prodLog = Join-Path $env:TEMP "lytgos-log-trace-prod-$stamp.log"
 $prodErr = Join-Path $env:TEMP "lytgos-log-trace-prod-$stamp.err"
+
+# 最小工作区：只要 .lytgos/config.yaml 存在且是合法 YAML，本闸门不碰模型与 Agent。
+New-Item -ItemType Directory -Force -Path (Join-Path $tempRoot '.lytgos') | Out-Null
+@'
+providers: {}
+sandbox:
+  allowed-domains: []
+  allowed-commands: []
+'@ | Set-Content -LiteralPath (Join-Path $tempRoot '.lytgos/config.yaml') -Encoding UTF8
 
 $passes = @()
 $failures = @()
@@ -86,7 +98,7 @@ function ConvertFrom-JsonSafe {
 
 function Start-App {
     param([int]$Port, [string[]]$ExtraArgs, [string]$LogPath, [string]$ErrPath)
-    $argList = @('-jar', "`"$jar`"", "--server.port=$Port") + $ExtraArgs
+    $argList = @('-jar', "`"$jar`"", "--server.port=$Port", "--lytgos.root=$tempRoot") + $ExtraArgs
     return Start-Process -FilePath $java.Source -ArgumentList $argList `
         -RedirectStandardOutput $LogPath -RedirectStandardError $ErrPath -PassThru
 }
@@ -232,5 +244,6 @@ Remove-Item -LiteralPath $devLog -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $devErr -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $prodLog -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $prodErr -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ("RESULT: 六条全 PASS（端口 {0} / {1} 已释放）" -f $devPort, $prodPort) -ForegroundColor Green
 exit 0

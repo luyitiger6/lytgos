@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +86,16 @@ public final class AgentLoader {
 
   /** 加载指定名称的 Agent。 */
   public AgentDefinition load(Path agentsRoot, String agentName) {
+    validateName(agentName);
+    return load(agentsRoot.resolve(agentName).resolve("AGENT.md"));
+  }
+
+  /**
+   * 校验 Agent 名称是否可作为单层目录名。
+   *
+   * <p>独立成静态方法供调用方（如 API 会话标识）复用：名称要落进文件路径， 多一处手写的「不许含 ..」就是多一处可能漏判的地方。
+   */
+  public static void validateName(String agentName) {
     if (agentName == null
         || agentName.isBlank()
         || agentName.contains("/")
@@ -92,7 +103,64 @@ public final class AgentLoader {
         || agentName.contains("..")) {
       throw new LytgosException.InvalidAgentDefinitionException("Agent 名称不合法: " + agentName);
     }
-    return load(agentsRoot.resolve(agentName).resolve("AGENT.md"));
+  }
+
+  /**
+   * 列出工作区内全部 Agent 定义。
+   *
+   * <p>目录不存在或不是目录时返回空结果：新工作区还没建 agents 是常态，不是故障。 单个 Agent 解析失败只进 {@code errors}，不影响其他条目——「一个写坏的定义拖垮
+   * 整个列表」正是该端点要避免的事。
+   *
+   * <p>条目按目录名排序：列表要可对比，每次返回不同顺序等于没法肉眼 diff。
+   */
+  public AgentCatalog catalog(Path agentsRoot) {
+    if (agentsRoot == null || !Files.isDirectory(agentsRoot)) {
+      return AgentCatalog.empty();
+    }
+    List<AgentCatalog.Entry> items = new ArrayList<>();
+    List<AgentCatalog.EntryError> errors = new ArrayList<>();
+    List<Path> directories;
+    try (var stream = Files.list(agentsRoot)) {
+      directories =
+          stream
+              .filter(Files::isDirectory)
+              .sorted(Comparator.comparing(AgentLoader::directoryName))
+              .toList();
+    } catch (IOException e) {
+      throw new LytgosException.InvalidConfigurationException("无法列出 Agent 目录: " + agentsRoot);
+    }
+    for (Path directory : directories) {
+      String name = directoryName(directory);
+      try {
+        Profile profile = load(directory.resolve("AGENT.md")).profile();
+        items.add(
+            new AgentCatalog.Entry(
+                name,
+                profile.description(),
+                profile.provider().name(),
+                profile.provider().model(),
+                profile.tools()));
+      } catch (RuntimeException e) {
+        // 文件系统里的目录名不受我们控制：读不了、是文件、YAML 写坏，都应落到 errors 而不是中断整个列表
+        errors.add(new AgentCatalog.EntryError(name, describe(e)));
+      }
+    }
+    return new AgentCatalog(items, errors);
+  }
+
+  /**
+   * 取目录名用于排序与展示。
+   *
+   * <p>{@code getFileName()} 对无 name 元素的路径（如文件系统根）返回 null， 直接解引用会被 SpotBugs 判为可能的 NPE；回退到全路径只为不丢条目。
+   */
+  private static String directoryName(Path path) {
+    Path name = path.getFileName();
+    return name == null ? path.toString() : name.toString();
+  }
+
+  private static String describe(RuntimeException error) {
+    String message = error.getMessage();
+    return message == null || message.isBlank() ? error.getClass().getSimpleName() : message;
   }
 
   private Map<String, Object> parseYaml(String frontYaml, Path agentFile) {

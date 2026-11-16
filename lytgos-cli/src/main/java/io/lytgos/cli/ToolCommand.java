@@ -1,6 +1,8 @@
 package io.lytgos.cli;
 
 import io.lytgos.core.chat.ToolSpec;
+import io.lytgos.runtime.AgentRuntime;
+import io.lytgos.runtime.AgentRuntimeFactory;
 import java.util.List;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
